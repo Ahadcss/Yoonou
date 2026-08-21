@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yoonou — Le transport de marchandises, à votre voie</title>
-<meta name="description" content="Yoonou connecte particuliers, entreprises et transporteurs partout au Sénégal : moto, voiture, SUV, minivan, camionnette ou camion, selon votre marchandise.">
+<meta name="description" content="Yoonou connecte particuliers, entreprises et transporteurs partout au Sénégal : moto, tricycle, voiture, SUV, minivan, pick-up, camionnette ou camion, selon votre marchandise.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -189,18 +189,16 @@
 
   /* FLEET */
   .fleet{background:var(--indigo-deep); color:var(--sand);}
-  .fleet-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .fleet-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
   @media(max-width:900px){ .fleet-grid{grid-template-columns:1fr 1fr;} }
   @media(max-width:560px){ .fleet-grid{grid-template-columns:1fr;} }
   .fleet-card{
     background:var(--indigo-panel); border-radius:8px; padding:28px 24px;
     border-top:3px solid var(--laterite); transition:transform .2s ease;
   }
-  .fleet-card:nth-child(2){border-top-color:var(--teal);}
-  .fleet-card:nth-child(3){border-top-color:var(--gold);}
-  .fleet-card:nth-child(4){border-top-color:var(--laterite-bright);}
-  .fleet-card:nth-child(5){border-top-color:var(--teal);}
-  .fleet-card:nth-child(6){border-top-color:var(--gold);}
+  .fleet-card:nth-child(4n+2){border-top-color:var(--teal);}
+  .fleet-card:nth-child(4n+3){border-top-color:var(--gold);}
+  .fleet-card:nth-child(4n+4){border-top-color:var(--laterite-bright);}
   .fleet-card:hover{transform:translateY(-5px);}
   .fleet-card .em{font-size:34px; margin-bottom:12px;}
   .fleet-card h3{font-size:19px; margin-bottom:4px;}
@@ -286,7 +284,7 @@
   @media(max-width:760px){ .contact-grid{grid-template-columns:1fr;} }
   .contact-cards{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
   @media(max-width:480px){ .contact-cards{grid-template-columns:1fr;} }
-  .c-card{background:var(--indigo-panel); border-radius:8px; padding:20px; transition:transform .2s ease;}
+  .c-card{background:var(--indigo-panel); border-radius:8px; padding:20px; transition:transform .2s ease; display:block;}
   .c-card:hover{transform:translateY(-3px);}
   .c-card .em{font-size:20px; margin-bottom:8px;}
   .c-card .lbl{font-family:'JetBrains Mono'; font-size:11px; color:var(--gold); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px;}
@@ -395,7 +393,7 @@
   <div class="wrap">
     <div class="eyebrow">Bientôt au Sénégal</div>
     <h1>Votre marchandise a une destination.<br><em>Yoonou</em> lui trace la voie.</h1>
-    <p class="lead">Moto, voiture, SUV, minivan, camionnette ou camion : un transporteur partenaire prend en charge vos marchandises, où que vous soyez au Sénégal, du point de récupération jusqu'à la livraison.</p>
+    <p class="lead">Moto, tricycle, voiture, SUV, minivan, pick-up, camionnette ou camion : un transporteur partenaire prend en charge vos marchandises, où que vous soyez au Sénégal, du point de récupération jusqu'à la livraison.</p>
     <div class="hero-cta">
       <button class="btn btn-primary js-open-modal">📦 Envoyer une marchandise</button>
       <button class="btn cta-red js-open-modal">🚀 Être informé du lancement</button>
@@ -482,9 +480,11 @@
     </div>
     <div class="fleet-grid reveal-stagger">
       <div class="fleet-card"><div class="em">🏍</div><h3>Moto</h3><span class="cap">Jusqu'à ~15 kg</span><p>Documents, plis et petits paquets, livraison rapide en ville.</p></div>
+      <div class="fleet-card"><div class="em">🛺</div><h3>Tricycle</h3><span class="cap">Jusqu'à ~200 kg</span><p>Motorisé et immatriculé, idéal pour les livraisons de quartier et marchés.</p></div>
       <div class="fleet-card"><div class="em">🚗</div><h3>Voiture</h3><span class="cap">Jusqu'à ~50 kg</span><p>Colis moyens qui ne tiennent pas sur une moto.</p></div>
       <div class="fleet-card"><div class="em">🚙</div><h3>SUV</h3><span class="cap">Jusqu'à ~150 kg</span><p>Volumes un peu plus encombrants, terrains variés.</p></div>
       <div class="fleet-card"><div class="em">🚐</div><h3>Minivan</h3><span class="cap">Jusqu'à ~400 kg</span><p>Plusieurs cartons ou marchandises groupées en un trajet.</p></div>
+      <div class="fleet-card"><div class="em">🛻</div><h3>Pick-up</h3><span class="cap">Jusqu'à ~1 tonne</span><p>Marchandises à ciel ouvert, matériaux et charges robustes.</p></div>
       <div class="fleet-card"><div class="em">🚚</div><h3>Camionnette</h3><span class="cap">Jusqu'à ~1 tonne</span><p>Déménagements légers, stocks de commerce, petites entreprises.</p></div>
       <div class="fleet-card"><div class="em">🚛</div><h3>Camion</h3><span class="cap">Plus d'1 tonne</span><p>Gros volumes et longues distances pour les entreprises.</p></div>
     </div>
@@ -616,7 +616,7 @@
       </div>
       <div class="faq-item">
         <button class="faq-q">Quels véhicules sont acceptés ? <span class="plus">+</span></button>
-        <div class="faq-a"><p>Moto, voiture, SUV, minivan, camionnette et camion.</p></div>
+        <div class="faq-a"><p>Moto, tricycle, voiture, SUV, minivan, pick-up, camionnette et camion.</p></div>
       </div>
       <div class="faq-item">
         <button class="faq-q">Comment fonctionne le GPS ? <span class="plus">+</span></button>
@@ -656,7 +656,7 @@
     </div>
     <div class="contact-cards reveal-stagger">
       <div class="c-card"><div class="em">📞</div><div class="lbl">Téléphone</div><div class="val">+221 77 420 34 00</div></div>
-      <div class="c-card"><div class="em">✉️</div><div class="lbl">Email</div><div class="val">contact@yoonou.sn</div></div>
+      <a href="mailto:contact@yoonou.com" class="c-card"><div class="em">✉️</div><div class="lbl">Email</div><div class="val">contact@yoonou.com</div></a>
       <div class="c-card"><div class="em">📍</div><div class="lbl">Adresse</div><div class="val">Dakar, Sénégal</div></div>
       <div class="c-card"><div class="em">🕒</div><div class="lbl">Horaires</div><div class="val">Lun–Sam, 8h–20h</div></div>
     </div>
@@ -760,7 +760,7 @@
       </div>
       <div class="foot-col">
         <h5>Contact</h5>
-        <a href="mailto:contact@yoonou.sn">contact@yoonou.sn</a>
+        <a href="mailto:contact@yoonou.com">contact@yoonou.com</a>
         <a href="https://wa.me/221774203400">WhatsApp</a>
       </div>
     </div>
