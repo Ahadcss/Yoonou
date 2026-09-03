@@ -290,6 +290,11 @@
   .payment-note{color:var(--sand-dim); font-size:14px; max-width:460px; margin-bottom:28px; line-height:1.55;}
   .drivers p.lead{color:var(--sand-dim); font-size:16px; margin-bottom:28px; max-width:460px;}
   .perks{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .account-link{
+    display:block; margin-top:16px; font-size:13.5px; color:var(--sand-dim);
+    text-decoration:underline; text-underline-offset:3px; transition:color .2s ease;
+  }
+  .account-link:hover{color:var(--gold);}
   .perk{background:var(--indigo-panel); border-radius:6px; padding:16px 18px; font-size:13.5px; display:flex; gap:10px; align-items:center;}
   .perk .em{font-size:18px;}
 
@@ -607,6 +612,7 @@
       <div class="commission-badge">💰 <strong>5% de commission</strong> — vous gardez <strong>95%</strong> de chaque course</div>
       <p class="payment-note">Que vous possédiez un vélo, une moto, une charrette, un tricycle, une voiture ou un camion, chaque moyen de transport a sa place sur Yoonou : vous pourrez commencer à gagner de l'argent avec ce que vous avez déjà, sans investissement supplémentaire.</p>
       <button class="btn cta-red js-open-modal">🚚 Devenir transporteur</button>
+      <a href="auth.html" class="account-link">Déjà convaincu ? Créer votre compte transporteur →</a>
     </div>
     <div class="perks reveal-stagger">
       <div class="perk"><span class="em">💵</span>Revenus supplémentaires</div>
