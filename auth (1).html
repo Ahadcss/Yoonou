@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Connexion / Inscription</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A; --cta-red-dark:#B62C21;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Work Sans', sans-serif; background:var(--indigo-deep); color:var(--sand);
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  .card{
+    background:var(--sand); color:var(--ink); border-radius:16px; max-width:460px; width:100%;
+    padding:40px 34px; box-shadow:0 30px 80px -20px rgba(0,0,0,0.5);
+  }
+  .logo{display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:28px;}
+  .logo .dot{width:10px; height:10px; border-radius:50%; background:var(--laterite-bright);}
+  .logo span{font-family:'Space Grotesk'; font-weight:700; font-size:22px; color:var(--indigo-deep);}
+  .tabs{display:flex; background:#fff; border-radius:10px; padding:5px; margin-bottom:28px; border:1px solid rgba(22,33,62,0.1);}
+  .tab{flex:1; text-align:center; padding:12px; border-radius:7px; cursor:pointer; font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; color:var(--muted); transition:all .2s ease;}
+  .tab.active{background:var(--indigo-deep); color:var(--sand);}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;}
+  .field input{width:100%; padding:12px 14px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14.5px; background:#fff;}
+  .field input:focus{outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(42,127,118,0.14);}
+  .role-choice{display:flex; gap:10px; margin-bottom:18px;}
+  .role-opt{flex:1; padding:16px; border:1.5px solid rgba(22,33,62,0.15); border-radius:8px; text-align:center; cursor:pointer; transition:all .2s ease;}
+  .role-opt.selected{border-color:var(--teal); background:rgba(42,127,118,0.08);}
+  .role-opt .em{font-size:26px; display:block; margin-bottom:6px;}
+  .role-opt span{font-family:'Space Grotesk'; font-weight:600; font-size:13.5px;}
+  .submit-btn{
+    width:100%; padding:15px; border:none; border-radius:6px; font-family:'Space Grotesk'; font-weight:700;
+    font-size:15px; cursor:pointer; background:var(--cta-red); color:#fff; margin-top:8px;
+  }
+  .submit-btn:hover{background:var(--cta-red-dark);}
+  .submit-btn:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
+  .msg{font-size:13.5px; margin-top:14px; padding:12px; border-radius:6px; display:none;}
+  .msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+  .hidden{display:none !important;}
+  .back-link{display:block; text-align:center; margin-top:20px; font-size:13px; color:var(--muted);}
+  .back-link a{color:var(--teal); font-weight:600;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo"><span class="dot"></span><span>Yoonou</span></div>
+
+  <div class="tabs">
+    <div class="tab active" id="tabLogin">Connexion</div>
+    <div class="tab" id="tabSignup">Inscription</div>
+  </div>
+
+  <!-- FORMULAIRE CONNEXION -->
+  <form id="loginForm">
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" required>
+    </div>
+    <div class="field">
+      <label>Mot de passe</label>
+      <input type="password" id="loginPassword" required>
+    </div>
+    <button type="submit" class="submit-btn">Se connecter</button>
+    <div class="msg" id="loginMsg"></div>
+  </form>
+
+  <!-- FORMULAIRE INSCRIPTION -->
+  <form id="signupForm" class="hidden">
+    <div class="role-choice">
+      <div class="role-opt selected" data-role="client">
+        <span class="em">📦</span><span>Client</span>
+      </div>
+      <div class="role-opt" data-role="transporteur">
+        <span class="em">🚚</span><span>Transporteur</span>
+      </div>
+    </div>
+    <div class="field"><label>Prénom</label><input type="text" id="suPrenom" required></div>
+    <div class="field"><label>Nom</label><input type="text" id="suNom" required></div>
+    <div class="field"><label>Email</label><input type="email" id="suEmail" required></div>
+    <div class="field"><label>Mot de passe (6 caractères min.)</label><input type="password" id="suPassword" minlength="6" required></div>
+    <div class="field"><label>Numéro WhatsApp</label><input type="tel" id="suWhatsapp" placeholder="77 000 00 00" required></div>
+    <div class="field"><label>Ville</label><input type="text" id="suVille" required></div>
+    <button type="submit" class="submit-btn">Créer mon compte</button>
+    <div class="msg" id="signupMsg"></div>
+  </form>
+
+  <div class="back-link"><a href="index.html">← Retour à l'accueil</a></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const tabLogin = document.getElementById('tabLogin');
+  const tabSignup = document.getElementById('tabSignup');
+  const loginForm = document.getElementById('loginForm');
+  const signupForm = document.getElementById('signupForm');
+
+  tabLogin.addEventListener('click', () => {
+    tabLogin.classList.add('active'); tabSignup.classList.remove('active');
+    loginForm.classList.remove('hidden'); signupForm.classList.add('hidden');
+  });
+  tabSignup.addEventListener('click', () => {
+    tabSignup.classList.add('active'); tabLogin.classList.remove('active');
+    signupForm.classList.remove('hidden'); loginForm.classList.add('hidden');
+  });
+
+  let selectedRole = 'client';
+  document.querySelectorAll('.role-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.role-opt').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      selectedRole = opt.dataset.role;
+    });
+  });
+
+  function showMsg(el, text, type){
+    el.textContent = text;
+    el.className = 'msg ' + type;
+  }
+
+  signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('signupMsg');
+    msg.className = 'msg';
+    const btn = signupForm.querySelector('.submit-btn');
+    btn.disabled = true; btn.textContent = 'Création en cours...';
+
+    const email = document.getElementById('suEmail').value.trim();
+    const password = document.getElementById('suPassword').value;
+    const prenom = document.getElementById('suPrenom').value.trim();
+    const nom = document.getElementById('suNom').value.trim();
+    const whatsapp = document.getElementById('suWhatsapp').value.trim();
+    const ville = document.getElementById('suVille').value.trim();
+
+    try {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) throw error;
+
+      const userId = data.user?.id;
+      if (!userId) throw new Error("Compte créé, vérifie ton email pour confirmer avant de te connecter.");
+
+      const { error: profileError } = await sb.from('profiles').insert([{
+        id: userId, role: selectedRole, prenom, nom, whatsapp, ville
+      }]);
+      if (profileError) throw profileError;
+
+      showMsg(msg, '🎉 Compte créé ! Redirection vers ton espace...', 'success');
+      setTimeout(() => window.location.href = 'espace.html', 1200);
+    } catch (err) {
+      console.error(err);
+      showMsg(msg, err.message || "Une erreur est survenue. Réessaie.", 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Créer mon compte';
+    }
+  });
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('loginMsg');
+    msg.className = 'msg';
+    const btn = loginForm.querySelector('.submit-btn');
+    btn.disabled = true; btn.textContent = 'Connexion...';
+
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+
+    try {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      window.location.href = 'espace.html';
+    } catch (err) {
+      console.error(err);
+      showMsg(msg, "Email ou mot de passe incorrect.", 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Se connecter';
+    }
+  });
+</script>
+</body>
+</html>

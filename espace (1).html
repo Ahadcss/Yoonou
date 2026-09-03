@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Mon espace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A; --cta-red-dark:#B62C21;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .logout-btn{background:none; border:1.5px solid rgba(243,233,210,0.35); color:var(--sand); padding:9px 18px; border-radius:6px; font-family:'Space Grotesk'; font-weight:600; font-size:13px; cursor:pointer;}
+  .logout-btn:hover{border-color:var(--gold); color:var(--gold);}
+  .wrap{max-width:900px; margin:0 auto; padding:44px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  .welcome{margin-bottom:36px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;}
+  .welcome .badge{
+    display:inline-block; font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:.06em;
+    padding:5px 12px; border-radius:100px; margin-bottom:12px; font-weight:600;
+  }
+  .badge.client{background:rgba(42,127,118,0.12); color:var(--teal);}
+  .badge.transporteur{background:rgba(214,54,42,0.1); color:var(--cta-red);}
+  .badge.admin{background:rgba(232,169,58,0.15); color:#a5760f;}
+  .welcome h1{font-size:30px; margin-bottom:6px;}
+  .welcome p{color:var(--muted); font-size:15px;}
+
+  .dispo-toggle{
+    font-family:'Space Grotesk'; font-weight:700; font-size:14px; padding:14px 24px; border-radius:8px;
+    border:none; cursor:pointer; transition:all .2s ease;
+  }
+  .dispo-toggle.online{background:var(--teal); color:#fff;}
+  .dispo-toggle.offline{background:rgba(22,33,62,0.1); color:var(--muted);}
+
+  .card{background:#fff; border-radius:12px; padding:30px; border:1px solid rgba(22,33,62,0.08); margin-bottom:20px;}
+  .card h2{font-size:18px; margin-bottom:16px;}
+  .info-row{display:flex; justify-content:space-between; padding:12px 0; border-top:1px solid rgba(22,33,62,0.06); font-size:14.5px;}
+  .info-row:first-child{border-top:none;}
+  .info-row .lbl{color:var(--muted);}
+  .info-row .val{font-weight:600;}
+
+  .vehicle-item{
+    display:flex; justify-content:space-between; align-items:center; padding:14px 16px;
+    background:var(--sand); border-radius:8px; margin-bottom:10px; font-size:14px;
+  }
+  .vehicle-item .em{font-size:22px; margin-right:10px;}
+  .vehicle-status{font-family:'JetBrains Mono'; font-size:11px; padding:4px 10px; border-radius:100px; font-weight:600;}
+  .vehicle-status.PENDING{background:rgba(232,169,58,0.15); color:#a5760f;}
+  .vehicle-status.VERIFIED{background:rgba(42,127,118,0.12); color:var(--teal);}
+
+  .add-vehicle-form{display:none; margin-top:16px; padding-top:16px; border-top:1px solid rgba(22,33,62,0.08);}
+  .add-vehicle-form.open{display:block;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;}
+  .field select, .field input{width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px; background:#fff;}
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .btn-secondary{
+    font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; padding:11px 20px; border-radius:6px;
+    border:1.5px solid var(--teal); background:none; color:var(--teal); cursor:pointer;
+  }
+  .btn-primary-sm{
+    font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:12px 22px; border-radius:6px;
+    border:none; background:var(--cta-red); color:#fff; cursor:pointer; margin-top:6px;
+  }
+  .btn-primary-sm:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
+  .form-msg{font-size:13px; margin-top:10px; padding:10px; border-radius:6px; display:none;}
+  .form-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .form-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+  .empty-note{color:var(--muted); font-size:14px; padding:10px 0;}
+
+  .next-phase{
+    background:var(--indigo-panel); color:var(--sand); border-radius:12px; padding:28px 30px; text-align:center;
+  }
+  .next-phase h2{color:var(--sand); font-size:18px; margin-bottom:10px;}
+  .next-phase p{color:var(--sand-dim); font-size:14px; line-height:1.6;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo"><span class="dot"></span>Yoonou</div>
+    <button class="logout-btn" id="logoutBtn">Se déconnecter</button>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement de ton espace...</div>
+
+  <div id="content" class="hidden">
+    <div class="welcome">
+      <div>
+        <div class="badge" id="roleBadge"></div>
+        <h1 id="welcomeText"></h1>
+        <p>Voici les informations de ton compte Yoonou.</p>
+      </div>
+      <button class="dispo-toggle hidden" id="dispoToggle"></button>
+    </div>
+
+    <div class="card">
+      <h2>Mon profil</h2>
+      <div class="info-row"><span class="lbl">Nom complet</span><span class="val" id="infoNom"></span></div>
+      <div class="info-row"><span class="lbl">Email</span><span class="val" id="infoEmail"></span></div>
+      <div class="info-row"><span class="lbl">WhatsApp</span><span class="val" id="infoWhatsapp"></span></div>
+      <div class="info-row"><span class="lbl">Ville</span><span class="val" id="infoVille"></span></div>
+      <div class="info-row"><span class="lbl">Statut du compte</span><span class="val" id="infoStatutCompte"></span></div>
+      <div class="info-row"><span class="lbl">Vérification KYC</span><span class="val" id="infoStatut"></span></div>
+    </div>
+
+    <div class="card hidden" id="vehiclesCard">
+      <h2>Mes véhicules</h2>
+      <div id="vehiclesList"></div>
+      <button class="btn-secondary" id="showAddVehicle">+ Ajouter un véhicule</button>
+
+      <div class="add-vehicle-form" id="addVehicleForm">
+        <div class="field-row">
+          <div class="field">
+            <label>Type de véhicule</label>
+            <select id="vType"></select>
+          </div>
+          <div class="field">
+            <label>Plaque (si applicable)</label>
+            <input type="text" id="vPlaque">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Marque</label>
+            <input type="text" id="vMarque">
+          </div>
+          <div class="field">
+            <label>Modèle</label>
+            <input type="text" id="vModele">
+          </div>
+        </div>
+        <button class="btn-primary-sm" id="submitVehicle">Enregistrer le véhicule</button>
+        <div class="form-msg" id="vehicleMsg"></div>
+      </div>
+    </div>
+
+    <div class="next-phase">
+      <h2>🚧 Prochaine étape</h2>
+      <p id="nextPhaseText"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const roleLabels = { client: '📦 Espace client', transporteur: '🚚 Espace transporteur', admin: '🛠 Espace administrateur' };
+  const statutLabels = { PENDING: 'En attente de vérification', VERIFIED: 'Vérifié', REJECTED: 'Refusé', SUSPENDED: 'Suspendu' };
+  const statutCompteLabels = { ACTIVE: '✅ Actif', SUSPENDED: 'Suspendu', BANNED: 'Banni', UNDER_REVIEW: 'En cours de revue', COMMISSION_DUE: 'Commission due' };
+  const nextPhaseTexts = {
+    client: "Ton compte fonctionne ! La création de demande de transport arrive dans la Phase 2.",
+    transporteur: "Ton compte et tes véhicules sont enregistrés ! La réception et l'acceptation de courses arrivent dans la Phase 3-4.",
+    admin: "Ton compte admin fonctionne ! Le tableau de bord complet arrive dans la Phase 8."
+  };
+
+  let currentUser = null;
+  let currentProfile = null;
+
+  async function loadEspace(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+
+    currentUser = session.user;
+    const { data: profile, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+
+    if (error || !profile) {
+      console.error(error);
+      document.getElementById('loadingState').textContent = "Impossible de charger ton profil. Réessaie de te connecter.";
+      return;
+    }
+
+    currentProfile = profile;
+
+    document.getElementById('roleBadge').textContent = roleLabels[profile.role] || profile.role;
+    document.getElementById('roleBadge').classList.add(profile.role);
+    document.getElementById('welcomeText').textContent = `Bienvenue, ${profile.prenom} !`;
+    document.getElementById('infoNom').textContent = `${profile.prenom} ${profile.nom}`;
+    document.getElementById('infoEmail').textContent = currentUser.email;
+    document.getElementById('infoWhatsapp').textContent = profile.whatsapp;
+    document.getElementById('infoVille').textContent = profile.ville;
+    document.getElementById('infoStatutCompte').textContent = statutCompteLabels[profile.statut_compte] || profile.statut_compte;
+    document.getElementById('infoStatut').textContent = statutLabels[profile.statut_verification] || profile.statut_verification;
+    document.getElementById('nextPhaseText').textContent = nextPhaseTexts[profile.role] || '';
+
+    if (profile.role === 'transporteur') {
+      setupDispoToggle(profile.disponibilite);
+      document.getElementById('vehiclesCard').classList.remove('hidden');
+      await loadVehicleTypes();
+      await loadVehicles();
+    }
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+  }
+
+  function setupDispoToggle(dispo){
+    const btn = document.getElementById('dispoToggle');
+    btn.classList.remove('hidden');
+    renderDispoBtn(dispo);
+    btn.addEventListener('click', async () => {
+      const newDispo = currentProfile.disponibilite === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
+      btn.disabled = true;
+      const { error } = await sb.from('profiles').update({ disponibilite: newDispo }).eq('id', currentUser.id);
+      if (!error) {
+        currentProfile.disponibilite = newDispo;
+        renderDispoBtn(newDispo);
+      }
+      btn.disabled = false;
+    });
+  }
+
+  function renderDispoBtn(dispo){
+    const btn = document.getElementById('dispoToggle');
+    btn.className = 'dispo-toggle ' + (dispo === 'ONLINE' ? 'online' : 'offline');
+    btn.textContent = dispo === 'ONLINE' ? '🟢 En ligne' : '⚪ Hors ligne';
+  }
+
+  async function loadVehicleTypes(){
+    const { data, error } = await sb.from('vehicle_types').select('*').eq('actif', true).order('max_weight_kg');
+    if (error) { console.error(error); return; }
+    const select = document.getElementById('vType');
+    select.innerHTML = data.map(t => `<option value="${t.type}">${t.label}</option>`).join('');
+  }
+
+  async function loadVehicles(){
+    const { data, error } = await sb.from('vehicles').select('*, vehicle_types(label)').eq('transporteur_id', currentUser.id);
+    const list = document.getElementById('vehiclesList');
+    if (error) { console.error(error); return; }
+    if (!data || data.length === 0) {
+      list.innerHTML = "<p class=\"empty-note\">Aucun véhicule enregistré pour l'instant.</p>";
+      return;
+    }
+    list.innerHTML = data.map(v => `
+      <div class="vehicle-item">
+        <span>${v.vehicle_types?.label || v.type}${v.marque ? ' — ' + v.marque : ''}${v.modele ? ' ' + v.modele : ''}${v.plaque ? ' (' + v.plaque + ')' : ''}</span>
+        <span class="vehicle-status ${v.statut_verification}">${v.statut_verification}</span>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('showAddVehicle').addEventListener('click', () => {
+    document.getElementById('addVehicleForm').classList.toggle('open');
+  });
+
+  document.getElementById('submitVehicle').addEventListener('click', async () => {
+    const btn = document.getElementById('submitVehicle');
+    const msg = document.getElementById('vehicleMsg');
+    msg.className = 'form-msg';
+    btn.disabled = true; btn.textContent = 'Enregistrement...';
+
+    const type = document.getElementById('vType').value;
+    const plaque = document.getElementById('vPlaque').value.trim() || null;
+    const marque = document.getElementById('vMarque').value.trim() || null;
+    const modele = document.getElementById('vModele').value.trim() || null;
+
+    try {
+      const { error } = await sb.from('vehicles').insert([{
+        transporteur_id: currentUser.id, type, plaque, marque, modele
+      }]);
+      if (error) throw error;
+      msg.textContent = '✅ Véhicule ajouté !';
+      msg.className = 'form-msg success';
+      document.getElementById('vPlaque').value = '';
+      document.getElementById('vMarque').value = '';
+      document.getElementById('vModele').value = '';
+      await loadVehicles();
+    } catch (err) {
+      console.error(err);
+      msg.textContent = "Erreur : " + (err.message || "impossible d'ajouter ce véhicule.");
+      msg.className = 'form-msg error';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Enregistrer le véhicule';
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.href = 'auth.html';
+  });
+
+  loadEspace();
+</script>
+</body>
+</html>
