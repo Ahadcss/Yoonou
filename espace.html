@@ -135,8 +135,8 @@
             <label>Type de véhicule</label>
             <select id="vType"></select>
           </div>
-          <div class="field">
-            <label>Plaque (si applicable)</label>
+          <div class="field" id="vPlaqueWrap">
+            <label>Plaque d'immatriculation</label>
             <input type="text" id="vPlaque">
           </div>
         </div>
@@ -238,11 +238,27 @@
     btn.textContent = dispo === 'ONLINE' ? '🟢 En ligne' : '⚪ Hors ligne';
   }
 
+  const TYPES_SANS_PLAQUE = ['velo', 'charrette'];
+
   async function loadVehicleTypes(){
     const { data, error } = await sb.from('vehicle_types').select('*').eq('actif', true).order('max_weight_kg');
     if (error) { console.error(error); return; }
     const select = document.getElementById('vType');
     select.innerHTML = data.map(t => `<option value="${t.type}">${t.label}</option>`).join('');
+    updatePlaqueVisibility();
+    select.addEventListener('change', updatePlaqueVisibility);
+  }
+
+  function updatePlaqueVisibility(){
+    const type = document.getElementById('vType').value;
+    const wrap = document.getElementById('vPlaqueWrap');
+    const input = document.getElementById('vPlaque');
+    if (TYPES_SANS_PLAQUE.includes(type)) {
+      wrap.style.display = 'none';
+      input.value = '';
+    } else {
+      wrap.style.display = '';
+    }
   }
 
   async function loadVehicles(){
