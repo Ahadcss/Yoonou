@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Nouvelle demande</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A; --cta-red-dark:#B62C21;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-links{display:flex; gap:20px; align-items:center;}
+  .nav-links a{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .nav-links a:hover{color:var(--gold);}
+  .logout-btn{background:none; border:1.5px solid rgba(243,233,210,0.35); color:var(--sand); padding:9px 18px; border-radius:6px; font-family:'Space Grotesk'; font-weight:600; font-size:13px; cursor:pointer;}
+  .logout-btn:hover{border-color:var(--gold); color:var(--gold);}
+  .wrap{max-width:720px; margin:0 auto; padding:44px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1.page-title{font-size:28px; margin-bottom:8px;}
+  .page-sub{color:var(--muted); font-size:14.5px; margin-bottom:32px;}
+
+  .card{background:#fff; border-radius:12px; padding:30px; border:1px solid rgba(22,33,62,0.08); margin-bottom:20px;}
+  .card h2{font-size:16px; margin-bottom:18px; display:flex; align-items:center; gap:8px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;}
+  .field input, .field select, .field textarea{
+    width:100%; padding:12px 14px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15);
+    font-size:14.5px; background:#fff; font-family:'Work Sans';
+  }
+  .field textarea{resize:vertical; min-height:70px;}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(42,127,118,0.14);}
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .hint{font-size:12px; color:var(--muted); margin-top:5px;}
+
+  .vehicle-suggestion{
+    display:flex; align-items:center; gap:12px; padding:14px 16px; background:var(--sand);
+    border-radius:8px; margin-top:8px; font-size:13.5px;
+  }
+  .vehicle-suggestion .em{font-size:24px;}
+
+  .price-box{
+    background:var(--indigo-deep); color:var(--sand); border-radius:12px; padding:26px 28px;
+    text-align:center; margin-bottom:20px;
+  }
+  .price-box .lbl{font-family:'JetBrains Mono'; font-size:12px; color:var(--gold); letter-spacing:.06em; margin-bottom:8px;}
+  .price-box .amount{font-family:'Space Grotesk'; font-size:36px; font-weight:700;}
+  .price-box .breakdown{font-size:12.5px; color:var(--sand-dim); margin-top:8px;}
+
+  .submit-btn{
+    width:100%; padding:16px; border:none; border-radius:8px; font-family:'Space Grotesk'; font-weight:700;
+    font-size:15.5px; cursor:pointer; background:var(--cta-red); color:#fff;
+  }
+  .submit-btn:hover{background:var(--cta-red-dark);}
+  .submit-btn:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
+  .form-msg{font-size:13.5px; margin-top:14px; padding:12px; border-radius:6px; display:none;}
+  .form-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .form-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+
+  .mapbox-note{
+    background:rgba(232,169,58,0.1); border:1px dashed rgba(232,169,58,0.4); border-radius:8px;
+    padding:12px 16px; font-size:12.5px; color:#8a6410; margin-bottom:18px;
+  }
+
+  .orders-list .order-item{
+    padding:16px; border-radius:8px; background:var(--sand); margin-bottom:10px; font-size:13.5px;
+  }
+  .order-item .route{font-family:'Space Grotesk'; font-weight:600; margin-bottom:4px;}
+  .order-item .meta{color:var(--muted); display:flex; justify-content:space-between;}
+  .status-pill{
+    font-family:'JetBrains Mono'; font-size:11px; padding:3px 10px; border-radius:100px; font-weight:600;
+    background:rgba(42,127,118,0.12); color:var(--teal);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo"><span class="dot"></span>Yoonou</div>
+    <div class="nav-links">
+      <a href="espace.html">Mon espace</a>
+      <button class="logout-btn" id="logoutBtn">Se déconnecter</button>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+
+  <div id="content" class="hidden">
+    <h1 class="page-title">📦 Nouvelle demande de transport</h1>
+    <p class="page-sub">Décrivez votre marchandise, on s'occupe du reste.</p>
+
+    <div class="mapbox-note">
+      ℹ️ La carte interactive et le calcul automatique de distance arrivent bientôt. Pour l'instant, indique une distance estimée toi-même.
+    </div>
+
+    <form id="orderForm">
+      <div class="card">
+        <h2>📦 Votre marchandise</h2>
+        <div class="field">
+          <label>Catégorie</label>
+          <select id="cargoCategorie" required>
+            <option value="colis">Colis</option>
+            <option value="cartons">Cartons</option>
+            <option value="meubles">Meubles</option>
+            <option value="electromenager">Électroménager</option>
+            <option value="alimentation">Alimentation</option>
+            <option value="vetements">Vêtements</option>
+            <option value="materiaux">Matériaux</option>
+            <option value="commerciale">Marchandises commerciales</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <textarea id="description" placeholder="Ex : 3 cartons de vêtements, bien fermés" required></textarea>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Poids estimé (kg)</label>
+            <input type="number" id="poids" min="0.1" step="0.1" required>
+          </div>
+          <div class="field">
+            <label>Quantité</label>
+            <input type="number" id="quantite" min="1" value="1" required>
+          </div>
+        </div>
+        <div class="vehicle-suggestion hidden" id="vehicleSuggestion"></div>
+      </div>
+
+      <div class="card">
+        <h2>📍 Trajet</h2>
+        <div class="field">
+          <label>Point de départ</label>
+          <input type="text" id="depart" placeholder="Ex : Marché Sandaga, Dakar" required>
+        </div>
+        <div class="field">
+          <label>Destination</label>
+          <input type="text" id="destination" placeholder="Ex : Almadies, Dakar" required>
+        </div>
+        <div class="field">
+          <label>Distance estimée (km)</label>
+          <input type="number" id="distance" min="0.5" step="0.5" required>
+          <div class="hint">Une estimation suffit pour l'instant — le calcul automatique arrive bientôt.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>👤 Destinataire (optionnel)</h2>
+        <div class="field-row">
+          <div class="field">
+            <label>Nom</label>
+            <input type="text" id="destinataireNom">
+          </div>
+          <div class="field">
+            <label>Téléphone</label>
+            <input type="tel" id="destinataireTel">
+          </div>
+        </div>
+      </div>
+
+      <div class="price-box hidden" id="priceBox">
+        <div class="lbl">PRIX ESTIMÉ</div>
+        <div class="amount" id="priceAmount">—</div>
+        <div class="breakdown" id="priceBreakdown"></div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">Confirmer la demande</button>
+      <div class="form-msg" id="formMsg"></div>
+    </form>
+
+    <div class="card" style="margin-top:32px;">
+      <h2>🕓 Mes dernières demandes</h2>
+      <div class="orders-list" id="ordersList"><p style="color:var(--muted); font-size:14px;">Chargement...</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUser = null;
+  let vehicleTypes = [];
+  let pricingRules = [];
+
+  const statusLabels = {
+    REQUESTED: 'En recherche de transporteur', DRIVER_ASSIGNED: 'Transporteur assigné',
+    IN_TRANSIT: 'En cours de livraison', DELIVERED: 'Livré', COMPLETED: 'Terminé', CANCELLED: 'Annulé'
+  };
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUser = session.user;
+
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
+    if (!profile || profile.role !== 'client') {
+      alert("Cette page est réservée aux comptes client.");
+      window.location.href = 'espace.html';
+      return;
+    }
+
+    const [{ data: vt }, { data: pr }] = await Promise.all([
+      sb.from('vehicle_types').select('*').eq('actif', true).order('max_weight_kg'),
+      sb.from('pricing_rules').select('*').eq('actif', true)
+    ]);
+    vehicleTypes = vt || [];
+    pricingRules = pr || [];
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+
+    await loadMyOrders();
+  }
+
+  function suggestVehicle(poidsKg){
+    const compatibles = vehicleTypes.filter(v => v.max_weight_kg >= poidsKg);
+    if (compatibles.length === 0) return null;
+    return compatibles[0];
+  }
+
+  function updateEstimation(){
+    const poids = parseFloat(document.getElementById('poids').value);
+    const distance = parseFloat(document.getElementById('distance').value);
+    const suggestionEl = document.getElementById('vehicleSuggestion');
+    const priceBox = document.getElementById('priceBox');
+
+    if (!poids || poids <= 0) {
+      suggestionEl.classList.add('hidden');
+      priceBox.classList.add('hidden');
+      return;
+    }
+
+    const vehicule = suggestVehicle(poids);
+    if (!vehicule) {
+      suggestionEl.classList.remove('hidden');
+      suggestionEl.innerHTML = `<span class="em">⚠️</span> Poids trop important pour nos véhicules actuels. Contacte-nous directement.`;
+      priceBox.classList.add('hidden');
+      return;
+    }
+
+    suggestionEl.classList.remove('hidden');
+    suggestionEl.innerHTML = `<span class="em">🚚</span> Véhicule recommandé : <strong>${vehicule.label}</strong> (jusqu'à ${vehicule.max_weight_kg} kg)`;
+
+    if (!distance || distance <= 0) {
+      priceBox.classList.add('hidden');
+      return;
+    }
+
+    const regle = pricingRules.find(r => r.vehicle_type === vehicule.type);
+    if (!regle) {
+      priceBox.classList.add('hidden');
+      return;
+    }
+
+    const prix = Math.round(regle.prix_base + distance * regle.prix_par_km + poids * (regle.supplement_poids_par_kg || 0));
+    document.getElementById('priceAmount').textContent = prix.toLocaleString('fr-FR') + ' FCFA';
+    document.getElementById('priceBreakdown').textContent =
+      `Base ${regle.prix_base} FCFA + ${distance} km × ${regle.prix_par_km} FCFA/km — Estimation, confirmée à la validation`;
+    priceBox.classList.remove('hidden');
+  }
+
+  ['poids', 'distance'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateEstimation);
+  });
+
+  document.getElementById('orderForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const msg = document.getElementById('formMsg');
+    msg.className = 'form-msg';
+    btn.disabled = true; btn.textContent = 'Envoi en cours...';
+
+    const poids = parseFloat(document.getElementById('poids').value);
+    const vehicule = suggestVehicle(poids);
+
+    if (!vehicule) {
+      msg.textContent = "Aucun véhicule disponible pour ce poids.";
+      msg.className = 'form-msg error';
+      btn.disabled = false; btn.textContent = 'Confirmer la demande';
+      return;
+    }
+
+    const payload = {
+      client_id: currentUser.id,
+      depart: document.getElementById('depart').value.trim(),
+      destination: document.getElementById('destination').value.trim(),
+      description: document.getElementById('description').value.trim(),
+      cargo_categorie: document.getElementById('cargoCategorie').value,
+      cargo_quantite: parseInt(document.getElementById('quantite').value),
+      poids_kg: poids,
+      distance_km: parseFloat(document.getElementById('distance').value),
+      type_vehicule: vehicule.type,
+      destinataire_nom: document.getElementById('destinataireNom').value.trim() || null,
+      destinataire_telephone: document.getElementById('destinataireTel').value.trim() || null,
+      statut: 'REQUESTED'
+    };
+
+    try {
+      const { data, error } = await sb.from('orders').insert([payload]).select().single();
+      if (error) throw error;
+
+      msg.textContent = `🎉 Demande envoyée ! Prix confirmé : ${data.prix.toLocaleString('fr-FR')} FCFA. Un transporteur va bientôt l'accepter.`;
+      msg.className = 'form-msg success';
+      document.getElementById('orderForm').reset();
+      document.getElementById('vehicleSuggestion').classList.add('hidden');
+      document.getElementById('priceBox').classList.add('hidden');
+      await loadMyOrders();
+    } catch (err) {
+      console.error(err);
+      msg.textContent = "Erreur : " + (err.message || "impossible d'envoyer la demande.");
+      msg.className = 'form-msg error';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Confirmer la demande';
+    }
+  });
+
+  async function loadMyOrders(){
+    const { data, error } = await sb.from('orders')
+      .select('*')
+      .eq('client_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const list = document.getElementById('ordersList');
+    if (error) { list.innerHTML = '<p style="color:var(--muted);">Erreur de chargement.</p>'; return; }
+    if (!data || data.length === 0) {
+      list.innerHTML = "<p style=\"color:var(--muted); font-size:14px;\">Aucune demande pour l'instant.</p>";
+      return;
+    }
+    list.innerHTML = data.map(o => `
+      <div class="order-item">
+        <div class="route">${o.depart} → ${o.destination}</div>
+        <div class="meta">
+          <span>${o.prix ? o.prix.toLocaleString('fr-FR') + ' FCFA' : '—'}</span>
+          <span class="status-pill">${statusLabels[o.statut] || o.statut}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.href = 'auth.html';
+  });
+
+  init();
+</script>
+</body>
+</html>
