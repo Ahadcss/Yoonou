@@ -112,6 +112,7 @@
         <p>Voici les informations de ton compte Yoonou.</p>
       </div>
       <button class="dispo-toggle hidden" id="dispoToggle"></button>
+      <a href="nouvelle-demande.html" class="dispo-toggle hidden" id="newOrderBtn" style="background:var(--cta-red); color:#fff; text-decoration:none; display:inline-flex; align-items:center;">📦 Nouvelle demande</a>
     </div>
 
     <div class="card">
@@ -210,6 +211,10 @@
       document.getElementById('vehiclesCard').classList.remove('hidden');
       await loadVehicleTypes();
       await loadVehicles();
+    }
+
+    if (profile.role === 'client') {
+      document.getElementById('newOrderBtn').classList.remove('hidden');
     }
 
     document.getElementById('loadingState').classList.add('hidden');
