@@ -221,10 +221,14 @@
     document.getElementById('content').classList.remove('hidden');
   }
 
+  let locationInterval = null;
+
   function setupDispoToggle(dispo){
     const btn = document.getElementById('dispoToggle');
     btn.classList.remove('hidden');
     renderDispoBtn(dispo);
+    if (dispo === 'ONLINE') startSendingLocation();
+
     btn.addEventListener('click', async () => {
       const newDispo = currentProfile.disponibilite === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
       btn.disabled = true;
@@ -232,9 +236,38 @@
       if (!error) {
         currentProfile.disponibilite = newDispo;
         renderDispoBtn(newDispo);
+        if (newDispo === 'ONLINE') startSendingLocation();
+        else stopSendingLocation();
       }
       btn.disabled = false;
     });
+  }
+
+  function sendCurrentLocation(){
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords;
+      await sb.from('driver_locations').insert([{
+        transporteur_id: currentUser.id,
+        latitude: latitude,
+        longitude: longitude
+      }]);
+    }, (err) => {
+      console.error('Erreur de géolocalisation:', err);
+    });
+  }
+
+  function startSendingLocation(){
+    if (locationInterval) return;
+    sendCurrentLocation();
+    locationInterval = setInterval(sendCurrentLocation, 45000); // toutes les 45 secondes
+  }
+
+  function stopSendingLocation(){
+    if (locationInterval) {
+      clearInterval(locationInterval);
+      locationInterval = null;
+    }
   }
 
   function renderDispoBtn(dispo){
