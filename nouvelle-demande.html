@@ -56,6 +56,19 @@
     border-radius:8px; margin-top:8px; font-size:13.5px;
   }
   .vehicle-suggestion .em{font-size:24px;}
+  .vehicle-option{
+    display:flex; align-items:center; justify-content:space-between; padding:14px 16px;
+    border:1.5px solid rgba(22,33,62,0.12); border-radius:8px; margin-bottom:10px; cursor:pointer;
+    transition:all .15s ease;
+  }
+  .vehicle-option:hover{border-color:var(--teal);}
+  .vehicle-option.selected{border-color:var(--teal); background:rgba(42,127,118,0.07); box-shadow:0 0 0 1px var(--teal);}
+  .vehicle-option .left{display:flex; align-items:center; gap:12px;}
+  .vehicle-option .em{font-size:26px;}
+  .vehicle-option .name{font-family:'Space Grotesk'; font-weight:700; font-size:14.5px;}
+  .vehicle-option .cap{font-size:12px; color:var(--muted);}
+  .vehicle-option .price{font-family:'Space Grotesk'; font-weight:700; font-size:16px; color:var(--cta-red);}
+  .vehicle-option .price-na{font-size:12.5px; color:var(--muted); font-weight:400;}
 
   .price-box{
     background:var(--indigo-deep); color:var(--sand); border-radius:12px; padding:26px 28px;
@@ -80,6 +93,12 @@
     padding:12px 16px; font-size:12.5px; color:#8a6410; margin-bottom:18px;
   }
   .address-wrap{position:relative;}
+  .map-action-btn{
+    flex-shrink:0; padding:0 14px; border-radius:6px; border:1.5px solid var(--teal); background:#fff;
+    color:var(--teal); font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;
+  }
+  .map-action-btn:hover{background:rgba(42,127,118,0.08);}
+  .map-action-btn.active{background:var(--teal); color:#fff;}
   .suggestions{
     position:absolute; top:100%; left:0; right:0; background:#fff; border:1.5px solid rgba(22,33,62,0.15);
     border-top:none; border-radius:0 0 6px 6px; max-height:220px; overflow-y:auto; z-index:20;
@@ -108,6 +127,15 @@
     font-family:'JetBrains Mono'; font-size:11px; padding:3px 10px; border-radius:100px; font-weight:600;
     background:rgba(42,127,118,0.12); color:var(--teal);
   }
+  #nearbyCard{background:var(--indigo-deep); color:var(--sand); border:none;}
+  #nearbyPrompt h2, #nearbyTotal{color:var(--sand); font-size:18px; margin-bottom:0;}
+  .nearby-row{
+    display:flex; align-items:center; justify-content:space-between; padding:10px 0;
+    border-top:1px solid rgba(243,233,210,0.12); font-size:14px;
+  }
+  .nearby-row:first-child{border-top:none;}
+  .nearby-row .left{display:flex; align-items:center; gap:10px;}
+  .nearby-row .count{font-family:'Space Grotesk'; font-weight:700; color:var(--gold);}
 </style>
 </head>
 <body>
@@ -129,6 +157,21 @@
     <h1 class="page-title">📦 Nouvelle demande de transport</h1>
     <p class="page-sub">Décrivez votre marchandise, on s'occupe du reste.</p>
 
+    <div class="card" id="nearbyCard">
+      <div id="nearbyPrompt">
+        <h2>🚗 Véhicules disponibles</h2>
+        <p style="color:var(--muted); font-size:13.5px; margin-bottom:14px;">Découvre combien de transporteurs sont actuellement en ligne près de toi.</p>
+        <button type="button" class="map-action-btn" id="checkNearbyBtn" style="padding:10px 18px; font-size:13.5px;">📍 Voir les véhicules à proximité</button>
+      </div>
+      <div id="nearbyResult" class="hidden">
+        <div id="nearbySummary" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
+          <h2 id="nearbyTotal">—</h2>
+          <span id="nearbyToggleIcon" style="color:var(--teal); font-family:'Space Grotesk'; font-weight:600; font-size:13px;">Voir le détail ▾</span>
+        </div>
+        <div id="nearbyBreakdown" class="hidden" style="margin-top:14px;"></div>
+      </div>
+    </div>
+
     <form id="orderForm">
       <div class="card">
         <h2>📦 Votre marchandise</h2>
@@ -142,6 +185,7 @@
             <option value="alimentation">Alimentation</option>
             <option value="vetements">Vêtements</option>
             <option value="materiaux">Matériaux</option>
+            <option value="animaux">Animaux</option>
             <option value="commerciale">Marchandises commerciales</option>
             <option value="autre">Autre</option>
           </select>
@@ -160,27 +204,40 @@
             <input type="number" id="quantite" min="1" value="1" required>
           </div>
         </div>
-        <div class="vehicle-suggestion hidden" id="vehicleSuggestion"></div>
       </div>
 
       <div class="card">
         <h2>📍 Trajet</h2>
         <div class="field address-wrap">
           <label>Point de départ</label>
-          <input type="text" id="depart" placeholder="Ex : Marché Sandaga, Dakar" autocomplete="off" required>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="depart" placeholder="Ex : Marché Sandaga, Dakar" autocomplete="off" required style="flex:1;">
+            <button type="button" id="useMyLocationBtn" class="map-action-btn">📍 Ma position</button>
+            <button type="button" id="pickDepartBtn" class="map-action-btn">📌 Sur la carte</button>
+          </div>
           <div class="suggestions" id="departSuggestions"></div>
         </div>
         <div class="field address-wrap">
           <label>Destination</label>
-          <input type="text" id="destination" placeholder="Ex : Almadies, Dakar" autocomplete="off" required>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="destination" placeholder="Ex : Almadies, Dakar" autocomplete="off" required style="flex:1;">
+            <button type="button" id="pickDestBtn" class="map-action-btn">📌 Sur la carte</button>
+          </div>
           <div class="suggestions" id="destinationSuggestions"></div>
         </div>
+        <div class="hint" id="pickingHint" style="display:none; margin-bottom:10px; color:var(--teal); font-weight:600;"></div>
         <div id="map"></div>
         <div class="route-info" id="routeInfo">
           <span>📏 Distance : <strong id="routeDistance">—</strong></span>
           <span>⏱ Durée estimée : <strong id="routeDuration">—</strong></span>
         </div>
         <input type="hidden" id="distance">
+      </div>
+
+      <div class="card">
+        <h2>🚚 Choisissez votre véhicule</h2>
+        <div id="vehicleOptionsEmpty" style="color:var(--muted); font-size:14px;">Remplis le poids, la catégorie et le trajet pour voir les véhicules disponibles.</div>
+        <div id="vehicleOptions"></div>
       </div>
 
       <div class="card">
@@ -237,6 +294,63 @@
     IN_TRANSIT: 'En cours de livraison', DELIVERED: 'Livré', COMPLETED: 'Terminé', CANCELLED: 'Annulé'
   };
 
+  const emojis = { velo:'🚲', moto:'🏍', tricycle:'🛺', charrette:'🐴', voiture:'🚗', suv:'🚙', minivan:'🚐', pickup:'🛻', camionnette:'🚚', camion:'🚛' };
+
+  document.getElementById('checkNearbyBtn').addEventListener('click', () => {
+    const btn = document.getElementById('checkNearbyBtn');
+    if (!navigator.geolocation) {
+      alert("La géolocalisation n'est pas disponible sur ce navigateur.");
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Recherche en cours...';
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords;
+      try {
+        const { data, error } = await sb.rpc('vehicules_a_proximite', {
+          client_lat: latitude, client_lng: longitude, rayon_km: 5
+        });
+        if (error) throw error;
+
+        const total = (data || []).reduce((sum, row) => sum + Number(row.nombre), 0);
+
+        document.getElementById('nearbyPrompt').classList.add('hidden');
+        document.getElementById('nearbyResult').classList.remove('hidden');
+        document.getElementById('nearbyTotal').textContent =
+          total > 0 ? `🚗 ${total} véhicule${total > 1 ? 's' : ''} à proximité` : `😕 Aucun véhicule en ligne pour l'instant`;
+
+        const breakdown = document.getElementById('nearbyBreakdown');
+        if (data && data.length > 0) {
+          breakdown.innerHTML = data.map(row => `
+            <div class="nearby-row">
+              <div class="left"><span>${emojis[row.type] || '🚚'}</span><span>${row.label}</span></div>
+              <span class="count">${row.nombre}</span>
+            </div>
+          `).join('');
+        } else {
+          breakdown.innerHTML = `<p style="color:var(--sand-dim); font-size:13px;">Reviens un peu plus tard, ou passe ta demande quand même — un transporteur peut se connecter à tout moment.</p>`;
+        }
+
+        document.getElementById('nearbySummary').addEventListener('click', () => {
+          breakdown.classList.toggle('hidden');
+          document.getElementById('nearbyToggleIcon').textContent =
+            breakdown.classList.contains('hidden') ? 'Voir le détail ▾' : 'Masquer ▴';
+        });
+      } catch (err) {
+        console.error('Erreur véhicules à proximité:', err);
+        btn.disabled = false;
+        btn.textContent = '📍 Voir les véhicules à proximité';
+        alert("Impossible de vérifier les véhicules à proximité pour le moment.");
+      }
+    }, (err) => {
+      console.error(err);
+      alert("Impossible d'accéder à ta position. Vérifie que tu as autorisé la localisation.");
+      btn.disabled = false;
+      btn.textContent = '📍 Voir les véhicules à proximité';
+    });
+  });
+
   async function init(){
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { window.location.href = 'auth.html'; return; }
@@ -274,11 +388,11 @@
       if (query.length < 3) { box.classList.remove('open'); box.innerHTML = ''; return; }
       debounceTimer = setTimeout(async () => {
         try {
-          const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&country=sn&language=fr&limit=5`;
+          const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&country=sn&language=fr&limit=6&types=poi,address,neighborhood,locality,place&proximity=-17.4677,14.7167`;
           const res = await fetch(url);
           const data = await res.json();
           if (!data.features || data.features.length === 0) {
-            box.innerHTML = '<div class="suggestion-item">Aucun résultat trouvé</div>';
+            box.innerHTML = '<div class="suggestion-item">Aucun résultat. Essaie un nom de quartier proche, ou utilise ta position 📍</div>';
             box.classList.add('open');
             return;
           }
@@ -305,6 +419,8 @@
     });
   }
 
+  let pickingMode = null; // null | 'depart' | 'destination'
+
   function ensureMap(){
     if (map) return;
     map = new mapboxgl.Map({
@@ -314,7 +430,55 @@
       zoom: 11
     });
     document.getElementById('map').classList.add('visible');
+
+    map.on('click', async (e) => {
+      if (!pickingMode) return;
+      const { lng, lat } = e.lngLat;
+      const coords = { lat, lng };
+      const label = await reverseGeocode(lat, lng);
+
+      if (pickingMode === 'depart') {
+        document.getElementById('depart').value = label;
+        departCoords = coords;
+        document.getElementById('pickDepartBtn').classList.remove('active');
+      } else {
+        document.getElementById('destination').value = label;
+        destCoords = coords;
+        document.getElementById('pickDestBtn').classList.remove('active');
+      }
+      pickingMode = null;
+      document.getElementById('pickingHint').style.display = 'none';
+      updateRoute();
+    });
   }
+
+  async function reverseGeocode(lat, lng){
+    try {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&language=fr&types=address,neighborhood,poi,place`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return (data.features && data.features[0]) ? data.features[0].place_name : `Point choisi (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    } catch (err) {
+      console.error('Erreur géocodage inverse:', err);
+      return `Point choisi (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    }
+  }
+
+  function startPicking(mode){
+    ensureMap();
+    pickingMode = mode;
+    document.getElementById('pickDepartBtn').classList.toggle('active', mode === 'depart');
+    document.getElementById('pickDestBtn').classList.toggle('active', mode === 'destination');
+    const hint = document.getElementById('pickingHint');
+    hint.style.display = 'block';
+    hint.textContent = mode === 'depart'
+      ? '📌 Clique sur la carte pour choisir ton point de départ.'
+      : '📌 Clique sur la carte pour choisir ta destination.';
+    document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  document.getElementById('pickDepartBtn').addEventListener('click', () => startPicking('depart'));
+  document.getElementById('pickDestBtn').addEventListener('click', () => startPicking('destination'));
 
   async function updateRoute(){
     if (!departCoords || !destCoords) return;
@@ -373,46 +537,112 @@
   setupAddressField('depart', 'departSuggestions', (coords) => { departCoords = coords; updateRoute(); });
   setupAddressField('destination', 'destinationSuggestions', (coords) => { destCoords = coords; updateRoute(); });
 
-  function suggestVehicle(poidsKg){
-    const compatibles = vehicleTypes.filter(v => v.max_weight_kg >= poidsKg);
-    if (compatibles.length === 0) return null;
-    return compatibles[0];
+  // ---- UTILISER MA POSITION ACTUELLE ----
+  document.getElementById('useMyLocationBtn').addEventListener('click', () => {
+    const btn = document.getElementById('useMyLocationBtn');
+    if (!navigator.geolocation) {
+      alert("La géolocalisation n'est pas disponible sur ce navigateur.");
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '📍 Recherche...';
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords;
+      const label = await reverseGeocode(latitude, longitude);
+      document.getElementById('depart').value = label;
+      departCoords = { lat: latitude, lng: longitude };
+      updateRoute();
+      btn.disabled = false;
+      btn.textContent = '📍 Ma position';
+    }, (err) => {
+      console.error(err);
+      alert("Impossible d'accéder à ta position. Vérifie que tu as autorisé la localisation.");
+      btn.disabled = false;
+      btn.textContent = '📍 Ma position';
+    });
+  });
+
+  let selectedVehicleType = null;
+
+  function getCompatibleVehicles(poidsKg, categorie){
+    return vehicleTypes.filter(v => {
+      const poidsOk = v.max_weight_kg >= poidsKg;
+      const categorieOk = categorie === 'autre' || !v.categories_adaptees || v.categories_adaptees.length === 0 || v.categories_adaptees.includes(categorie);
+      return poidsOk && categorieOk;
+    });
   }
 
   function updateEstimation(){
     const poids = parseFloat(document.getElementById('poids').value);
+    const categorie = document.getElementById('cargoCategorie').value;
     const distance = parseFloat(document.getElementById('distance').value);
-    const suggestionEl = document.getElementById('vehicleSuggestion');
+    const optionsEl = document.getElementById('vehicleOptions');
+    const emptyEl = document.getElementById('vehicleOptionsEmpty');
     const priceBox = document.getElementById('priceBox');
 
+    priceBox.classList.add('hidden');
+
     if (!poids || poids <= 0) {
-      suggestionEl.classList.add('hidden');
-      priceBox.classList.add('hidden');
+      optionsEl.innerHTML = '';
+      emptyEl.style.display = '';
+      selectedVehicleType = null;
       return;
     }
 
-    const vehicule = suggestVehicle(poids);
-    if (!vehicule) {
-      suggestionEl.classList.remove('hidden');
-      suggestionEl.innerHTML = `<span class="em">⚠️</span> Poids trop important pour nos véhicules actuels. Contacte-nous directement.`;
-      priceBox.classList.add('hidden');
+    const compatibles = getCompatibleVehicles(poids, categorie);
+
+    if (compatibles.length === 0) {
+      emptyEl.style.display = 'none';
+      optionsEl.innerHTML = `<div class="vehicle-suggestion"><span class="em">⚠️</span> Aucun véhicule ne correspond à ce poids et cette catégorie. Contacte-nous directement.</div>`;
+      selectedVehicleType = null;
       return;
     }
 
-    suggestionEl.classList.remove('hidden');
-    suggestionEl.innerHTML = `<span class="em">🚚</span> Véhicule recommandé : <strong>${vehicule.label}</strong> (jusqu'à ${vehicule.max_weight_kg} kg)`;
+    emptyEl.style.display = 'none';
 
-    if (!distance || distance <= 0) {
-      priceBox.classList.add('hidden');
-      return;
+    // Si le véhicule sélectionné n'est plus compatible (poids/catégorie changés), on désélectionne
+    if (selectedVehicleType && !compatibles.find(v => v.type === selectedVehicleType)) {
+      selectedVehicleType = null;
     }
 
-    const regle = pricingRules.find(r => r.vehicle_type === vehicule.type);
-    if (!regle) {
-      priceBox.classList.add('hidden');
-      return;
-    }
+    optionsEl.innerHTML = compatibles.map(v => {
+      const regle = pricingRules.find(r => r.vehicle_type === v.type);
+      let priceHtml = '<span class="price-na">Renseigne le trajet</span>';
+      if (regle && distance > 0) {
+        const prix = Math.round(regle.prix_base + distance * regle.prix_par_km + poids * (regle.supplement_poids_par_kg || 0));
+        priceHtml = `<span class="price">${prix.toLocaleString('fr-FR')} FCFA</span>`;
+      }
+      const isSelected = selectedVehicleType === v.type;
+      return `
+        <div class="vehicle-option ${isSelected ? 'selected' : ''}" data-type="${v.type}">
+          <div class="left">
+            <span class="em">${emojis[v.type] || '🚚'}</span>
+            <div>
+              <div class="name">${v.label}</div>
+              <div class="cap">Jusqu'à ${v.max_weight_kg} kg</div>
+            </div>
+          </div>
+          ${priceHtml}
+        </div>`;
+    }).join('');
 
+    optionsEl.querySelectorAll('.vehicle-option').forEach(el => {
+      el.addEventListener('click', () => {
+        selectedVehicleType = el.dataset.type;
+        updateEstimation();
+        showPriceForSelected(poids, distance);
+      });
+    });
+
+    if (selectedVehicleType) showPriceForSelected(poids, distance);
+  }
+
+  function showPriceForSelected(poids, distance){
+    const priceBox = document.getElementById('priceBox');
+    if (!selectedVehicleType || !distance || distance <= 0) { priceBox.classList.add('hidden'); return; }
+    const regle = pricingRules.find(r => r.vehicle_type === selectedVehicleType);
+    if (!regle) { priceBox.classList.add('hidden'); return; }
     const prix = Math.round(regle.prix_base + distance * regle.prix_par_km + poids * (regle.supplement_poids_par_kg || 0));
     document.getElementById('priceAmount').textContent = prix.toLocaleString('fr-FR') + ' FCFA';
     document.getElementById('priceBreakdown').textContent =
@@ -421,6 +651,7 @@
   }
 
   document.getElementById('poids').addEventListener('input', updateEstimation);
+  document.getElementById('cargoCategorie').addEventListener('change', updateEstimation);
 
   document.getElementById('orderForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -430,7 +661,6 @@
     btn.disabled = true; btn.textContent = 'Envoi en cours...';
 
     const poids = parseFloat(document.getElementById('poids').value);
-    const vehicule = suggestVehicle(poids);
 
     if (!departCoords || !destCoords) {
       msg.textContent = "Choisis une adresse de départ et de destination dans les suggestions proposées.";
@@ -439,8 +669,8 @@
       return;
     }
 
-    if (!vehicule) {
-      msg.textContent = "Aucun véhicule disponible pour ce poids.";
+    if (!selectedVehicleType) {
+      msg.textContent = "Choisis un véhicule dans la liste avant de confirmer.";
       msg.className = 'form-msg error';
       btn.disabled = false; btn.textContent = 'Confirmer la demande';
       return;
@@ -460,7 +690,7 @@
       poids_kg: poids,
       distance_km: parseFloat(document.getElementById('distance').value),
       duree_estimee_min: dureeEstimeeMin ? Math.round(dureeEstimeeMin) : null,
-      type_vehicule: vehicule.type,
+      type_vehicule: selectedVehicleType,
       destinataire_nom: document.getElementById('destinataireNom').value.trim() || null,
       destinataire_telephone: document.getElementById('destinataireTel').value.trim() || null,
       statut: 'REQUESTED'
@@ -473,9 +703,11 @@
       msg.textContent = `🎉 Demande envoyée ! Prix confirmé : ${data.prix.toLocaleString('fr-FR')} FCFA. Un transporteur va bientôt l'accepter.`;
       msg.className = 'form-msg success';
       document.getElementById('orderForm').reset();
-      document.getElementById('vehicleSuggestion').classList.add('hidden');
+      document.getElementById('vehicleOptions').innerHTML = '';
+      document.getElementById('vehicleOptionsEmpty').style.display = '';
       document.getElementById('priceBox').classList.add('hidden');
       document.getElementById('routeInfo').classList.remove('visible');
+      selectedVehicleType = null;
       departCoords = null; destCoords = null; dureeEstimeeMin = null;
       await loadMyOrders();
     } catch (err) {
