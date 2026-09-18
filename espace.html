@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yoonou — Mon espace</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#16213E">
 <link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,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">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -113,6 +116,9 @@
       </div>
       <button class="dispo-toggle hidden" id="dispoToggle"></button>
       <a href="nouvelle-demande.html" class="dispo-toggle hidden" id="newOrderBtn" style="background:var(--cta-red); color:#fff; text-decoration:none; display:inline-flex; align-items:center;">📦 Nouvelle demande</a>
+      <a href="transporteur-commandes.html" class="dispo-toggle hidden" id="ordersBtn" style="background:var(--indigo-panel); color:var(--sand); text-decoration:none; display:inline-flex; align-items:center;">🚚 Mes commandes</a>
+      <a href="mes-revenus.html" class="dispo-toggle hidden" id="earningsBtn" style="background:none; border:1.5px solid var(--gold); color:var(--gold); text-decoration:none; display:inline-flex; align-items:center;">📊 Mes revenus</a>
+      <a href="ma-commission.html" class="dispo-toggle hidden" id="commissionBtn" style="background:none; border:1.5px solid var(--teal); color:var(--teal); text-decoration:none; display:inline-flex; align-items:center;">💰 Ma commission</a>
     </div>
 
     <div class="card">
@@ -151,9 +157,37 @@
             <input type="text" id="vModele">
           </div>
         </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Couleur</label>
+            <input type="text" id="vCouleur" placeholder="Ex: Blanc">
+          </div>
+          <div class="field">
+            <label>Photos du véhicule</label>
+            <input type="file" id="vPhotos" accept="image/*" capture="environment" multiple>
+          </div>
+        </div>
         <button class="btn-primary-sm" id="submitVehicle">Enregistrer le véhicule</button>
         <div class="form-msg" id="vehicleMsg"></div>
       </div>
+    </div>
+
+    <div class="card hidden" id="documentsCard">
+      <h2>Mes documents (vérification d'identité)</h2>
+      <div id="documentsList"></div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Carte d'identité (CNI)</label>
+          <input type="file" id="docCni" accept="image/*,.pdf" capture="environment">
+        </div>
+        <div class="field">
+          <label>Permis de conduire</label>
+          <input type="file" id="docPermis" accept="image/*,.pdf" capture="environment">
+        </div>
+      </div>
+      <button class="btn-primary-sm" id="submitDocuments">Envoyer mes documents</button>
+      <div class="form-msg" id="documentsMsg"></div>
     </div>
 
     <div class="next-phase">
@@ -208,9 +242,14 @@
 
     if (profile.role === 'transporteur') {
       setupDispoToggle(profile.disponibilite);
+      document.getElementById('ordersBtn').classList.remove('hidden');
+      document.getElementById('earningsBtn').classList.remove('hidden');
+      document.getElementById('commissionBtn').classList.remove('hidden');
       document.getElementById('vehiclesCard').classList.remove('hidden');
+      document.getElementById('documentsCard').classList.remove('hidden');
       await loadVehicleTypes();
       await loadVehicles();
+      await loadDocuments();
     }
 
     if (profile.role === 'client') {
@@ -219,6 +258,50 @@
 
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('content').classList.remove('hidden');
+
+    await setupPushNotifications();
+  }
+
+  // ---- NOTIFICATIONS PUSH ----
+  const VAPID_PUBLIC_KEY = 'BEuGEVvkQe-cJ6dA5u5UnPiG4QHawlLFn6a9KMHsqzYOlDZAX5ix_fCggOPv11Dgqj5UBNdyo3PvjFQolODVmz8';
+
+  function urlBase64ToUint8Array(base64String){
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  }
+
+  async function setupPushNotifications(){
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      if (Notification.permission === 'granted') {
+        await ensureSubscribed(registration);
+      } else if (Notification.permission === 'default') {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') await ensureSubscribed(registration);
+      }
+    } catch (err) {
+      console.warn('Notifications push indisponibles :', err.message);
+    }
+  }
+
+  async function ensureSubscribed(registration){
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const json = subscription.toJSON();
+    await sb.from('push_subscriptions').upsert([{
+      user_id: currentUser.id,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth
+    }], { onConflict: 'endpoint' });
   }
 
   let locationInterval = null;
@@ -236,31 +319,61 @@
       if (!error) {
         currentProfile.disponibilite = newDispo;
         renderDispoBtn(newDispo);
-        if (newDispo === 'ONLINE') startSendingLocation();
-        else stopSendingLocation();
+        if (newDispo === 'ONLINE') {
+          startSendingLocation();
+          await sb.rpc('demarrer_ou_reprendre_periode', { id_transporteur: currentUser.id });
+        } else {
+          stopSendingLocation();
+          await sb.rpc('mettre_en_pause_periode', { id_transporteur: currentUser.id });
+        }
       }
       btn.disabled = false;
     });
+  }
+
+  async function getActiveOrderId(){
+    const { data } = await sb
+      .from('orders')
+      .select('id')
+      .eq('transporteur_id', currentUser.id)
+      .in('statut', ['DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP','PICKUP_CONFIRMED','LOADING','IN_TRANSIT','ARRIVED_DESTINATION'])
+      .limit(1)
+      .maybeSingle();
+    return data ? data.id : null;
   }
 
   function sendCurrentLocation(){
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(async (position) => {
       const { latitude, longitude } = position.coords;
+      const activeOrderId = await getActiveOrderId();
       await sb.from('driver_locations').insert([{
         transporteur_id: currentUser.id,
+        order_id: activeOrderId,
         latitude: latitude,
         longitude: longitude
       }]);
+
+      // Fréquence adaptative : haute fréquence pendant une course active,
+      // basse fréquence si simplement en ligne sans course (économie batterie/data).
+      const dureeIdeale = activeOrderId ? 10000 : 45000;
+      if (locationInterval && dureeActuelle !== dureeIdeale) {
+        clearInterval(locationInterval);
+        locationInterval = setInterval(sendCurrentLocation, dureeIdeale);
+        dureeActuelle = dureeIdeale;
+      }
     }, (err) => {
       console.error('Erreur de géolocalisation:', err);
     });
   }
 
+  let dureeActuelle = 45000;
+
   function startSendingLocation(){
     if (locationInterval) return;
     sendCurrentLocation();
-    locationInterval = setInterval(sendCurrentLocation, 45000); // toutes les 45 secondes
+    dureeActuelle = 45000;
+    locationInterval = setInterval(sendCurrentLocation, dureeActuelle);
   }
 
   function stopSendingLocation(){
@@ -319,6 +432,23 @@
     document.getElementById('addVehicleForm').classList.toggle('open');
   });
 
+  async function uploadFiles(bucket, folder, fileList){
+    const urls = [];
+    if (!fileList || fileList.length === 0) return urls;
+    for (const file of fileList) {
+      const path = `${folder}/${Date.now()}_${file.name}`;
+      try {
+        const { data, error } = await sb.storage.from(bucket).upload(path, file);
+        if (error) throw error;
+        const { data: pub } = sb.storage.from(bucket).getPublicUrl(data.path);
+        if (pub?.publicUrl) urls.push(pub.publicUrl);
+      } catch (err) {
+        console.warn(`Upload impossible (bucket '${bucket}' non configuré ?) :`, err.message);
+      }
+    }
+    return urls;
+  }
+
   document.getElementById('submitVehicle').addEventListener('click', async () => {
     const btn = document.getElementById('submitVehicle');
     const msg = document.getElementById('vehicleMsg');
@@ -329,17 +459,26 @@
     const plaque = document.getElementById('vPlaque').value.trim() || null;
     const marque = document.getElementById('vMarque').value.trim() || null;
     const modele = document.getElementById('vModele').value.trim() || null;
+    const couleur = document.getElementById('vCouleur').value.trim() || null;
+    const photosInput = document.getElementById('vPhotos');
 
     try {
+      const photoUrls = await uploadFiles('vehicle-photos', currentUser.id, photosInput.files);
+
       const { error } = await sb.from('vehicles').insert([{
-        transporteur_id: currentUser.id, type, plaque, marque, modele
+        transporteur_id: currentUser.id, type, plaque, marque, modele, couleur,
+        photo_urls: photoUrls
       }]);
       if (error) throw error;
-      msg.textContent = '✅ Véhicule ajouté !';
+      msg.textContent = photoUrls.length > 0 || photosInput.files.length === 0
+        ? '✅ Véhicule ajouté !'
+        : "✅ Véhicule ajouté (photos non envoyées — bucket de stockage à configurer).";
       msg.className = 'form-msg success';
       document.getElementById('vPlaque').value = '';
       document.getElementById('vMarque').value = '';
       document.getElementById('vModele').value = '';
+      document.getElementById('vCouleur').value = '';
+      photosInput.value = '';
       await loadVehicles();
     } catch (err) {
       console.error(err);
@@ -347,6 +486,67 @@
       msg.className = 'form-msg error';
     } finally {
       btn.disabled = false; btn.textContent = 'Enregistrer le véhicule';
+    }
+  });
+
+  async function loadDocuments(){
+    const { data, error } = await sb.from('driver_documents').select('*').eq('transporteur_id', currentUser.id).order('created_at', { ascending: false });
+    const list = document.getElementById('documentsList');
+    if (error) { console.error(error); return; }
+    if (!data || data.length === 0) {
+      list.innerHTML = "<p class=\"empty-note\">Aucun document envoyé pour l'instant.</p>";
+      return;
+    }
+    const labels = { cni: "Carte d'identité", permis: "Permis de conduire", autre: "Autre document" };
+    list.innerHTML = data.map(d => `
+      <div class="vehicle-item">
+        <span>${labels[d.type_document] || d.type_document}</span>
+        <span class="vehicle-status ${d.statut}">${d.statut}</span>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('submitDocuments').addEventListener('click', async () => {
+    const btn = document.getElementById('submitDocuments');
+    const msg = document.getElementById('documentsMsg');
+    msg.className = 'form-msg';
+    btn.disabled = true; btn.textContent = 'Envoi...';
+
+    const cniInput = document.getElementById('docCni');
+    const permisInput = document.getElementById('docPermis');
+
+    try {
+      const rows = [];
+
+      if (cniInput.files[0]) {
+        const [url] = await uploadFiles('kyc-documents', currentUser.id, cniInput.files);
+        if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'cni', url_fichier: url });
+      }
+      if (permisInput.files[0]) {
+        const [url] = await uploadFiles('kyc-documents', currentUser.id, permisInput.files);
+        if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'permis', url_fichier: url });
+      }
+
+      if (rows.length === 0) {
+        msg.textContent = "Aucun fichier envoyé — vérifie que le bucket 'kyc-documents' est configuré.";
+        msg.className = 'form-msg error';
+        return;
+      }
+
+      const { error } = await sb.from('driver_documents').insert(rows);
+      if (error) throw error;
+
+      msg.textContent = '✅ Documents envoyés, en attente de vérification.';
+      msg.className = 'form-msg success';
+      cniInput.value = '';
+      permisInput.value = '';
+      await loadDocuments();
+    } catch (err) {
+      console.error(err);
+      msg.textContent = "Erreur : " + (err.message || "impossible d'envoyer les documents.");
+      msg.className = 'form-msg error';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Envoyer mes documents';
     }
   });
 
