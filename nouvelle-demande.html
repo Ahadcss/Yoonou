@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yoonou — Nouvelle demande</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#16213E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -136,6 +140,31 @@
   .nearby-row:first-child{border-top:none;}
   .nearby-row .left{display:flex; align-items:center; gap:10px;}
   .nearby-row .count{font-family:'Space Grotesk'; font-weight:700; color:var(--gold);}
+
+  .notif-bell-wrap{position:relative;}
+  .notif-bell{
+    background:none; border:none; font-size:19px; cursor:pointer; position:relative; padding:4px;
+    display:flex; align-items:center;
+  }
+  .notif-badge{
+    position:absolute; top:-2px; right:-2px; background:var(--cta-red); color:#fff; font-size:10px;
+    font-family:'JetBrains Mono'; font-weight:700; border-radius:100px; min-width:16px; height:16px;
+    display:flex; align-items:center; justify-content:center; padding:0 4px;
+  }
+  .notif-dropdown{
+    position:absolute; top:calc(100% + 12px); right:0; width:320px; max-height:400px; overflow-y:auto;
+    background:#fff; border-radius:10px; box-shadow:0 12px 32px -8px rgba(0,0,0,0.25); z-index:50;
+  }
+  .notif-item{
+    padding:14px 16px; border-bottom:1px solid rgba(22,33,62,0.06); cursor:pointer; text-align:left;
+  }
+  .notif-item:last-child{border-bottom:none;}
+  .notif-item:hover{background:var(--sand);}
+  .notif-item.unread{background:rgba(42,127,118,0.05);}
+  .notif-item .t{font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; color:var(--ink); margin-bottom:3px;}
+  .notif-item .m{font-size:12.5px; color:var(--muted); line-height:1.4;}
+  .notif-item .time{font-size:11px; color:var(--muted); margin-top:5px; font-family:'JetBrains Mono';}
+  .notif-empty{padding:24px; text-align:center; color:var(--muted); font-size:13.5px;}
 </style>
 </head>
 <body>
@@ -144,6 +173,12 @@
   <div class="wrap">
     <div class="logo"><span class="dot"></span>Yoonou</div>
     <div class="nav-links">
+      <button class="notif-bell" id="enableNotifBtn" style="display:none; font-size:12.5px; font-family:'Space Grotesk'; font-weight:600; background:none; border:1.5px solid var(--sand-dim); color:var(--sand); border-radius:6px; padding:8px 12px; cursor:pointer;">🔔 Activer les notifications</button>
+      <button class="notif-bell" id="installAppBtn" style="display:none; font-size:12.5px; font-family:'Space Grotesk'; font-weight:600; background:none; border:1.5px solid var(--gold); color:var(--gold); border-radius:6px; padding:8px 12px; cursor:pointer;">📲 Installer l'app</button>
+      <div class="notif-bell-wrap" id="notifBellWrap">
+        <button class="notif-bell" id="notifBellBtn">🔔<span class="notif-badge hidden" id="notifBadge">0</span></button>
+        <div class="notif-dropdown hidden" id="notifDropdown"></div>
+      </div>
       <a href="espace.html">Mon espace</a>
       <button class="logout-btn" id="logoutBtn">Se déconnecter</button>
     </div>
@@ -203,6 +238,11 @@
             <label>Quantité</label>
             <input type="number" id="quantite" min="1" value="1" required>
           </div>
+        </div>
+        <div class="field">
+          <label>Photos de la marchandise (optionnel)</label>
+          <input type="file" id="cargoPhotos" accept="image/*" capture="environment" multiple>
+          <div class="hint">Aide le transporteur à savoir exactement ce qu'il va transporter.</div>
         </div>
       </div>
 
@@ -374,6 +414,160 @@
     document.getElementById('content').classList.remove('hidden');
 
     await loadMyOrders();
+    await loadNotifications();
+    setInterval(loadNotifications, 20000);
+    await setupPushNotifications();
+    setupInstallPrompt();
+  }
+
+  // ---- INSTALLATION PWA (Android / Chrome desktop) ----
+  // Sur iPhone, Safari ne déclenche jamais cet événement : l'utilisateur
+  // doit utiliser "Partager → Sur l'écran d'accueil" manuellement.
+  let deferredInstallPrompt = null;
+
+  function setupInstallPrompt(){
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      document.getElementById('installAppBtn').style.display = 'inline-flex';
+    });
+
+    document.getElementById('installAppBtn').addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById('installAppBtn').style.display = 'none';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      document.getElementById('installAppBtn').style.display = 'none';
+    });
+  }
+
+  // ---- NOTIFICATIONS PUSH ----
+  // ⚠️ Remplace par ta vraie clé publique VAPID générée pour Yoonou
+  const VAPID_PUBLIC_KEY = 'BEuGEVvkQe-cJ6dA5u5UnPiG4QHawlLFn6a9KMHsqzYOlDZAX5ix_fCggOPv11Dgqj5UBNdyo3PvjFQolODVmz8';
+
+  function urlBase64ToUint8Array(base64String){
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  }
+
+  async function setupPushNotifications(){
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+
+      if (Notification.permission === 'granted') {
+        await ensureSubscribed(registration);
+      } else if (Notification.permission === 'default') {
+        const btn = document.getElementById('enableNotifBtn');
+        btn.style.display = 'inline-flex';
+        btn.addEventListener('click', async () => {
+          const perm = await Notification.requestPermission();
+          if (perm === 'granted') {
+            await ensureSubscribed(registration);
+            btn.style.display = 'none';
+          }
+        });
+      }
+      // Si 'denied' : on ne fait rien, le navigateur bloque de toute façon.
+    } catch (err) {
+      console.warn('Notifications push indisponibles :', err.message);
+    }
+  }
+
+  async function ensureSubscribed(registration){
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const json = subscription.toJSON();
+    await sb.from('push_subscriptions').upsert([{
+      user_id: currentUser.id,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth
+    }], { onConflict: 'endpoint' });
+  }
+
+  // ---- NOTIFICATIONS ----
+  document.getElementById('notifBellBtn').addEventListener('click', () => {
+    document.getElementById('notifDropdown').classList.toggle('hidden');
+  });
+
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('notifBellWrap');
+    if (!wrap.contains(e.target)) {
+      document.getElementById('notifDropdown').classList.add('hidden');
+    }
+  });
+
+  async function loadNotifications(){
+    const { data, error } = await sb
+      .from('notifications')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(15);
+
+    if (error) { console.error(error); return; }
+
+    const unreadCount = (data || []).filter(n => !n.read).length;
+    const badge = document.getElementById('notifBadge');
+    if (unreadCount > 0) {
+      badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+
+    const dropdown = document.getElementById('notifDropdown');
+    if (!data || data.length === 0) {
+      dropdown.innerHTML = '<div class="notif-empty">Aucune notification pour l\'instant.</div>';
+      return;
+    }
+
+    dropdown.innerHTML = data.map(n => `
+      <div class="notif-item ${!n.read ? 'unread' : ''}" data-id="${n.id}" data-order="${n.order_id || ''}">
+        <div class="t">${escapeHtml(n.title)}</div>
+        <div class="m">${escapeHtml(n.message || '')}</div>
+        <div class="time">${timeAgo(n.created_at)}</div>
+      </div>
+    `).join('');
+
+    dropdown.querySelectorAll('.notif-item').forEach(el => {
+      el.addEventListener('click', async () => {
+        await sb.from('notifications').update({ read: true }).eq('id', el.dataset.id);
+        if (el.dataset.order) {
+          window.location.href = `suivi-commande.html?id=${el.dataset.order}`;
+        } else {
+          await loadNotifications();
+        }
+      });
+    });
+  }
+
+  function timeAgo(dateStr){
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (diff < 60) return "à l'instant";
+    if (diff < 3600) return `il y a ${Math.floor(diff/60)} min`;
+    if (diff < 86400) return `il y a ${Math.floor(diff/3600)} h`;
+    return `il y a ${Math.floor(diff/86400)} j`;
+  }
+
+  function escapeHtml(str){
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   // ---- RECHERCHE D'ADRESSE (Mapbox Geocoding) ----
@@ -697,12 +891,30 @@
     };
 
     try {
+      const cargoPhotosInput = document.getElementById('cargoPhotos');
+      if (cargoPhotosInput.files && cargoPhotosInput.files.length > 0) {
+        const urls = [];
+        for (const file of cargoPhotosInput.files) {
+          const path = `${currentUser.id}/${Date.now()}_${file.name}`;
+          try {
+            const { data: up, error: upErr } = await sb.storage.from('cargo-photos').upload(path, file);
+            if (upErr) throw upErr;
+            const { data: pub } = sb.storage.from('cargo-photos').getPublicUrl(up.path);
+            if (pub?.publicUrl) urls.push(pub.publicUrl);
+          } catch (uploadErr) {
+            console.warn("Upload photo impossible (bucket 'cargo-photos' non configuré ?) :", uploadErr.message);
+          }
+        }
+        if (urls.length > 0) payload.cargo_photo_urls = urls;
+      }
+
       const { data, error } = await sb.from('orders').insert([payload]).select().single();
       if (error) throw error;
 
       msg.textContent = `🎉 Demande envoyée ! Prix confirmé : ${data.prix.toLocaleString('fr-FR')} FCFA. Un transporteur va bientôt l'accepter.`;
       msg.className = 'form-msg success';
       document.getElementById('orderForm').reset();
+      document.getElementById('cargoPhotos').value = '';
       document.getElementById('vehicleOptions').innerHTML = '';
       document.getElementById('vehicleOptionsEmpty').style.display = '';
       document.getElementById('priceBox').classList.add('hidden');
@@ -732,15 +944,18 @@
       list.innerHTML = "<p style=\"color:var(--muted); font-size:14px;\">Aucune demande pour l'instant.</p>";
       return;
     }
-    list.innerHTML = data.map(o => `
-      <div class="order-item">
+    list.innerHTML = data.map(o => {
+      const clickable = !['COMPLETED','CANCELLED'].includes(o.statut);
+      return `
+      <div class="order-item" ${clickable ? `style="cursor:pointer;" onclick="window.location.href='suivi-commande.html?id=${o.id}'"` : ''}>
         <div class="route">${o.depart} → ${o.destination}</div>
         <div class="meta">
           <span>${o.prix ? o.prix.toLocaleString('fr-FR') + ' FCFA' : '—'}</span>
           <span class="status-pill">${statusLabels[o.statut] || o.statut}</span>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -750,5 +965,113 @@
 
   init();
 </script>
+<button id="sosFloatBtn" style="position:fixed; bottom:24px; right:24px; width:56px; height:56px; border-radius:50%; background:var(--cta-red); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(214,54,42,0.5); cursor:pointer; z-index:90;">🆘</button>
+
+<div id="supportModal" style="display:none; position:fixed; inset:0; background:rgba(22,33,62,0.55); align-items:center; justify-content:center; padding:20px; z-index:100;">
+  <div style="background:#fff; border-radius:14px; padding:28px; max-width:440px; width:100%; max-height:85vh; overflow-y:auto;">
+    <h3 style="font-family:'Space Grotesk'; font-weight:700; font-size:18px; margin-bottom:6px;">Besoin d'aide ?</h3>
+    <p style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">Décris ton problème, on te répond rapidement.</p>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;">Catégorie</label>
+      <select id="supportCategory" style="width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px;">
+        <option value="Problème avec un transporteur">Problème avec un transporteur</option>
+        <option value="Problème avec ma commande">Problème avec ma commande</option>
+        <option value="Marchandise non livrée">Marchandise non livrée</option>
+        <option value="Marchandise endommagée">Marchandise endommagée</option>
+        <option value="Problème de paiement">Problème de paiement</option>
+        <option value="Problème de prix">Problème de prix</option>
+        <option value="Problème avec l'application">Problème avec l'application</option>
+        <option value="Sécurité / urgence">🆘 Sécurité / urgence</option>
+        <option value="Autre">Autre</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;">Décris la situation</label>
+      <textarea id="supportDescription" rows="4" style="width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px; resize:vertical;" placeholder="Explique ce qui se passe..."></textarea>
+    </div>
+
+    <div id="supportMsg" style="font-size:13px; margin-bottom:12px; padding:10px; border-radius:6px; display:none;"></div>
+
+    <button id="submitSupportBtn" style="width:100%; font-family:'Space Grotesk'; font-weight:700; font-size:14.5px; padding:13px; border-radius:8px; border:none; background:var(--cta-red); color:#fff; cursor:pointer;">Envoyer</button>
+
+    <a id="whatsappSupportLink" href="#" target="_blank" style="display:block; text-align:center; margin-top:12px; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--teal); text-decoration:none;">💬 Ou contacte-nous directement sur WhatsApp</a>
+
+    <button id="closeSupportModal" style="display:block; margin:14px auto 0; background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer;">Fermer</button>
+  </div>
+</div>
+
+<script>
+  const YOONOU_SUPPORT_WHATSAPP = '+221774203400';
+
+  document.getElementById('sosFloatBtn').addEventListener('click', () => {
+    document.getElementById('supportModal').style.display = 'flex';
+    document.getElementById('supportMsg').style.display = 'none';
+  });
+  document.getElementById('closeSupportModal').addEventListener('click', () => {
+    document.getElementById('supportModal').style.display = 'none';
+  });
+
+  document.getElementById('supportCategory').addEventListener('change', updateWhatsappSupportLink);
+  function updateWhatsappSupportLink(){
+    const category = document.getElementById('supportCategory').value;
+    const msg = `Bonjour, j'ai besoin d'aide (Client Yoonou). Catégorie : ${category}`;
+    document.getElementById('whatsappSupportLink').href = `https://wa.me/${YOONOU_SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`;
+  }
+  updateWhatsappSupportLink();
+
+  document.getElementById('submitSupportBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('submitSupportBtn');
+    const msgEl = document.getElementById('supportMsg');
+    const category = document.getElementById('supportCategory').value;
+    const description = document.getElementById('supportDescription').value.trim();
+
+    if (!description) {
+      msgEl.textContent = 'Décris un peu la situation avant d\'envoyer.';
+      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(193,80,46,0.1); color:var(--laterite); font-size:13px;';
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Envoi...';
+
+    const isUrgent = category === 'Sécurité / urgence';
+    let gps_lat = null, gps_lng = null;
+
+    if (isUrgent && navigator.geolocation) {
+      try {
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000 }));
+        gps_lat = pos.coords.latitude;
+        gps_lng = pos.coords.longitude;
+      } catch(e) { /* pas grave si la position n'est pas dispo */ }
+    }
+
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const { error } = await sb.from('disputes').insert([{
+        user_id: session.user.id,
+        reason: category,
+        category: category,
+        description: description,
+        raised_by_role: 'client',
+        is_urgent: isUrgent,
+        gps_lat, gps_lng
+      }]);
+      if (error) throw error;
+
+      msgEl.textContent = isUrgent
+        ? '🆘 Signalement envoyé en urgence. L\'équipe Yoonou a été alertée immédiatement.'
+        : '✅ Ta demande a été envoyée, on te répond rapidement.';
+      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(42,127,118,0.1); color:var(--teal); font-size:13px;';
+      document.getElementById('supportDescription').value = '';
+    } catch (err) {
+      msgEl.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(193,80,46,0.1); color:var(--laterite); font-size:13px;';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Envoyer';
+    }
+  });
+</script>
+
 </body>
 </html>
