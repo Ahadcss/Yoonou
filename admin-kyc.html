@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Admin · Vérification KYC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:900px; margin:0 auto; padding:44px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1{font-size:26px; margin-bottom:6px;}
+  .subtitle{color:var(--muted); font-size:14.5px; margin-bottom:28px;}
+  .count-pill{font-family:'JetBrains Mono'; font-size:12px; background:rgba(22,33,62,0.08); color:var(--muted); padding:3px 10px; border-radius:100px; margin-left:8px;}
+
+  .empty-note{color:var(--muted); font-size:14.5px; padding:24px; background:#fff; border-radius:12px; border:1px solid rgba(22,33,62,0.08); text-align:center;}
+
+  .item{background:#fff; border-radius:12px; padding:24px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+  .item-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px;}
+  .driver-name{font-family:'Space Grotesk'; font-weight:700; font-size:16px;}
+  .driver-phone{color:var(--muted); font-size:13.5px; font-family:'JetBrains Mono';}
+  .doc-type-badge{
+    font-family:'JetBrains Mono'; font-size:11px; padding:4px 11px; border-radius:100px; font-weight:600;
+    background:rgba(22,33,62,0.08); color:var(--indigo-deep);
+  }
+
+  .doc-preview-link{
+    display:inline-flex; align-items:center; gap:6px; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px;
+    color:var(--teal); text-decoration:none; padding:10px 16px; border:1.5px solid var(--teal); border-radius:6px; margin-bottom:14px;
+  }
+  .doc-preview-link:hover{background:rgba(42,127,118,0.08);}
+  .link-loading{color:var(--muted); font-size:13px; font-style:italic;}
+
+  .action-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .btn-verify{
+    font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:11px 20px; border-radius:6px;
+    border:none; background:var(--teal); color:#fff; cursor:pointer;
+  }
+  .btn-verify:hover{background:#236b63;}
+  .btn-reject{
+    font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; padding:11px 20px; border-radius:6px;
+    border:1.5px solid var(--laterite); background:none; color:var(--laterite); cursor:pointer;
+  }
+  .btn-reject:hover{background:rgba(193,80,46,0.08);}
+  button:disabled{opacity:0.5; cursor:not-allowed;}
+
+  .item-msg{font-size:13px; margin-top:10px; padding:9px; border-radius:6px; display:none;}
+  .item-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .item-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+    <a href="espace.html" class="nav-link">← Mon espace</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+
+  <div id="content" class="hidden">
+    <h1>Vérification KYC<span class="count-pill" id="countPill">0</span></h1>
+    <p class="subtitle">Documents en attente de vérification. Les liens sont temporaires (valables 1h) et privés.</p>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUser = null;
+  const docLabels = { cni: "Carte d'identité (CNI)", permis: "Permis de conduire", autre: "Autre document" };
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUser = session.user;
+
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
+    if (!profile || profile.role !== 'admin') { window.location.href = 'espace.html'; return; }
+
+    await loadList();
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+  }
+
+  async function loadList(){
+    const list = document.getElementById('list');
+    const countPill = document.getElementById('countPill');
+
+    const { data, error } = await sb
+      .from('driver_documents')
+      .select('*, profiles!driver_documents_transporteur_id_fkey(prenom, nom, whatsapp)')
+      .in('statut', ['PENDING', 'UNDER_REVIEW'])
+      .order('created_at', { ascending: true });
+
+    if (error) { console.error(error); list.innerHTML = '<div class="empty-note">Erreur de chargement.</div>'; return; }
+
+    countPill.textContent = (data || []).length;
+
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="empty-note">Aucun document en attente de vérification. 🎉</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(d => renderItem(d)).join('');
+
+    for (const d of data) {
+      loadSignedLink(d.id, d.url_fichier);
+      document.getElementById('verify-' + d.id).addEventListener('click', () => traiterDocument(d.id, 'VERIFIED'));
+      document.getElementById('reject-' + d.id).addEventListener('click', () => traiterDocument(d.id, 'REJECTED'));
+    }
+  }
+
+  function renderItem(d){
+    const driver = d.profiles || {};
+    return `
+      <div class="item" id="item-${d.id}">
+        <div class="item-top">
+          <div>
+            <div class="driver-name">${escapeHtml(driver.prenom || '')} ${escapeHtml(driver.nom || '')}</div>
+            <div class="driver-phone">${escapeHtml(driver.whatsapp || '—')}</div>
+          </div>
+          <span class="doc-type-badge">${docLabels[d.type_document] || d.type_document}</span>
+        </div>
+
+        <div id="link-wrap-${d.id}"><span class="link-loading">Génération du lien sécurisé...</span></div>
+
+        <div class="action-row">
+          <button class="btn-verify" id="verify-${d.id}">✓ Vérifier</button>
+          <button class="btn-reject" id="reject-${d.id}">✕ Rejeter</button>
+        </div>
+        <div class="item-msg" id="msg-${d.id}"></div>
+      </div>
+    `;
+  }
+
+  async function loadSignedLink(docId, urlFichier){
+    const wrap = document.getElementById('link-wrap-' + docId);
+    try {
+      // url_fichier stocke l'URL publique générée à l'upload ; on en extrait
+      // le chemin interne du fichier pour générer un lien signé temporaire.
+      const marker = '/object/public/kyc-documents/';
+      const idx = urlFichier.indexOf(marker);
+      if (idx === -1) throw new Error("Chemin de fichier introuvable dans l'URL enregistrée.");
+      const filePath = urlFichier.substring(idx + marker.length);
+
+      const { data, error } = await sb.storage.from('kyc-documents').createSignedUrl(filePath, 3600);
+      if (error) throw error;
+
+      wrap.innerHTML = `<a href="${data.signedUrl}" target="_blank" rel="noopener" class="doc-preview-link">🔍 Ouvrir le document</a>`;
+    } catch (err) {
+      console.error(err);
+      wrap.innerHTML = `<span style="color:var(--laterite); font-size:13px;">Lien indisponible : ${escapeHtml(err.message)}</span>`;
+    }
+  }
+
+  async function traiterDocument(docId, nouveauStatut){
+    const item = document.getElementById('item-' + docId);
+    const msg = document.getElementById('msg-' + docId);
+    const btns = item.querySelectorAll('button');
+    btns.forEach(b => b.disabled = true);
+    msg.className = 'item-msg';
+
+    try {
+      const { error } = await sb.from('driver_documents').update({ statut: nouveauStatut }).eq('id', docId);
+      if (error) throw error;
+
+      msg.textContent = nouveauStatut === 'VERIFIED' ? '✅ Document vérifié.' : '❌ Document rejeté.';
+      msg.className = 'item-msg success';
+      setTimeout(loadList, 1000);
+    } catch (err) {
+      console.error(err);
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msg.className = 'item-msg error';
+      btns.forEach(b => b.disabled = false);
+    }
+  }
+
+  function escapeHtml(str){
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  init();
+</script>
+</body>
+</html>
