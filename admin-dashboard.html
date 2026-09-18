@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Admin · Vue d'ensemble</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:980px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:980px; margin:0 auto; padding:40px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1{font-size:26px; margin-bottom:24px;}
+  h2{font-size:15px; margin-bottom:14px;}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:24px;}
+  @media (max-width: 720px){ .stat-grid{grid-template-columns:repeat(2, 1fr);} }
+  .stat-box{background:#fff; border-radius:12px; padding:18px; border:1px solid rgba(22,33,62,0.08);}
+  .stat-box .label{font-family:'JetBrains Mono'; font-size:10.5px; color:var(--muted); letter-spacing:.04em;}
+  .stat-box .value{font-family:'Space Grotesk'; font-weight:700; font-size:22px; margin-top:6px;}
+
+  .alert-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:14px; margin-bottom:24px;}
+  @media (max-width: 720px){ .alert-grid{grid-template-columns:1fr;} }
+  .alert-card{
+    background:var(--indigo-panel); color:var(--sand); border-radius:12px; padding:20px; text-decoration:none;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .alert-card:hover{background:#182548;}
+  .alert-card .t{font-family:'Space Grotesk'; font-weight:700; font-size:14.5px;}
+  .alert-card .n{font-family:'JetBrains Mono'; font-size:22px; font-weight:700; color:var(--gold);}
+  .alert-card.zero .n{color:var(--teal);}
+
+  .card{background:#fff; border-radius:12px; padding:24px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+
+  .quick-links{display:flex; gap:10px; flex-wrap:wrap;}
+  .quick-link{
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:10px 16px; border-radius:6px;
+    border:1.5px solid rgba(22,33,62,0.15); color:var(--ink); text-decoration:none;
+  }
+  .quick-link:hover{border-color:var(--teal); color:var(--teal);}
+
+  .order-row{
+    display:flex; justify-content:space-between; align-items:center; padding:10px 0;
+    border-top:1px solid rgba(22,33,62,0.06); font-size:13px;
+  }
+  .order-row:first-child{border-top:none;}
+  .status-badge{
+    font-family:'JetBrains Mono'; font-size:10.5px; padding:3px 9px; border-radius:100px; font-weight:600;
+    background:rgba(22,33,62,0.08); color:var(--indigo-deep);
+  }
+  .empty-note{color:var(--muted); font-size:13.5px; text-align:center; padding:16px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+    <a href="espace.html" class="nav-link">← Mon espace</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+
+  <div id="content" class="hidden">
+    <h1>Vue d'ensemble</h1>
+
+    <div class="alert-grid">
+      <a href="admin-support.html" class="alert-card" id="urgentAlert" style="border:2px solid var(--cta-red);">
+        <span class="t">🆘 Urgences signalées</span>
+        <span class="n" id="urgentCount">—</span>
+      </a>
+      <a href="admin-kyc.html" class="alert-card" id="kycAlert">
+        <span class="t">📋 Documents KYC à vérifier</span>
+        <span class="n" id="kycCount">—</span>
+      </a>
+    </div>
+    <div class="alert-grid">
+      <a href="admin-commissions.html" class="alert-card" id="commissionAlert">
+        <span class="t">💰 Commissions à confirmer</span>
+        <span class="n" id="commissionCount">—</span>
+      </a>
+      <a href="admin-support.html" class="alert-card" id="ticketsAlert">
+        <span class="t">🎫 Tickets support ouverts</span>
+        <span class="n" id="ticketsCount">—</span>
+      </a>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="label">CLIENTS</div>
+        <div class="value" id="clientCount">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">TRANSPORTEURS</div>
+        <div class="value" id="driverCount">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">TRANSPORTEURS EN LIGNE</div>
+        <div class="value" id="onlineCount">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">COMMANDES ACTIVES</div>
+        <div class="value" id="activeOrders">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">COMMANDES TERMINÉES (TOTAL)</div>
+        <div class="value" id="completedOrders">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">GMV TOTAL</div>
+        <div class="value" id="gmvTotal">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">COMMISSION YOONOU (TOTAL)</div>
+        <div class="value" id="commissionTotal">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">COMMANDES AUJOURD'HUI</div>
+        <div class="value" id="todayOrders">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Accès rapide</h2>
+      <div class="quick-links">
+        <a href="admin-support.html" class="quick-link">Support & urgences</a>
+        <a href="admin-kyc.html" class="quick-link">Vérification KYC</a>
+        <a href="admin-commissions.html" class="quick-link">Commissions</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Dernières commandes</h2>
+      <div id="recentOrders"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const STATUT_LABELS = {
+    REQUESTED: 'Recherche transporteur', DRIVER_ASSIGNED: 'Assignée', DRIVER_ARRIVING: 'En approche',
+    ARRIVED_PICKUP: 'Arrivé pickup', PICKUP_CONFIRMED: 'Collecté', LOADING: 'Chargement',
+    IN_TRANSIT: 'En transit', ARRIVED_DESTINATION: 'Arrivé destination', PAYMENT_PENDING: 'Paiement en cours',
+    COMPLETED: 'Terminée', CANCELLED: 'Annulée'
+  };
+
+  const ACTIVE_STATUSES = ['REQUESTED','DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP','PICKUP_CONFIRMED','LOADING','IN_TRANSIT','ARRIVED_DESTINATION','PAYMENT_PENDING'];
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+    if (!profile || profile.role !== 'admin') { window.location.href = 'espace.html'; return; }
+
+    await Promise.all([loadUserStats(), loadOrderStats(), loadAlerts(), loadRecentOrders()]);
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+  }
+
+  async function loadUserStats(){
+    const { count: clientCount } = await sb.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'client');
+    const { count: driverCount } = await sb.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'transporteur');
+    const { count: onlineCount } = await sb.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'transporteur').eq('disponibilite', 'ONLINE');
+
+    document.getElementById('clientCount').textContent = clientCount ?? 0;
+    document.getElementById('driverCount').textContent = driverCount ?? 0;
+    document.getElementById('onlineCount').textContent = onlineCount ?? 0;
+  }
+
+  async function loadOrderStats(){
+    const { data, error } = await sb.from('orders').select('statut, prix, commission, created_at');
+    if (error) { console.error(error); return; }
+
+    let active = 0, completed = 0, gmv = 0, commissionTotal = 0, today = 0;
+    const todayStr = new Date().toDateString();
+
+    (data || []).forEach(o => {
+      if (ACTIVE_STATUSES.includes(o.statut)) active++;
+      if (o.statut === 'COMPLETED') {
+        completed++;
+        gmv += (o.prix || 0);
+        commissionTotal += (o.commission || 0);
+      }
+      if (new Date(o.created_at).toDateString() === todayStr) today++;
+    });
+
+    document.getElementById('activeOrders').textContent = active;
+    document.getElementById('completedOrders').textContent = completed;
+    document.getElementById('gmvTotal').textContent = formatFcfa(gmv);
+    document.getElementById('commissionTotal').textContent = formatFcfa(commissionTotal);
+    document.getElementById('todayOrders').textContent = today;
+  }
+
+  async function loadAlerts(){
+    const { count: kycCount } = await sb.from('driver_documents').select('*', { count: 'exact', head: true }).in('statut', ['PENDING','UNDER_REVIEW']);
+    const { count: commissionCount } = await sb.from('commission_periods').select('*', { count: 'exact', head: true }).eq('status', 'CLOSED');
+    const { count: urgentCount } = await sb.from('disputes').select('*', { count: 'exact', head: true }).eq('is_urgent', true).in('status', ['OUVERT','EN_COURS']);
+    const { count: ticketsCount } = await sb.from('disputes').select('*', { count: 'exact', head: true }).in('status', ['OUVERT','EN_COURS','EN_ATTENTE']);
+
+    document.getElementById('kycCount').textContent = kycCount ?? 0;
+    document.getElementById('commissionCount').textContent = commissionCount ?? 0;
+    document.getElementById('urgentCount').textContent = urgentCount ?? 0;
+    document.getElementById('ticketsCount').textContent = ticketsCount ?? 0;
+    document.getElementById('kycAlert').classList.toggle('zero', !kycCount);
+    document.getElementById('commissionAlert').classList.toggle('zero', !commissionCount);
+    document.getElementById('urgentAlert').classList.toggle('zero', !urgentCount);
+    document.getElementById('ticketsAlert').classList.toggle('zero', !ticketsCount);
+  }
+
+  async function loadRecentOrders(){
+    const { data, error } = await sb.from('orders').select('*').order('created_at', { ascending: false }).limit(10);
+    const list = document.getElementById('recentOrders');
+    if (error) { console.error(error); return; }
+
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="empty-note">Aucune commande pour l\'instant.</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(o => `
+      <div class="order-row">
+        <span>${escapeHtml(o.depart)} → ${escapeHtml(o.destination)}</span>
+        <span class="status-badge">${STATUT_LABELS[o.statut] || o.statut}</span>
+      </div>
+    `).join('');
+  }
+
+  function formatFcfa(n){
+    if (!n) return '0 FCFA';
+    return Math.round(n).toLocaleString('fr-FR') + ' FCFA';
+  }
+
+  function escapeHtml(str){
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  init();
+</script>
+</body>
+</html>
