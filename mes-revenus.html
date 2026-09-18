@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Mes revenus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:800px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:800px; margin:0 auto; padding:40px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1{font-size:26px; margin-bottom:24px;}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:14px; margin-bottom:24px;}
+  .stat-box{background:#fff; border-radius:12px; padding:20px; border:1px solid rgba(22,33,62,0.08);}
+  .stat-box .label{font-family:'JetBrains Mono'; font-size:11px; color:var(--muted); letter-spacing:.04em;}
+  .stat-box .value{font-family:'Space Grotesk'; font-weight:700; font-size:22px; margin-top:6px;}
+  .stat-box.highlight{background:var(--indigo-panel);}
+  .stat-box.highlight .label{color:var(--sand-dim);}
+  .stat-box.highlight .value{color:var(--sand);}
+
+  .rating-box{
+    background:#fff; border-radius:12px; padding:20px; border:1px solid rgba(22,33,62,0.08); margin-bottom:24px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .rating-box .big-star{font-size:28px; color:var(--gold);}
+  .rating-box .val{font-family:'Space Grotesk'; font-weight:700; font-size:24px;}
+  .rating-box .count{color:var(--muted); font-size:13px;}
+
+  .card{background:#fff; border-radius:12px; padding:24px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+  .card h2{font-size:16px; margin-bottom:16px;}
+
+  .history-item{
+    display:flex; justify-content:space-between; align-items:center; padding:12px 0;
+    border-top:1px solid rgba(22,33,62,0.06); font-size:13.5px;
+  }
+  .history-item:first-child{border-top:none;}
+  .history-item .route{font-weight:600;}
+  .history-item .date{color:var(--muted); font-size:12px; margin-top:2px;}
+  .history-item .amount{font-family:'Space Grotesk'; font-weight:700; color:var(--teal);}
+
+  .empty-note{color:var(--muted); font-size:14px; padding:20px; text-align:center;}
+
+  select{
+    padding:9px 12px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:13px; font-family:'Space Grotesk';
+    background:#fff; margin-bottom:16px;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+    <a href="espace.html" class="nav-link">← Mon espace</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+
+  <div id="content" class="hidden">
+    <h1>Mes revenus</h1>
+
+    <div class="stat-grid">
+      <div class="stat-box highlight">
+        <div class="label">AUJOURD'HUI</div>
+        <div class="value" id="todayEarnings">—</div>
+      </div>
+      <div class="stat-box highlight">
+        <div class="label">COURSES AUJOURD'HUI</div>
+        <div class="value" id="todayCount">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">TOTAL COURSES TERMINÉES</div>
+        <div class="value" id="totalCount">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">REVENU TOTAL CUMULÉ</div>
+        <div class="value" id="totalEarnings">—</div>
+      </div>
+    </div>
+
+    <div class="rating-box" id="ratingBox">
+      <span class="big-star">★</span>
+      <div>
+        <div class="val" id="avgRating">—</div>
+        <div class="count" id="ratingCount">Aucune note pour l'instant</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Historique des courses</h2>
+      <div id="historyList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUser = null;
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUser = session.user;
+
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
+    if (!profile || profile.role !== 'transporteur') { window.location.href = 'espace.html'; return; }
+
+    await loadStats();
+    await loadRating();
+    await loadHistory();
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+  }
+
+  async function loadStats(){
+    const { data, error } = await sb
+      .from('orders')
+      .select('prix, montant_transporteur, commission, created_at')
+      .eq('transporteur_id', currentUser.id)
+      .eq('statut', 'COMPLETED');
+
+    if (error) { console.error(error); return; }
+
+    const todayStr = new Date().toDateString();
+    let todayTotal = 0, todayCount = 0, allTotal = 0;
+
+    (data || []).forEach(o => {
+      const net = o.montant_transporteur ?? ((o.prix || 0) - (o.commission || 0));
+      allTotal += net;
+      if (new Date(o.created_at).toDateString() === todayStr) {
+        todayTotal += net;
+        todayCount++;
+      }
+    });
+
+    document.getElementById('todayEarnings').textContent = formatFcfa(todayTotal);
+    document.getElementById('todayCount').textContent = todayCount;
+    document.getElementById('totalCount').textContent = (data || []).length;
+    document.getElementById('totalEarnings').textContent = formatFcfa(allTotal);
+  }
+
+  async function loadRating(){
+    const { data } = await sb.from('user_rating_summary').select('*').eq('user_id', currentUser.id).maybeSingle();
+    if (data) {
+      document.getElementById('avgRating').textContent = data.note_moyenne;
+      document.getElementById('ratingCount').textContent = `${data.nombre_notes} avis`;
+    }
+  }
+
+  async function loadHistory(){
+    const { data, error } = await sb
+      .from('orders')
+      .select('*')
+      .eq('transporteur_id', currentUser.id)
+      .eq('statut', 'COMPLETED')
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    const list = document.getElementById('historyList');
+    if (error) { console.error(error); return; }
+
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="empty-note">Aucune course terminée pour l\'instant.</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(o => {
+      const net = o.montant_transporteur ?? ((o.prix || 0) - (o.commission || 0));
+      return `
+        <div class="history-item">
+          <div>
+            <div class="route">${escapeHtml(o.depart)} → ${escapeHtml(o.destination)}</div>
+            <div class="date">${new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+          <div class="amount">${formatFcfa(net)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function formatFcfa(n){
+    if (n === null || n === undefined) return '—';
+    return Math.round(n).toLocaleString('fr-FR') + ' FCFA';
+  }
+
+  function escapeHtml(str){
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  init();
+</script>
+</body>
+</html>
