@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Ma commission</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A; --cta-red-dark:#B62C21;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2,h3{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:760px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .nav-link:hover{color:var(--gold);}
+  .wrap{max-width:760px; margin:0 auto; padding:44px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1{font-size:26px; margin-bottom:6px;}
+  .subtitle{color:var(--muted); font-size:14.5px; margin-bottom:28px;}
+
+  .card{background:#fff; border-radius:12px; padding:28px; border:1px solid rgba(22,33,62,0.08); margin-bottom:20px;}
+  .card h2{font-size:16.5px; margin-bottom:16px;}
+
+  /* Barre de progression 20h */
+  .progress-wrap{margin:18px 0;}
+  .progress-track{background:var(--sand); border-radius:100px; height:14px; overflow:hidden;}
+  .progress-fill{background:var(--teal); height:100%; border-radius:100px; transition:width .6s ease;}
+  .progress-fill.warn{background:var(--gold);}
+  .progress-labels{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); margin-top:8px; font-family:'JetBrains Mono';}
+
+  .stat-row{display:flex; justify-content:space-between; padding:11px 0; border-top:1px solid rgba(22,33,62,0.06); font-size:14.5px;}
+  .stat-row:first-child{border-top:none;}
+  .stat-row .lbl{color:var(--muted);}
+  .stat-row .val{font-weight:600;}
+
+  .status-pill{
+    display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono'; font-size:12px;
+    padding:5px 12px; border-radius:100px; font-weight:600; margin-bottom:14px;
+  }
+  .status-pill.ok{background:rgba(42,127,118,0.12); color:var(--teal);}
+  .status-pill.due{background:rgba(214,54,42,0.1); color:var(--cta-red);}
+  .status-pill.pending{background:rgba(232,169,58,0.15); color:#a5760f;}
+
+  .due-card{background:var(--indigo-panel); color:var(--sand); border-radius:12px; padding:30px; margin-bottom:20px;}
+  .due-card h2{color:var(--sand); font-size:17px; margin-bottom:4px;}
+  .due-card .amount{font-family:'Space Grotesk'; font-weight:700; font-size:34px; margin:14px 0;}
+  .due-card p{color:var(--sand-dim); font-size:14px; line-height:1.6;}
+
+  .payment-box{background:rgba(243,233,210,0.08); border:1px solid rgba(243,233,210,0.2); border-radius:8px; padding:16px 18px; margin:16px 0;}
+  .payment-box .row{display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:14px;}
+  .payment-box .row .lbl{color:var(--sand-dim);}
+  .payment-box .row .val{font-family:'JetBrains Mono'; font-weight:600;}
+  .copy-btn{
+    background:none; border:1px solid rgba(243,233,210,0.4); color:var(--sand); border-radius:5px;
+    padding:4px 10px; font-size:11.5px; font-family:'Space Grotesk'; font-weight:600; cursor:pointer; margin-left:8px;
+  }
+  .copy-btn:hover{border-color:var(--gold); color:var(--gold);}
+
+  .field{margin:16px 0 0;}
+  .field label{display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px; color:var(--sand);}
+  .field select, .field input{width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(243,233,210,0.25); font-size:14px; background:rgba(255,255,255,0.06); color:var(--sand);}
+  .field select option{color:var(--ink);}
+
+  .btn-declare{
+    width:100%; font-family:'Space Grotesk'; font-weight:700; font-size:14.5px; padding:14px; border-radius:8px;
+    border:none; background:var(--teal); color:#fff; cursor:pointer; margin-top:18px;
+  }
+  .btn-declare:hover{background:#236b63;}
+  .btn-declare:disabled{background:rgba(243,233,210,0.15); cursor:not-allowed;}
+
+  .form-msg{font-size:13px; margin-top:12px; padding:10px; border-radius:6px; display:none;}
+  .form-msg.error{display:block; background:rgba(193,80,46,0.15); color:#ffb199;}
+  .form-msg.success{display:block; background:rgba(42,127,118,0.2); color:#8fd9cf;}
+
+  .declared-note{
+    background:rgba(232,169,58,0.15); color:#a5760f; border-radius:8px; padding:14px 16px; font-size:13.5px; margin-top:16px;
+  }
+
+  .empty-note{color:var(--muted); font-size:14.5px; padding:24px; background:#fff; border-radius:12px; border:1px solid rgba(22,33,62,0.08); text-align:center;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+    <a href="espace.html" class="nav-link">← Mon espace</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+
+  <div id="content" class="hidden">
+    <h1>Ma commission</h1>
+    <p class="subtitle">La commission de 5% s'accumule pendant tes 20 heures d'activité (en ligne). Elle n'est jamais prélevée course par course.</p>
+
+    <div id="dueSection"></div>
+
+    <div class="card">
+      <h2>Période en cours</h2>
+      <div id="activeSection"></div>
+    </div>
+
+    <div class="card">
+      <h2>Historique récent</h2>
+      <div id="historySection"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ⚠️ À CONFIRMER/REMPLACER : numéro Wave / Orange Money de Yoonou
+  // qui reçoit les paiements de commission des transporteurs.
+  const YOONOU_WAVE_NUMBER = '+221 77 420 34 00';
+  const YOONOU_OM_NUMBER = '+221 77 420 34 00';
+
+  const SEUIL_SECONDES = 72000; // 20h
+
+  let currentUser = null;
+  let liveTimerInterval = null;
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUser = session.user;
+
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
+    if (!profile || profile.role !== 'transporteur') { window.location.href = 'espace.html'; return; }
+
+    await loadAll();
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+  }
+
+  async function loadAll(){
+    const { data: periods, error } = await sb
+      .from('commission_periods')
+      .select('*')
+      .eq('transporteur_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) { console.error(error); return; }
+
+    const closedUnpaid = (periods || []).find(p => p.status === 'CLOSED');
+    const active = (periods || []).find(p => p.status === 'ACTIVE');
+    const history = (periods || []).filter(p => p.status === 'PAID').slice(0, 5);
+
+    renderDueSection(closedUnpaid);
+    renderActiveSection(active);
+    renderHistory(history);
+  }
+
+  function renderDueSection(periode){
+    const el = document.getElementById('dueSection');
+    if (liveTimerInterval) { clearInterval(liveTimerInterval); liveTimerInterval = null; }
+
+    if (!periode) {
+      el.innerHTML = '';
+      return;
+    }
+
+    const ref = periode.id.slice(0, 8).toUpperCase();
+    const alreadyDeclared = !!periode.declared_paid_at;
+
+    el.innerHTML = `
+      <div class="due-card">
+        <span class="status-pill due">⛔ Commission à payer</span>
+        <h2>Ta période de 20h est terminée</h2>
+        <div class="amount">${formatFcfa(periode.commission_due)}</div>
+        <p>Tu ne peux pas accepter de nouvelles courses tant que cette commission n'est pas payée. Tu peux toutefois terminer une course déjà en cours.</p>
+
+        <div class="payment-box">
+          <div class="row"><span class="lbl">Wave</span><span class="val">${YOONOU_WAVE_NUMBER} <button class="copy-btn" onclick="copyText('${YOONOU_WAVE_NUMBER}')">Copier</button></span></div>
+          <div class="row"><span class="lbl">Orange Money</span><span class="val">${YOONOU_OM_NUMBER} <button class="copy-btn" onclick="copyText('${YOONOU_OM_NUMBER}')">Copier</button></span></div>
+          <div class="row"><span class="lbl">Montant exact</span><span class="val">${formatFcfa(periode.commission_due)} <button class="copy-btn" onclick="copyText('${Math.round(periode.commission_due)}')">Copier</button></span></div>
+          <div class="row"><span class="lbl">Référence à indiquer</span><span class="val">${ref} <button class="copy-btn" onclick="copyText('${ref}')">Copier</button></span></div>
+        </div>
+
+        ${alreadyDeclared ? `
+          <div class="declared-note">
+            ✅ Tu as déclaré ce paiement le ${new Date(periode.declared_paid_at).toLocaleString('fr-FR')}. L'équipe Yoonou va vérifier et débloquer ton compte sous peu.
+          </div>
+        ` : `
+          <div class="field">
+            <label>Moyen de paiement utilisé</label>
+            <select id="declareMoyen">
+              <option value="WAVE">Wave</option>
+              <option value="ORANGE_MONEY">Orange Money</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Référence de la transaction (si disponible)</label>
+            <input type="text" id="declareRef" placeholder="${ref}">
+          </div>
+          <button class="btn-declare" id="declareBtn" data-periode-id="${periode.id}">J'ai envoyé le paiement</button>
+          <div class="form-msg" id="declareMsg"></div>
+        `}
+      </div>
+    `;
+
+    if (!alreadyDeclared) {
+      document.getElementById('declareBtn').addEventListener('click', () => declarerPaiement(periode.id, ref));
+    }
+  }
+
+  async function declarerPaiement(periodeId, refSuggeree){
+    const btn = document.getElementById('declareBtn');
+    const msg = document.getElementById('declareMsg');
+    const moyen = document.getElementById('declareMoyen').value;
+    const reference = document.getElementById('declareRef').value.trim() || refSuggeree;
+
+    btn.disabled = true;
+    btn.textContent = 'Envoi...';
+    msg.className = 'form-msg';
+
+    try {
+      const { data, error } = await sb.rpc('declarer_paiement_commission', {
+        periode_id: periodeId,
+        moyen_paiement: moyen,
+        reference: reference
+      });
+      if (error) throw error;
+      if (!data) throw new Error("Impossible d'enregistrer la déclaration.");
+
+      msg.textContent = '✅ Déclaration envoyée à l\'équipe Yoonou.';
+      msg.className = 'form-msg success';
+      await loadAll();
+    } catch (err) {
+      console.error(err);
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie dans un instant.');
+      msg.className = 'form-msg error';
+      btn.disabled = false;
+      btn.textContent = "J'ai envoyé le paiement";
+    }
+  }
+
+  function renderActiveSection(periode){
+    const el = document.getElementById('activeSection');
+
+    if (!periode) {
+      el.innerHTML = '<div class="empty-note">Passe en ligne depuis ton espace pour démarrer ta période d\'activité.</div>';
+      return;
+    }
+
+    function computeElapsed(){
+      let secs = periode.active_seconds;
+      if (periode.last_online_at) {
+        secs += Math.floor((Date.now() - new Date(periode.last_online_at).getTime()) / 1000);
+      }
+      return Math.min(secs, SEUIL_SECONDES);
+    }
+
+    function render(){
+      const secs = computeElapsed();
+      const pct = Math.min(100, (secs / SEUIL_SECONDES) * 100);
+      const isOnline = !!periode.last_online_at;
+
+      el.innerHTML = `
+        <span class="status-pill ${isOnline ? 'ok' : 'pending'}">${isOnline ? '🟢 Chrono en cours' : '⏸ En pause (hors ligne)'}</span>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill ${pct > 80 ? 'warn' : ''}" style="width:${pct}%"></div></div>
+          <div class="progress-labels"><span>${formatDuree(secs)}</span><span>20h00</span></div>
+        </div>
+        <div class="stat-row"><span class="lbl">Revenus générés (bruts)</span><span class="val">${formatFcfa(periode.gross_revenue)}</span></div>
+        <div class="stat-row"><span class="lbl">Commission accumulée</span><span class="val">${formatFcfa(periode.commission_due)}</span></div>
+        <div class="stat-row"><span class="lbl">Débutée le</span><span class="val">${new Date(periode.started_at).toLocaleString('fr-FR')}</span></div>
+      `;
+    }
+
+    render();
+    if (periode.last_online_at) {
+      liveTimerInterval = setInterval(render, 1000);
+    }
+  }
+
+  function renderHistory(history){
+    const el = document.getElementById('historySection');
+    if (!history || history.length === 0) {
+      el.innerHTML = '<div class="empty-note">Aucune commission payée pour l\'instant.</div>';
+      return;
+    }
+    el.innerHTML = history.map(p => `
+      <div class="stat-row">
+        <span class="lbl">${new Date(p.paid_at).toLocaleDateString('fr-FR')} — ${p.payment_method === 'WAVE' ? 'Wave' : 'Orange Money'}</span>
+        <span class="val">${formatFcfa(p.commission_due)}</span>
+      </div>
+    `).join('');
+  }
+
+  function formatFcfa(n){
+    if (n === null || n === undefined) return '—';
+    return Math.round(n).toLocaleString('fr-FR') + ' FCFA';
+  }
+
+  function formatDuree(secs){
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    return `${h}h${String(m).padStart(2,'0')}`;
+  }
+
+  function copyText(text){
+    navigator.clipboard.writeText(text.toString());
+  }
+
+  window.addEventListener('beforeunload', () => {
+    if (liveTimerInterval) clearInterval(liveTimerInterval);
+  });
+
+  init();
+</script>
+</body>
+</html>
