@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Mes commandes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A; --cta-red-dark:#B62C21;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2,h3{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-links{display:flex; align-items:center; gap:18px;}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .nav-link:hover{color:var(--gold);}
+  .logout-btn{background:none; border:1.5px solid rgba(243,233,210,0.35); color:var(--sand); padding:9px 18px; border-radius:6px; font-family:'Space Grotesk'; font-weight:600; font-size:13px; cursor:pointer;}
+  .logout-btn:hover{border-color:var(--gold); color:var(--gold);}
+  .wrap{max-width:900px; margin:0 auto; padding:44px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  .page-header{margin-bottom:28px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:14px;}
+  .page-header h1{font-size:28px; margin-bottom:6px;}
+  .page-header p{color:var(--muted); font-size:14.5px;}
+  .refresh-btn{
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:10px 18px; border-radius:6px;
+    border:1.5px solid var(--teal); background:none; color:var(--teal); cursor:pointer; white-space:nowrap;
+  }
+  .refresh-btn:hover{background:rgba(42,127,118,0.08);}
+
+  .section-title{font-size:17px; margin:32px 0 14px;}
+  .section-title:first-of-type{margin-top:0;}
+  .count-pill{
+    font-family:'JetBrains Mono'; font-size:12px; background:rgba(22,33,62,0.08); color:var(--muted);
+    padding:3px 10px; border-radius:100px; margin-left:8px;
+  }
+
+  .empty-note{color:var(--muted); font-size:14.5px; padding:24px; background:#fff; border-radius:12px; border:1px solid rgba(22,33,62,0.08); text-align:center;}
+
+  .order-card{background:#fff; border-radius:12px; padding:24px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+  .order-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px;}
+  .vehicle-badge{
+    font-family:'JetBrains Mono'; font-size:11px; letter-spacing:.04em; padding:4px 11px; border-radius:100px;
+    background:rgba(214,54,42,0.1); color:var(--cta-red); font-weight:600; white-space:nowrap;
+  }
+  .status-badge{
+    font-family:'JetBrains Mono'; font-size:11px; padding:4px 11px; border-radius:100px; font-weight:600;
+    background:rgba(232,169,58,0.15); color:#a5760f; white-space:nowrap;
+  }
+  .route{font-size:15.5px; font-weight:600; line-height:1.5;}
+  .route .dest{color:var(--muted); font-weight:500;}
+  .route-arrow{color:var(--laterite); margin:0 4px;}
+
+  .meta-row{display:flex; flex-wrap:wrap; gap:8px 18px; font-size:13.5px; color:var(--muted); margin:12px 0;}
+  .meta-row span b{color:var(--ink);}
+
+  .price-box{
+    background:var(--sand); border-radius:8px; padding:16px 18px; margin:14px 0;
+  }
+  .price-row{display:flex; justify-content:space-between; font-size:14px; padding:4px 0;}
+  .price-row.total{font-family:'Space Grotesk'; font-weight:700; font-size:15.5px; padding-top:10px; margin-top:6px; border-top:1px solid rgba(22,33,62,0.1);}
+  .price-row .lbl{color:var(--muted);}
+  .price-row.total .lbl{color:var(--ink);}
+  .price-row.net .val{color:var(--teal); font-weight:700;}
+
+  .btn-row{display:flex; gap:10px; margin-top:16px;}
+  .btn-accept{
+    flex:1; font-family:'Space Grotesk'; font-weight:700; font-size:14px; padding:13px; border-radius:8px;
+    border:none; background:var(--teal); color:#fff; cursor:pointer;
+  }
+  .btn-accept:hover{background:#236b63;}
+  .btn-accept:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
+  .btn-refuse{
+    flex:1; font-family:'Space Grotesk'; font-weight:600; font-size:14px; padding:13px; border-radius:8px;
+    border:1.5px solid rgba(22,33,62,0.15); background:none; color:var(--muted); cursor:pointer;
+  }
+  .btn-refuse:hover{border-color:var(--laterite); color:var(--laterite);}
+
+  .btn-cancel{
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:10px 18px; border-radius:6px;
+    border:1.5px solid var(--laterite); background:none; color:var(--laterite); cursor:pointer; margin-top:14px;
+  }
+  .btn-cancel:hover{background:rgba(193,80,46,0.08);}
+
+  .action-row{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;}
+  .btn-step{
+    font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:12px 20px; border-radius:8px;
+    border:none; background:var(--indigo-deep); color:var(--sand); cursor:pointer;
+  }
+  .btn-step:hover{background:#0f1830;}
+  .btn-step:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
+  .btn-step.cash{background:var(--gold); color:var(--ink);}
+  .btn-step.cash:hover{background:#d59a2e;}
+
+  .verify-form{background:var(--sand); border-radius:8px; padding:16px 18px; margin-top:14px;}
+  .verify-form .field{margin-bottom:10px;}
+  .verify-form label{display:block; font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; margin-bottom:5px;}
+  .verify-form input[type="text"], .verify-form input[type="number"]{
+    width:100%; padding:10px 12px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px;
+  }
+  .verify-form input[type="file"]{font-size:12.5px;}
+  .verify-hint{color:var(--muted); font-size:12px; margin-top:-4px; margin-bottom:8px;}
+  .verify-actions{display:flex; gap:10px; margin-top:12px;}
+  .btn-verify-confirm{
+    flex:1; font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:12px; border-radius:6px;
+    border:none; background:var(--teal); color:#fff; cursor:pointer;
+  }
+  .btn-verify-confirm:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
+  .btn-verify-cancel{
+    font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; padding:12px 16px; border-radius:6px;
+    border:1.5px solid rgba(22,33,62,0.15); background:none; color:var(--muted); cursor:pointer;
+  }
+
+  .card-msg{font-size:13px; margin-top:10px; padding:10px; border-radius:6px; display:none;}
+  .card-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .card-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+  .card-msg.info{display:block; background:rgba(22,33,62,0.06); color:var(--muted);}
+
+  /* Modal annulation */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(22,33,62,0.55); display:none;
+    align-items:center; justify-content:center; padding:20px; z-index:100;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:#fff; border-radius:14px; padding:30px; max-width:440px; width:100%;}
+  .modal-box h3{font-size:18px; margin-bottom:8px;}
+  .modal-box p.sub{color:var(--muted); font-size:13.5px; margin-bottom:18px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;}
+  .field select, .field textarea{width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px; background:#fff; font-family:'Work Sans';}
+  .field textarea{resize:vertical; min-height:70px;}
+  .modal-actions{display:flex; gap:10px; margin-top:20px;}
+  .modal-actions .btn-cancel-confirm{
+    flex:1; font-family:'Space Grotesk'; font-weight:700; font-size:14px; padding:13px; border-radius:8px;
+    border:none; background:var(--laterite); color:#fff; cursor:pointer;
+  }
+  .modal-actions .btn-cancel-confirm:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
+  .modal-actions .btn-back{
+    font-family:'Space Grotesk'; font-weight:600; font-size:14px; padding:13px 18px; border-radius:8px;
+    border:1.5px solid rgba(22,33,62,0.15); background:none; color:var(--muted); cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+    <div class="nav-links">
+      <a href="espace.html" class="nav-link">Mon espace</a>
+      <button class="logout-btn" id="logoutBtn">Se déconnecter</button>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement des commandes...</div>
+
+  <div id="content" class="hidden">
+    <div class="page-header">
+      <div>
+        <h1>Mes commandes</h1>
+        <p>Accepte librement les courses qui t'intéressent. Un refus n'a aucune conséquence sur ton compte.</p>
+      </div>
+      <button class="refresh-btn" id="refreshBtn">↻ Actualiser</button>
+    </div>
+
+    <h2 class="section-title">Courses en cours<span class="count-pill" id="ongoingCount">0</span></h2>
+    <div id="ongoingList"></div>
+
+    <h2 class="section-title">Courses disponibles<span class="count-pill" id="availableCount">0</span></h2>
+    <div id="availableList"></div>
+  </div>
+</div>
+
+<!-- Modal annulation -->
+<div class="modal-overlay" id="cancelModal">
+  <div class="modal-box">
+    <h3>Annuler cette course</h3>
+    <p class="sub">Dis-nous pourquoi. Une annulation justifiée n'entraîne pas de sanction automatique — chaque situation est analysée.</p>
+    <div class="field">
+      <label>Motif de l'annulation</label>
+      <select id="cancelReason">
+        <option value="panne_vehicule">Panne du véhicule</option>
+        <option value="accident">Accident</option>
+        <option value="probleme_securite">Problème de sécurité</option>
+        <option value="marchandise_non_conforme">Marchandise non conforme à la commande</option>
+        <option value="poids_superieur_prevu">Poids beaucoup plus important que prévu</option>
+        <option value="dimensions_differentes">Dimensions différentes de la commande</option>
+        <option value="client_absent">Client absent</option>
+        <option value="adresse_inaccessible">Adresse inaccessible</option>
+        <option value="probleme_technique">Problème technique</option>
+        <option value="autre">Autre</option>
+      </select>
+    </div>
+    <div class="field" id="cancelNoteWrap" style="display:none;">
+      <label>Précise en quelques mots</label>
+      <textarea id="cancelNote" placeholder="Explique brièvement la situation..."></textarea>
+    </div>
+    <div class="card-msg" id="cancelMsg"></div>
+    <div class="modal-actions">
+      <button class="btn-back" id="cancelModalClose">Retour</button>
+      <button class="btn-cancel-confirm" id="cancelConfirmBtn">Confirmer l'annulation</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ratingModal">
+  <div class="modal-box">
+    <h3>Note ce client</h3>
+    <p class="sub">Comment s'est passée la course ? (optionnel)</p>
+    <div class="stars" id="ratingStarsTransporteur" style="font-size:32px; letter-spacing:6px; margin-bottom:14px; cursor:pointer;">
+      <span data-val="1" style="color:rgba(22,33,62,0.15);">★</span><span data-val="2" style="color:rgba(22,33,62,0.15);">★</span><span data-val="3" style="color:rgba(22,33,62,0.15);">★</span><span data-val="4" style="color:rgba(22,33,62,0.15);">★</span><span data-val="5" style="color:rgba(22,33,62,0.15);">★</span>
+    </div>
+    <textarea id="ratingCommentTransporteur" placeholder="Un commentaire ?" rows="2" style="width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px; font-family:'Work Sans'; resize:vertical;"></textarea>
+    <div class="card-msg" id="ratingMsgTransporteur"></div>
+    <div class="modal-actions">
+      <button class="btn-back" id="skipRatingBtn">Passer</button>
+      <button class="btn-verify-confirm" id="submitRatingTransporteur">Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUser = null;
+  let currentProfile = null;
+  let myVehicleTypes = [];
+  let vehicleTypeLabels = {};
+  let refreshInterval = null;
+  let gpsInterval = null;
+  let pendingCancelOrderId = null;
+
+  const STATUT_LABELS = {
+    DRIVER_ASSIGNED: 'Assignée — en route',
+    DRIVER_ARRIVING: "En approche du départ",
+    ARRIVED_PICKUP: 'Arrivé au point de départ',
+    PICKUP_VERIFICATION: 'Vérification du colis',
+    PICKUP_CONFIRMED: 'Colis confirmé',
+    LOADING: 'Chargement',
+    IN_TRANSIT: 'En transit',
+    ARRIVED_DESTINATION: "Arrivé à destination",
+    DELIVERY_VERIFICATION: 'Vérification livraison',
+    DELIVERED: 'Livrée',
+    PAYMENT_PENDING: 'Paiement en attente'
+  };
+
+  const ONGOING_STATUSES = [
+    'DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP','PICKUP_VERIFICATION',
+    'PICKUP_CONFIRMED','LOADING','IN_TRANSIT','ARRIVED_DESTINATION',
+    'DELIVERY_VERIFICATION','DELIVERED','PAYMENT_PENDING'
+  ];
+
+  // Motifs qui déclenchent le champ "précision libre"
+  const REASON_NEEDS_NOTE = ['autre'];
+
+  function refusedKey(){ return 'yoonou_refused_' + currentUser.id; }
+  function getRefusedIds(){
+    try { return JSON.parse(sessionStorage.getItem(refusedKey())) || []; }
+    catch(e){ return []; }
+  }
+  function addRefusedId(id){
+    const list = getRefusedIds();
+    list.push(id);
+    sessionStorage.setItem(refusedKey(), JSON.stringify(list));
+  }
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUser = session.user;
+
+    const { data: profile, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+    if (error || !profile) {
+      document.getElementById('loadingState').textContent = "Impossible de charger ton profil. Réessaie de te connecter.";
+      return;
+    }
+    if (profile.role !== 'transporteur') {
+      window.location.href = 'espace.html';
+      return;
+    }
+    currentProfile = profile;
+
+    await loadVehicleTypeLabels();
+    await loadMyVehicleTypes();
+    await refreshAll();
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+
+    refreshInterval = setInterval(refreshAll, 20000); // actualisation auto toutes les 20s
+    gpsInterval = setInterval(sendLocationIfOnActiveOrder, 10000); // GPS haute fréquence si course active
+    sendLocationIfOnActiveOrder();
+  }
+
+  async function sendLocationIfOnActiveOrder(){
+    if (!navigator.geolocation) return;
+    const { data } = await sb
+      .from('orders')
+      .select('id')
+      .eq('transporteur_id', currentUser.id)
+      .in('statut', ['DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP','PICKUP_CONFIRMED','LOADING','IN_TRANSIT','ARRIVED_DESTINATION'])
+      .limit(1)
+      .maybeSingle();
+    if (!data) return;
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      await sb.from('driver_locations').insert([{
+        transporteur_id: currentUser.id,
+        order_id: data.id,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      }]);
+    }, () => {});
+
+  async function loadVehicleTypeLabels(){
+    const { data } = await sb.from('vehicle_types').select('type, label');
+    (data || []).forEach(t => vehicleTypeLabels[t.type] = t.label);
+  }
+
+  async function loadMyVehicleTypes(){
+    const { data, error } = await sb.from('vehicles').select('type').eq('transporteur_id', currentUser.id).eq('statut', 'actif');
+    if (error) { console.error(error); return; }
+    myVehicleTypes = [...new Set((data || []).map(v => v.type))];
+  }
+
+  async function refreshAll(){
+    await Promise.all([loadAvailableOrders(), loadOngoingOrders()]);
+  }
+
+  async function loadAvailableOrders(){
+    const list = document.getElementById('availableList');
+    const countEl = document.getElementById('availableCount');
+
+    if (myVehicleTypes.length === 0) {
+      list.innerHTML = '<div class="empty-note">Ajoute d\'abord un véhicule dans ton espace pour voir les commandes compatibles.</div>';
+      countEl.textContent = '0';
+      return;
+    }
+
+    const { data, error } = await sb
+      .from('orders')
+      .select('*')
+      .eq('statut', 'REQUESTED')
+      .is('transporteur_id', null)
+      .in('type_vehicule', myVehicleTypes)
+      .order('created_at', { ascending: true });
+
+    if (error) { console.error(error); return; }
+
+    const refused = getRefusedIds();
+    const visible = (data || []).filter(o => !refused.includes(o.id));
+
+    countEl.textContent = visible.length;
+
+    if (visible.length === 0) {
+      list.innerHTML = '<div class="empty-note">Aucune commande disponible pour l\'instant sur tes types de véhicules.</div>';
+      return;
+    }
+
+    list.innerHTML = visible.map(o => renderAvailableCard(o)).join('');
+    attachAvailableHandlers();
+  }
+
+  function renderAvailableCard(o){
+    const commission = o.commission ?? Math.round((o.prix || 0) * 0.05);
+    const net = o.montant_transporteur ?? ((o.prix || 0) - commission);
+    return `
+      <div class="order-card" data-order-id="${o.id}">
+        <div class="order-top">
+          <div class="route">${escapeHtml(o.depart)}<span class="route-arrow">→</span><span class="dest">${escapeHtml(o.destination)}</span></div>
+          <span class="vehicle-badge">${vehicleTypeLabels[o.type_vehicule] || o.type_vehicule}</span>
+        </div>
+        <div class="meta-row">
+          ${o.distance_km ? `<span><b>${o.distance_km} km</b></span>` : ''}
+          ${o.poids_kg ? `<span>Poids : <b>${o.poids_kg} kg</b></span>` : ''}
+          ${o.cargo_categorie ? `<span>Marchandise : <b>${escapeHtml(o.cargo_categorie)}</b></span>` : ''}
+          ${o.cargo_quantite && o.cargo_quantite > 1 ? `<span>Quantité : <b>${o.cargo_quantite}</b></span>` : ''}
+        </div>
+        ${o.description ? `<div class="meta-row"><span>${escapeHtml(o.description)}</span></div>` : ''}
+        <div class="price-box">
+          <div class="price-row"><span class="lbl">Prix payé par le client</span><span class="val">${formatFcfa(o.prix)}</span></div>
+          <div class="price-row"><span class="lbl">Commission Yoonou (5%)</span><span class="val">− ${formatFcfa(commission)}</span></div>
+          <div class="price-row total net"><span class="lbl">Ton revenu net</span><span class="val">${formatFcfa(net)}</span></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-accept" data-action="accept" data-id="${o.id}">Accepter</button>
+          <button class="btn-refuse" data-action="refuse" data-id="${o.id}">Refuser</button>
+        </div>
+        <div class="card-msg" id="msg-${o.id}"></div>
+      </div>
+    `;
+  }
+
+  function attachAvailableHandlers(){
+    document.querySelectorAll('#availableList [data-action="accept"]').forEach(btn => {
+      btn.addEventListener('click', () => acceptOrder(btn.dataset.id, btn));
+    });
+    document.querySelectorAll('#availableList [data-action="refuse"]').forEach(btn => {
+      btn.addEventListener('click', () => refuseOrder(btn.dataset.id));
+    });
+  }
+
+  async function acceptOrder(orderId, btn){
+    const msg = document.getElementById('msg-' + orderId);
+    btn.disabled = true;
+    btn.textContent = 'Acceptation...';
+    msg.className = 'card-msg';
+
+    try {
+      const { data, error } = await sb.rpc('accepter_commande', {
+        commande_id: orderId,
+        id_transporteur: currentUser.id
+      });
+      if (error) throw error;
+
+      if (data === true) {
+        msg.textContent = '✅ Course acceptée !';
+        msg.className = 'card-msg success';
+        await refreshAll();
+      } else {
+        msg.textContent = "Cette course vient d'être acceptée par un autre transporteur.";
+        msg.className = 'card-msg info';
+        btn.disabled = false;
+        btn.textContent = 'Accepter';
+        setTimeout(loadAvailableOrders, 1500);
+      }
+    } catch (err) {
+      console.error(err);
+      msg.textContent = "Erreur : " + (err.message || "impossible d'accepter cette course.");
+      msg.className = 'card-msg error';
+      btn.disabled = false;
+      btn.textContent = 'Accepter';
+    }
+  }
+
+  function refuseOrder(orderId){
+    // Refus libre : aucune pénalité, aucune trace négative, aucune justification demandée.
+    // On retire simplement la course de la vue de ce transporteur pour cette session.
+    addRefusedId(orderId);
+    const card = document.querySelector(`#availableList [data-order-id="${orderId}"]`);
+    if (card) card.remove();
+    const countEl = document.getElementById('availableCount');
+    countEl.textContent = Math.max(0, parseInt(countEl.textContent || '0') - 1);
+  }
+
+  async function loadOngoingOrders(){
+    const list = document.getElementById('ongoingList');
+    const countEl = document.getElementById('ongoingCount');
+
+    const { data, error } = await sb
+      .from('orders')
+      .select('*')
+      .eq('transporteur_id', currentUser.id)
+      .in('statut', ONGOING_STATUSES)
+      .order('created_at', { ascending: false });
+
+    if (error) { console.error(error); return; }
+
+    countEl.textContent = (data || []).length;
+
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="empty-note">Aucune course en cours pour l\'instant.</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(o => renderOngoingCard(o)).join('');
+    attachOngoingHandlers();
+  }
+
+  function attachOngoingHandlers(){
+    document.querySelectorAll('#ongoingList [data-action="open-cancel"]').forEach(btn => {
+      btn.addEventListener('click', () => openCancelModal(btn.dataset.id));
+    });
+    document.querySelectorAll('#ongoingList [data-action="advance"]').forEach(btn => {
+      btn.addEventListener('click', () => advancerStatut(btn.dataset.id, btn.dataset.next, btn));
+    });
+    document.querySelectorAll('#ongoingList [data-action="open-verify"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const zone = document.getElementById('step-zone-' + btn.dataset.id);
+        zone.innerHTML = renderVerifyForm(btn.dataset.id, btn.dataset.kind);
+        attachVerifyHandlers(btn.dataset.id);
+      });
+    });
+    document.querySelectorAll('#ongoingList [data-action="confirm-cash"]').forEach(btn => {
+      btn.addEventListener('click', () => confirmerCash(btn.dataset.id, btn));
+    });
+  }
+
+  function attachVerifyHandlers(orderId){
+    document.querySelector(`#step-zone-${orderId} [data-action="close-verify"]`).addEventListener('click', () => {
+      loadOngoingOrders();
+    });
+    document.querySelector(`#step-zone-${orderId} [data-action="submit-verify"]`).addEventListener('click', (e) => {
+      const kind = e.target.dataset.kind;
+      soumettreVerification(orderId, kind, e.target);
+    });
+  }
+
+  async function advancerStatut(orderId, nouveauStatut, btn){
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = '...';
+    try {
+      const { data, error } = await sb.rpc('avancer_statut_transporteur', {
+        order_id: orderId,
+        nouveau_statut: nouveauStatut
+      });
+      if (error) throw error;
+      if (!data) throw new Error('Transition refusée — recharge la page.');
+      await loadOngoingOrders();
+    } catch (err) {
+      console.error(err);
+      alert("Erreur : " + (err.message || "impossible de continuer."));
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+
+  function getGeolocation(){
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) { resolve({ lat: null, lng: null }); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve({ lat: null, lng: null }),
+        { timeout: 5000 }
+      );
+    });
+  }
+
+  async function uploadProofPhoto(orderId, fileInput){
+    if (!fileInput.files || !fileInput.files[0]) return null;
+    const file = fileInput.files[0];
+    const path = `${orderId}/${Date.now()}_${file.name}`;
+    try {
+      const { data, error } = await sb.storage.from('proof-photos').upload(path, file);
+      if (error) throw error;
+      const { data: pub } = sb.storage.from('proof-photos').getPublicUrl(data.path);
+      return pub?.publicUrl || null;
+    } catch (err) {
+      console.warn("Upload photo impossible (bucket 'proof-photos' non configuré ?) :", err.message);
+      return null;
+    }
+  }
+
+  async function soumettreVerification(orderId, kind, btn){
+    const msg = document.getElementById('verify-msg-' + orderId);
+    btn.disabled = true;
+    btn.textContent = 'Validation...';
+    msg.className = 'card-msg';
+
+    try {
+      const pin = document.getElementById('pin-' + orderId).value.trim() || null;
+      const qty = document.getElementById('qty-' + orderId).value;
+      const quantite = qty ? parseInt(qty) : null;
+      const photoInput = document.getElementById('photo-' + orderId);
+      const { lat, lng } = await getGeolocation();
+      const photoUrl = await uploadProofPhoto(orderId, photoInput);
+
+      let result;
+      if (kind === 'pickup') {
+        const { data, error } = await sb.rpc('confirmer_pickup', {
+          p_order_id: orderId,
+          pin_saisi: pin,
+          quantite: quantite,
+          photo: photoUrl,
+          lat: lat,
+          lng: lng,
+          commentaire: null
+        });
+        if (error) throw error;
+        result = data;
+      } else {
+        const recipientEl = document.getElementById('recipient-' + orderId);
+        const { data, error } = await sb.rpc('confirmer_livraison', {
+          p_order_id: orderId,
+          pin_saisi: pin,
+          quantite: quantite,
+          photo: photoUrl,
+          lat: lat,
+          lng: lng,
+          nom_destinataire: recipientEl ? (recipientEl.value.trim() || null) : null,
+          commentaire: null
+        });
+        if (error) throw error;
+        result = data;
+      }
+
+      if (result && result.success) {
+        await loadOngoingOrders();
+      } else {
+        msg.textContent = (result && result.error) || "Erreur lors de la validation.";
+        msg.className = 'card-msg error';
+        btn.disabled = false;
+        btn.textContent = 'Valider';
+      }
+    } catch (err) {
+      console.error(err);
+      msg.textContent = "Erreur : " + (err.message || "réessaie.");
+      msg.className = 'card-msg error';
+      btn.disabled = false;
+      btn.textContent = 'Valider';
+    }
+  }
+
+  async function confirmerCash(orderId, btn){
+    btn.disabled = true;
+    btn.textContent = 'Confirmation...';
+    try {
+      const { data, error } = await sb.rpc('confirmer_paiement_especes', { p_order_id: orderId });
+      if (error) throw error;
+      if (!data) throw new Error("Impossible de confirmer le paiement.");
+      openRatingModal(orderId);
+      await loadOngoingOrders();
+    } catch (err) {
+      console.error(err);
+      alert("Erreur : " + (err.message || "réessaie."));
+      btn.disabled = false;
+      btn.textContent = '💵 Confirmer réception des espèces';
+    }
+  }
+
+  let ratingOrderId = null;
+  let ratingStars = 0;
+
+  function openRatingModal(orderId){
+    ratingOrderId = orderId;
+    ratingStars = 0;
+    document.querySelectorAll('#ratingStarsTransporteur span').forEach(s => s.classList.remove('active'));
+    document.getElementById('ratingCommentTransporteur').value = '';
+    document.getElementById('ratingMsgTransporteur').className = 'card-msg';
+    document.getElementById('ratingModal').classList.add('open');
+  }
+
+  document.querySelectorAll('#ratingStarsTransporteur span').forEach(star => {
+    star.addEventListener('click', () => {
+      ratingStars = parseInt(star.dataset.val);
+      document.querySelectorAll('#ratingStarsTransporteur span').forEach(s => {
+        s.classList.toggle('active', parseInt(s.dataset.val) <= ratingStars);
+      });
+    });
+  });
+
+  document.getElementById('skipRatingBtn').addEventListener('click', () => {
+    document.getElementById('ratingModal').classList.remove('open');
+  });
+
+  document.getElementById('submitRatingTransporteur').addEventListener('click', async () => {
+    const msg = document.getElementById('ratingMsgTransporteur');
+    const btn = document.getElementById('submitRatingTransporteur');
+    msg.className = 'card-msg';
+
+    if (ratingStars === 0) {
+      msg.textContent = 'Choisis au moins une étoile.';
+      msg.className = 'card-msg error';
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Envoi...';
+    try {
+      const comment = document.getElementById('ratingCommentTransporteur').value.trim() || null;
+      const { data, error } = await sb.rpc('noter_commande', {
+        p_order_id: ratingOrderId,
+        p_note: ratingStars,
+        p_commentaire: comment
+      });
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+      document.getElementById('ratingModal').classList.remove('open');
+    } catch (err) {
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msg.className = 'card-msg error';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Envoyer';
+    }
+  });
+
+  function renderOngoingCard(o){
+    const commission = o.commission ?? Math.round((o.prix || 0) * 0.05);
+    const net = o.montant_transporteur ?? ((o.prix || 0) - commission);
+    const canStillCancel = ['DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP'].includes(o.statut);
+
+    return `
+      <div class="order-card" data-order-id="${o.id}" data-statut="${o.statut}">
+        <div class="order-top">
+          <div class="route">${escapeHtml(o.depart)}<span class="route-arrow">→</span><span class="dest">${escapeHtml(o.destination)}</span></div>
+          <span class="status-badge">${STATUT_LABELS[o.statut] || o.statut}</span>
+        </div>
+        <div class="meta-row">
+          ${o.distance_km ? `<span><b>${o.distance_km} km</b></span>` : ''}
+          <span>${vehicleTypeLabels[o.type_vehicule] || o.type_vehicule}</span>
+          ${o.cargo_quantite ? `<span>Quantité annoncée : <b>${o.cargo_quantite}</b></span>` : ''}
+        </div>
+        ${o.instructions_pickup ? `<div class="meta-row"><span>📍 Pickup : ${escapeHtml(o.instructions_pickup)}</span></div>` : ''}
+        ${o.instructions_destination ? `<div class="meta-row"><span>🎯 Destination : ${escapeHtml(o.instructions_destination)}</span></div>` : ''}
+        <div class="price-box">
+          <div class="price-row net"><span class="lbl">Ton revenu net</span><span class="val">${formatFcfa(net)}</span></div>
+        </div>
+
+        <div class="step-zone" id="step-zone-${o.id}">
+          ${renderStepAction(o)}
+        </div>
+
+        ${canStillCancel ? `<button class="btn-cancel" data-action="open-cancel" data-id="${o.id}">Annuler cette course</button>` : ''}
+      </div>
+    `;
+  }
+
+  function renderStepAction(o){
+    switch(o.statut){
+      case 'DRIVER_ASSIGNED':
+        return `<div class="action-row"><button class="btn-step" data-action="advance" data-id="${o.id}" data-next="DRIVER_ARRIVING">Je suis en route vers le pickup</button></div>`;
+      case 'DRIVER_ARRIVING':
+        return `<div class="action-row"><button class="btn-step" data-action="advance" data-id="${o.id}" data-next="ARRIVED_PICKUP">Je suis arrivé au pickup</button></div>`;
+      case 'ARRIVED_PICKUP':
+        return `<div class="action-row"><button class="btn-step" data-action="open-verify" data-id="${o.id}" data-kind="pickup">Confirmer la collecte</button></div>`;
+      case 'PICKUP_CONFIRMED':
+        return `<div class="action-row"><button class="btn-step" data-action="advance" data-id="${o.id}" data-next="LOADING">Démarrer le chargement</button></div>`;
+      case 'LOADING':
+        return `<div class="action-row"><button class="btn-step" data-action="advance" data-id="${o.id}" data-next="IN_TRANSIT">Chargement terminé — démarrer le transport</button></div>`;
+      case 'IN_TRANSIT':
+        return `<div class="action-row"><button class="btn-step" data-action="advance" data-id="${o.id}" data-next="ARRIVED_DESTINATION">Je suis arrivé à destination</button></div>`;
+      case 'ARRIVED_DESTINATION':
+        return `<div class="action-row"><button class="btn-step" data-action="open-verify" data-id="${o.id}" data-kind="delivery">Confirmer la livraison</button></div>`;
+      case 'PAYMENT_PENDING':
+        return `<div class="action-row"><button class="btn-step cash" data-action="confirm-cash" data-id="${o.id}">💵 Confirmer réception des espèces (${formatFcfa(o.prix)})</button></div>`;
+      case 'DELIVERED':
+        return `<div class="verify-hint">Livraison confirmée, en attente de paiement.</div>`;
+      default:
+        return '';
+    }
+  }
+
+  function renderVerifyForm(orderId, kind){
+    const isPickup = kind === 'pickup';
+    return `
+      <div class="verify-form" id="verify-form-${orderId}">
+        <div class="field">
+          <label>${isPickup ? 'PIN donné par le client' : 'PIN donné par le destinataire'}</label>
+          <input type="text" id="pin-${orderId}" placeholder="Laisse vide si aucun PIN n'a été communiqué">
+        </div>
+        <div class="field">
+          <label>Quantité ${isPickup ? 'collectée' : 'livrée'}</label>
+          <input type="number" id="qty-${orderId}" min="0" placeholder="Ex: 8">
+        </div>
+        ${!isPickup ? `
+        <div class="field">
+          <label>Nom du destinataire (si différent)</label>
+          <input type="text" id="recipient-${orderId}" placeholder="Optionnel">
+        </div>` : ''}
+        <div class="field">
+          <label>Photo (optionnel)</label>
+          <input type="file" id="photo-${orderId}" accept="image/*" capture="environment">
+          <div class="verify-hint">Nécessite un bucket de stockage configuré côté Supabase — sans ça, la photo est simplement ignorée.</div>
+        </div>
+        <div class="card-msg" id="verify-msg-${orderId}"></div>
+        <div class="verify-actions">
+          <button class="btn-verify-confirm" data-action="submit-verify" data-id="${orderId}" data-kind="${kind}">Valider</button>
+          <button class="btn-verify-cancel" data-action="close-verify" data-id="${orderId}">Annuler</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function openCancelModal(orderId){
+    pendingCancelOrderId = orderId;
+    document.getElementById('cancelReason').value = 'panne_vehicule';
+    document.getElementById('cancelNote').value = '';
+    document.getElementById('cancelNoteWrap').style.display = 'none';
+    document.getElementById('cancelMsg').className = 'card-msg';
+    document.getElementById('cancelModal').classList.add('open');
+  }
+
+  document.getElementById('cancelModalClose').addEventListener('click', () => {
+    document.getElementById('cancelModal').classList.remove('open');
+    pendingCancelOrderId = null;
+  });
+
+  document.getElementById('cancelReason').addEventListener('change', (e) => {
+    document.getElementById('cancelNoteWrap').style.display =
+      REASON_NEEDS_NOTE.includes(e.target.value) ? 'block' : 'none';
+  });
+
+  document.getElementById('cancelConfirmBtn').addEventListener('click', async () => {
+    if (!pendingCancelOrderId) return;
+    const btn = document.getElementById('cancelConfirmBtn');
+    const msg = document.getElementById('cancelMsg');
+    const reason = document.getElementById('cancelReason').value;
+    const note = document.getElementById('cancelNote').value.trim();
+
+    msg.className = 'card-msg';
+    btn.disabled = true;
+    btn.textContent = 'Annulation...';
+
+    try {
+      const { error } = await sb.from('orders').update({
+        statut: 'CANCELLED',
+        cancellation_reason: reason,
+        cancellation_note: note || null,
+        cancelled_by: currentUser.id,
+        cancelled_at: new Date().toISOString()
+      }).eq('id', pendingCancelOrderId);
+
+      if (error) throw error;
+
+      document.getElementById('cancelModal').classList.remove('open');
+      pendingCancelOrderId = null;
+      await loadOngoingOrders();
+    } catch (err) {
+      console.error(err);
+      msg.textContent = "Erreur : " + (err.message || "impossible d'annuler cette course.");
+      msg.className = 'card-msg error';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Confirmer l'annulation";
+    }
+  });
+
+  document.getElementById('refreshBtn').addEventListener('click', refreshAll);
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.href = 'auth.html';
+  });
+
+  function formatFcfa(n){
+    if (n === null || n === undefined) return '—';
+    return Math.round(n).toLocaleString('fr-FR') + ' FCFA';
+  }
+
+  function escapeHtml(str){
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  window.addEventListener('beforeunload', () => {
+    if (refreshInterval) clearInterval(refreshInterval);
+    if (gpsInterval) clearInterval(gpsInterval);
+  });
+
+  init();
+</script>
+<button id="sosFloatBtn" style="position:fixed; bottom:24px; right:24px; width:56px; height:56px; border-radius:50%; background:var(--cta-red); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(214,54,42,0.5); cursor:pointer; z-index:90;">🆘</button>
+
+<div id="supportModal" style="display:none; position:fixed; inset:0; background:rgba(22,33,62,0.55); align-items:center; justify-content:center; padding:20px; z-index:100;">
+  <div style="background:#fff; border-radius:14px; padding:28px; max-width:440px; width:100%; max-height:85vh; overflow-y:auto;">
+    <h3 style="font-family:'Space Grotesk'; font-weight:700; font-size:18px; margin-bottom:6px;">Besoin d'aide ?</h3>
+    <p style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">Décris ton problème, on te répond rapidement.</p>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;">Catégorie</label>
+      <select id="supportCategory" style="width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px;">
+        <option value="Problème avec une course">Problème avec une course</option>
+        <option value="Problème avec un client">Problème avec un client</option>
+        <option value="Problème avec une marchandise">Problème avec une marchandise</option>
+        <option value="Problème de paiement">Problème de paiement</option>
+        <option value="Problème avec mon compte">Problème avec mon compte</option>
+        <option value="Problème avec l'application">Problème avec l'application</option>
+        <option value="Sécurité / urgence">🆘 Sécurité / urgence</option>
+        <option value="Autre">Autre</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;">Décris la situation</label>
+      <textarea id="supportDescription" rows="4" style="width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px; resize:vertical;" placeholder="Explique ce qui se passe..."></textarea>
+    </div>
+
+    <div id="supportMsg" style="font-size:13px; margin-bottom:12px; padding:10px; border-radius:6px; display:none;"></div>
+
+    <button id="submitSupportBtn" style="width:100%; font-family:'Space Grotesk'; font-weight:700; font-size:14.5px; padding:13px; border-radius:8px; border:none; background:var(--cta-red); color:#fff; cursor:pointer;">Envoyer</button>
+
+    <a id="whatsappSupportLink" href="#" target="_blank" style="display:block; text-align:center; margin-top:12px; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--teal); text-decoration:none;">💬 Ou contacte-nous directement sur WhatsApp</a>
+
+    <button id="closeSupportModal" style="display:block; margin:14px auto 0; background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer;">Fermer</button>
+  </div>
+</div>
+
+<script>
+  const YOONOU_SUPPORT_WHATSAPP = '+221774203400';
+
+  document.getElementById('sosFloatBtn').addEventListener('click', () => {
+    document.getElementById('supportModal').style.display = 'flex';
+    document.getElementById('supportMsg').style.display = 'none';
+  });
+  document.getElementById('closeSupportModal').addEventListener('click', () => {
+    document.getElementById('supportModal').style.display = 'none';
+  });
+
+  document.getElementById('supportCategory').addEventListener('change', updateWhatsappSupportLink);
+  function updateWhatsappSupportLink(){
+    const category = document.getElementById('supportCategory').value;
+    const msg = `Bonjour, j'ai besoin d'aide (Transporteur Yoonou). Catégorie : ${category}`;
+    document.getElementById('whatsappSupportLink').href = `https://wa.me/${YOONOU_SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`;
+  }
+  updateWhatsappSupportLink();
+
+  document.getElementById('submitSupportBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('submitSupportBtn');
+    const msgEl = document.getElementById('supportMsg');
+    const category = document.getElementById('supportCategory').value;
+    const description = document.getElementById('supportDescription').value.trim();
+
+    if (!description) {
+      msgEl.textContent = 'Décris un peu la situation avant d\'envoyer.';
+      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(193,80,46,0.1); color:var(--laterite); font-size:13px;';
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Envoi...';
+
+    const isUrgent = category === 'Sécurité / urgence';
+    let gps_lat = null, gps_lng = null;
+
+    if (isUrgent && navigator.geolocation) {
+      try {
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000 }));
+        gps_lat = pos.coords.latitude;
+        gps_lng = pos.coords.longitude;
+      } catch(e) { /* pas grave si la position n'est pas dispo */ }
+    }
+
+    try {
+      const { error } = await sb.from('disputes').insert([{
+        user_id: currentUser.id,
+        reason: category,
+        category: category,
+        description: description,
+        raised_by_role: 'transporteur',
+        is_urgent: isUrgent,
+        gps_lat, gps_lng
+      }]);
+      if (error) throw error;
+
+      msgEl.textContent = isUrgent
+        ? '🆘 Signalement envoyé en urgence. L\'équipe Yoonou a été alertée immédiatement.'
+        : '✅ Ta demande a été envoyée, on te répond rapidement.';
+      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(42,127,118,0.1); color:var(--teal); font-size:13px;';
+      document.getElementById('supportDescription').value = '';
+    } catch (err) {
+      msgEl.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(193,80,46,0.1); color:var(--laterite); font-size:13px;';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Envoyer';
+    }
+  });
+</script>
+
+</body>
+</html>
