@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Admin · Support</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:900px; margin:0 auto; padding:40px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1{font-size:26px; margin-bottom:6px;}
+  .subtitle{color:var(--muted); font-size:14px; margin-bottom:20px;}
+
+  .filter-tabs{display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap;}
+  .filter-tab{
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px 16px; border-radius:100px;
+    border:1.5px solid rgba(22,33,62,0.15); background:#fff; color:var(--muted); cursor:pointer;
+  }
+  .filter-tab.active{background:var(--indigo-deep); color:var(--sand); border-color:var(--indigo-deep);}
+
+  .empty-note{color:var(--muted); font-size:14px; padding:24px; background:#fff; border-radius:12px; border:1px solid rgba(22,33,62,0.08); text-align:center;}
+
+  .ticket{background:#fff; border-radius:12px; padding:22px; border:1px solid rgba(22,33,62,0.08); margin-bottom:14px;}
+  .ticket.urgent{border:2px solid var(--cta-red); background:rgba(214,54,42,0.03);}
+  .ticket-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px;}
+  .ticket-cat{font-family:'Space Grotesk'; font-weight:700; font-size:14.5px;}
+  .ticket-cat .urgent-tag{color:var(--cta-red); margin-right:6px;}
+  .ticket-user{font-size:12.5px; color:var(--muted); margin-top:2px;}
+  .status-select{
+    font-family:'JetBrains Mono'; font-size:11.5px; padding:5px 10px; border-radius:100px; font-weight:600;
+    border:none; cursor:pointer;
+  }
+  .status-select.OUVERT{background:rgba(214,54,42,0.12); color:var(--cta-red);}
+  .status-select.EN_COURS{background:rgba(232,169,58,0.15); color:#a5760f;}
+  .status-select.EN_ATTENTE{background:rgba(22,33,62,0.08); color:var(--muted);}
+  .status-select.RESOLU{background:rgba(42,127,118,0.12); color:var(--teal);}
+  .status-select.ANNULE{background:rgba(22,33,62,0.05); color:var(--muted);}
+
+  .ticket-desc{font-size:13.5px; color:var(--ink); margin:10px 0; line-height:1.5;}
+  .ticket-meta{font-size:12px; color:var(--muted); font-family:'JetBrains Mono'; margin-bottom:10px;}
+  .gps-link{color:var(--cta-red); font-weight:600; text-decoration:none;}
+
+  .admin-note-field{margin-top:10px;}
+  .admin-note-field textarea{
+    width:100%; padding:10px 12px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:13px; resize:vertical;
+  }
+  .save-note-btn{
+    font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; padding:8px 14px; border-radius:6px;
+    border:1.5px solid var(--teal); background:none; color:var(--teal); cursor:pointer; margin-top:8px;
+  }
+  .contact-wa{
+    display:inline-flex; align-items:center; gap:5px; font-family:'Space Grotesk'; font-weight:600; font-size:12.5px;
+    color:var(--teal); text-decoration:none; margin-top:8px;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+    <a href="admin-dashboard.html" class="nav-link">← Vue d'ensemble</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+
+  <div id="content" class="hidden">
+    <h1>Support & urgences</h1>
+    <p class="subtitle">Les urgences apparaissent toujours en premier.</p>
+
+    <div class="filter-tabs">
+      <button class="filter-tab active" data-filter="ACTIVE">Actifs</button>
+      <button class="filter-tab" data-filter="OUVERT">Ouverts</button>
+      <button class="filter-tab" data-filter="EN_COURS">En cours</button>
+      <button class="filter-tab" data-filter="RESOLU">Résolus</button>
+      <button class="filter-tab" data-filter="ALL">Tous</button>
+    </div>
+
+    <div id="ticketsList"></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentFilter = 'ACTIVE';
+  let allTickets = [];
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+    if (!profile || profile.role !== 'admin') { window.location.href = 'espace.html'; return; }
+
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderTickets();
+      });
+    });
+
+    await loadTickets();
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+  }
+
+  async function loadTickets(){
+    const { data, error } = await sb
+      .from('disputes')
+      .select('*, profiles!disputes_user_id_fkey(prenom, nom, whatsapp, role)')
+      .order('is_urgent', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) { console.error(error); return; }
+    allTickets = data || [];
+    renderTickets();
+  }
+
+  function renderTickets(){
+    const list = document.getElementById('ticketsList');
+    let filtered = allTickets;
+
+    if (currentFilter === 'ACTIVE') {
+      filtered = allTickets.filter(t => ['OUVERT','EN_COURS','EN_ATTENTE'].includes(t.status));
+    } else if (currentFilter !== 'ALL') {
+      filtered = allTickets.filter(t => t.status === currentFilter);
+    }
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="empty-note">Aucun ticket dans cette catégorie. 🎉</div>';
+      return;
+    }
+
+    list.innerHTML = filtered.map(t => renderTicket(t)).join('');
+
+    filtered.forEach(t => {
+      document.getElementById('status-' + t.id).addEventListener('change', (e) => updateStatus(t.id, e.target.value, e.target));
+      document.getElementById('save-note-' + t.id).addEventListener('click', () => saveNote(t.id));
+    });
+  }
+
+  function renderTicket(t){
+    const user = t.profiles || {};
+    const roleLabel = t.raised_by_role === 'transporteur' ? 'Transporteur' : 'Client';
+    const whatsappPhone = (user.whatsapp || '').replace(/[^0-9]/g, '');
+    const waLink = whatsappPhone ? `https://wa.me/${whatsappPhone}` : null;
+    const gpsLink = (t.gps_lat && t.gps_lng) ? `https://www.google.com/maps?q=${t.gps_lat},${t.gps_lng}` : null;
+
+    return `
+      <div class="ticket ${t.is_urgent ? 'urgent' : ''}" id="ticket-${t.id}">
+        <div class="ticket-top">
+          <div>
+            <div class="ticket-cat">${t.is_urgent ? '<span class="urgent-tag">🆘 URGENT —</span>' : ''}${escapeHtml(t.category || t.reason)}</div>
+            <div class="ticket-user">${escapeHtml(user.prenom || '')} ${escapeHtml(user.nom || '')} · ${roleLabel} · ${escapeHtml(user.whatsapp || '—')}</div>
+          </div>
+          <select class="status-select ${t.status}" id="status-${t.id}">
+            <option value="OUVERT" ${t.status === 'OUVERT' ? 'selected' : ''}>Ouvert</option>
+            <option value="EN_COURS" ${t.status === 'EN_COURS' ? 'selected' : ''}>En cours</option>
+            <option value="EN_ATTENTE" ${t.status === 'EN_ATTENTE' ? 'selected' : ''}>En attente</option>
+            <option value="RESOLU" ${t.status === 'RESOLU' ? 'selected' : ''}>Résolu</option>
+            <option value="ANNULE" ${t.status === 'ANNULE' ? 'selected' : ''}>Annulé</option>
+          </select>
+        </div>
+
+        <div class="ticket-meta">${new Date(t.created_at).toLocaleString('fr-FR')}${t.order_id ? ' · Commande #' + t.order_id.slice(0,8) : ''}</div>
+        <div class="ticket-desc">${escapeHtml(t.description || '')}</div>
+
+        ${gpsLink ? `<a href="${gpsLink}" target="_blank" class="gps-link">📍 Voir la position GPS au moment du signalement</a><br>` : ''}
+        ${waLink ? `<a href="${waLink}" target="_blank" class="contact-wa">💬 Contacter sur WhatsApp</a>` : ''}
+
+        <div class="admin-note-field">
+          <textarea id="note-${t.id}" rows="2" placeholder="Note interne...">${escapeHtml(t.admin_note || '')}</textarea>
+          <button class="save-note-btn" id="save-note-${t.id}">Enregistrer la note</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function updateStatus(ticketId, newStatus, selectEl){
+    selectEl.className = 'status-select ' + newStatus;
+    const { error } = await sb.from('disputes').update({ status: newStatus }).eq('id', ticketId);
+    if (error) { console.error(error); alert('Erreur : ' + error.message); return; }
+    const t = allTickets.find(x => x.id === ticketId);
+    if (t) t.status = newStatus;
+  }
+
+  async function saveNote(ticketId){
+    const btn = document.getElementById('save-note-' + ticketId);
+    const note = document.getElementById('note-' + ticketId).value.trim();
+    btn.disabled = true; btn.textContent = 'Enregistrement...';
+    const { error } = await sb.from('disputes').update({ admin_note: note }).eq('id', ticketId);
+    btn.disabled = false;
+    btn.textContent = error ? 'Erreur, réessaie' : '✓ Enregistré';
+    setTimeout(() => { btn.textContent = 'Enregistrer la note'; }, 1500);
+  }
+
+  function escapeHtml(str){
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  init();
+</script>
+</body>
+</html>
