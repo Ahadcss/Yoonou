@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Suivi de ma livraison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:760px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:760px; margin:0 auto; padding:36px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1{font-size:24px; margin-bottom:4px;}
+  .subtitle{color:var(--muted); font-size:14px; margin-bottom:24px;}
+
+  .status-banner{
+    background:var(--indigo-panel); color:var(--sand); border-radius:12px; padding:20px 24px; margin-bottom:20px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  }
+  .status-banner .label{font-family:'JetBrains Mono'; font-size:11px; color:var(--gold); letter-spacing:.05em;}
+  .status-banner .value{font-family:'Space Grotesk'; font-weight:700; font-size:17px; margin-top:4px;}
+
+  #map{width:100%; height:320px; border-radius:12px; margin-bottom:20px; background:#e5e5e5;}
+
+  .card{background:#fff; border-radius:12px; padding:24px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+  .card h2{font-size:15px; margin-bottom:14px;}
+
+  .driver-row{display:flex; align-items:center; gap:14px; margin-bottom:12px;}
+  .driver-avatar{
+    width:48px; height:48px; border-radius:50%; background:var(--sand); display:flex; align-items:center;
+    justify-content:center; font-size:22px; flex-shrink:0; overflow:hidden;
+  }
+  .driver-avatar img{width:100%; height:100%; object-fit:cover;}
+  .driver-name{font-family:'Space Grotesk'; font-weight:700; font-size:15.5px;}
+  .driver-vehicle{color:var(--muted); font-size:13px;}
+
+  .contact-btn{
+    display:inline-flex; align-items:center; gap:6px; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px;
+    padding:11px 18px; border-radius:6px; border:1.5px solid var(--teal); color:var(--teal); text-decoration:none; margin-top:8px;
+  }
+  .contact-btn:hover{background:rgba(42,127,118,0.08);}
+
+  .timeline{list-style:none;}
+  .timeline li{
+    display:flex; align-items:center; gap:12px; padding:9px 0; font-size:13.5px; color:var(--muted);
+  }
+  .timeline li.done{color:var(--ink); font-weight:600;}
+  .timeline li .dot{width:9px; height:9px; border-radius:50%; background:rgba(22,33,62,0.15); flex-shrink:0;}
+  .timeline li.done .dot{background:var(--teal);}
+  .timeline li.current .dot{background:var(--laterite); box-shadow:0 0 0 4px rgba(193,80,46,0.15);}
+
+  .waiting-note{color:var(--muted); font-size:14px; text-align:center; padding:20px;}
+
+  .cargo-photos{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+  .cargo-photos img{width:64px; height:64px; object-fit:cover; border-radius:6px; border:1px solid rgba(22,33,62,0.1);}
+
+  .stars{font-size:34px; letter-spacing:6px; margin-bottom:14px; cursor:pointer;}
+  .stars span{color:rgba(22,33,62,0.15); transition:color .15s;}
+  .stars span.active{color:var(--gold);}
+  #ratingComment{
+    width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px;
+    font-family:'Work Sans'; resize:vertical;
+  }
+  .card-msg{font-size:13px; margin-top:10px; padding:10px; border-radius:6px; display:none;}
+  .card-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .card-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="nouvelle-demande.html" class="logo"><span class="dot"></span>Yoonou</a>
+    <a href="nouvelle-demande.html" class="nav-link">← Mes demandes</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+
+  <div id="content" class="hidden">
+    <h1 id="routeTitle">—</h1>
+    <p class="subtitle" id="orderMeta"></p>
+
+    <div class="status-banner">
+      <div>
+        <div class="label">STATUT ACTUEL</div>
+        <div class="value" id="statusValue">—</div>
+      </div>
+      <div id="etaBox" class="hidden">
+        <div class="label" style="text-align:right;">DISTANCE DU CHAUFFEUR</div>
+        <div class="value" id="etaValue" style="text-align:right;">—</div>
+      </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="card hidden" id="driverCard">
+      <h2>Ton transporteur</h2>
+      <div class="driver-row">
+        <div class="driver-avatar" id="driverAvatar">🚚</div>
+        <div>
+          <div class="driver-name" id="driverName">—</div>
+          <div class="driver-vehicle" id="driverVehicle">—</div>
+          <div class="driver-vehicle" id="driverPlaque" style="font-family:'JetBrains Mono'; font-weight:600;"></div>
+        </div>
+      </div>
+      <a href="#" id="contactBtn" class="contact-btn" target="_blank">💬 Contacter sur WhatsApp</a>
+    </div>
+
+    <div class="card hidden" id="waitingCard">
+      <div class="waiting-note">🔍 Recherche d'un transporteur disponible... La page se met à jour automatiquement.</div>
+    </div>
+
+    <div class="card">
+      <h2>Suivi de la commande</h2>
+      <ul class="timeline" id="timelineList"></ul>
+    </div>
+
+    <div class="card hidden" id="ratingCard">
+      <h2>Note ta livraison</h2>
+      <div class="stars" id="starsInput">
+        <span data-val="1">★</span><span data-val="2">★</span><span data-val="3">★</span><span data-val="4">★</span><span data-val="5">★</span>
+      </div>
+      <textarea id="ratingComment" placeholder="Un commentaire ? (optionnel)" rows="2"></textarea>
+      <button class="contact-btn" id="submitRating" style="background:var(--teal); color:#fff; border:none; margin-top:10px;">Envoyer ma note</button>
+      <div class="card-msg" id="ratingMsg"></div>
+    </div>
+
+    <div class="card hidden" id="ratingDoneCard">
+      <div class="waiting-note">⭐ Merci, tu as déjà noté cette course !</div>
+    </div>
+
+    <div class="card hidden" id="cargoCard">
+      <h2>Marchandise déclarée</h2>
+      <div id="cargoDesc" style="font-size:13.5px; color:var(--muted);"></div>
+      <div class="cargo-photos" id="cargoPhotos"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get('id');
+
+  let currentUser = null;
+  let map = null;
+  let departMarker = null, destMarker = null, driverMarker = null;
+  let refreshInterval = null;
+
+  const STEPS = [
+    { key: 'REQUESTED', label: 'Recherche d\'un transporteur' },
+    { key: 'DRIVER_ASSIGNED', label: 'Transporteur trouvé' },
+    { key: 'ARRIVED_PICKUP', label: 'Arrivé au point de départ' },
+    { key: 'PICKUP_CONFIRMED', label: 'Marchandise collectée' },
+    { key: 'IN_TRANSIT', label: 'En route vers la destination' },
+    { key: 'ARRIVED_DESTINATION', label: 'Arrivé à destination' },
+    { key: 'PAYMENT_PENDING', label: 'Livré — paiement en cours' },
+    { key: 'COMPLETED', label: 'Terminé' }
+  ];
+  // Statuts intermédiaires non affichés isolément, regroupés visuellement au step précédent
+  const STEP_ALIASES = {
+    DRIVER_ARRIVING: 'DRIVER_ASSIGNED',
+    PICKUP_VERIFICATION: 'ARRIVED_PICKUP',
+    LOADING: 'PICKUP_CONFIRMED',
+    DELIVERY_VERIFICATION: 'ARRIVED_DESTINATION',
+    DELIVERED: 'PAYMENT_PENDING'
+  };
+
+  async function init(){
+    if (!orderId) {
+      document.getElementById('loadingState').textContent = "Commande introuvable.";
+      return;
+    }
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUser = session.user;
+
+    await loadOrder();
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+
+    refreshInterval = setInterval(loadOrder, 8000);
+  }
+
+  async function loadOrder(){
+    const { data: order, error } = await sb.from('orders').select('*').eq('id', orderId).single();
+    if (error || !order || order.client_id !== currentUser.id) {
+      document.getElementById('loadingState').classList.remove('hidden');
+      document.getElementById('loadingState').textContent = "Impossible de charger cette commande.";
+      document.getElementById('content').classList.add('hidden');
+      if (refreshInterval) clearInterval(refreshInterval);
+      return;
+    }
+
+    document.getElementById('routeTitle').textContent = `${order.depart} → ${order.destination}`;
+    document.getElementById('orderMeta').textContent = order.prix ? `${Math.round(order.prix).toLocaleString('fr-FR')} FCFA` : '';
+
+    const stepKey = STEP_ALIASES[order.statut] || order.statut;
+    const stepInfo = STEPS.find(s => s.key === stepKey);
+    document.getElementById('statusValue').textContent = stepInfo ? stepInfo.label : order.statut;
+
+    renderTimeline(stepKey);
+    renderCargo(order);
+    initOrUpdateMap(order);
+
+    if (order.transporteur_id) {
+      document.getElementById('waitingCard').classList.add('hidden');
+      document.getElementById('driverCard').classList.remove('hidden');
+      await loadDriverInfo(order.transporteur_id);
+      await loadDriverPosition(order);
+    } else {
+      document.getElementById('waitingCard').classList.remove('hidden');
+      document.getElementById('driverCard').classList.add('hidden');
+      document.getElementById('etaBox').classList.add('hidden');
+    }
+
+    if (['COMPLETED','CANCELLED'].includes(order.statut) && refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+
+    if (order.statut === 'COMPLETED') {
+      await checkRatingStatus(order.id);
+    }
+  }
+
+  let selectedStars = 0;
+
+  document.querySelectorAll('#starsInput span').forEach(star => {
+    star.addEventListener('click', () => {
+      selectedStars = parseInt(star.dataset.val);
+      document.querySelectorAll('#starsInput span').forEach(s => {
+        s.classList.toggle('active', parseInt(s.dataset.val) <= selectedStars);
+      });
+    });
+  });
+
+  document.getElementById('submitRating').addEventListener('click', async () => {
+    const msg = document.getElementById('ratingMsg');
+    const btn = document.getElementById('submitRating');
+    msg.className = 'card-msg';
+
+    if (selectedStars === 0) {
+      msg.textContent = 'Choisis au moins une étoile.';
+      msg.className = 'card-msg error';
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Envoi...';
+    try {
+      const comment = document.getElementById('ratingComment').value.trim() || null;
+      const { data, error } = await sb.rpc('noter_commande', {
+        p_order_id: orderId,
+        p_note: selectedStars,
+        p_commentaire: comment
+      });
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      document.getElementById('ratingCard').classList.add('hidden');
+      document.getElementById('ratingDoneCard').classList.remove('hidden');
+    } catch (err) {
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msg.className = 'card-msg error';
+      btn.disabled = false; btn.textContent = 'Envoyer ma note';
+    }
+  });
+
+  async function checkRatingStatus(orderIdVal){
+    const { data } = await sb.from('ratings').select('id').eq('order_id', orderIdVal).eq('note_par', currentUser.id).maybeSingle();
+    if (data) {
+      document.getElementById('ratingCard').classList.add('hidden');
+      document.getElementById('ratingDoneCard').classList.remove('hidden');
+    } else {
+      document.getElementById('ratingCard').classList.remove('hidden');
+      document.getElementById('ratingDoneCard').classList.add('hidden');
+    }
+  }
+
+  function renderTimeline(currentKey){
+    const currentIdx = STEPS.findIndex(s => s.key === currentKey);
+    const list = document.getElementById('timelineList');
+    list.innerHTML = STEPS.map((s, i) => {
+      let cls = '';
+      if (i < currentIdx) cls = 'done';
+      else if (i === currentIdx) cls = 'current done';
+      return `<li class="${cls}"><span class="dot"></span>${s.label}</li>`;
+    }).join('');
+  }
+
+  function renderCargo(order){
+    const card = document.getElementById('cargoCard');
+    if (!order.description && (!order.cargo_photo_urls || order.cargo_photo_urls.length === 0)) {
+      card.classList.add('hidden');
+      return;
+    }
+    card.classList.remove('hidden');
+    document.getElementById('cargoDesc').textContent = order.description || '';
+    const photosEl = document.getElementById('cargoPhotos');
+    photosEl.innerHTML = (order.cargo_photo_urls || []).map(url => `<img src="${url}" alt="photo marchandise">`).join('');
+  }
+
+  async function loadDriverInfo(transporteurId){
+    const { data: driver } = await sb.from('profiles').select('prenom, nom, whatsapp').eq('id', transporteurId).single();
+    const { data: vehicle } = await sb.from('vehicles').select('*, vehicle_types(label)').eq('transporteur_id', transporteurId).eq('statut', 'actif').limit(1).maybeSingle();
+
+    if (driver) {
+      document.getElementById('driverName').textContent = `${driver.prenom || ''} ${driver.nom || ''}`.trim() || 'Transporteur Yoonou';
+      if (driver.whatsapp) {
+        const phoneClean = driver.whatsapp.replace(/[^0-9]/g, '');
+        document.getElementById('contactBtn').href = `https://wa.me/${phoneClean}`;
+      }
+    }
+    if (vehicle) {
+      const parts = [vehicle.vehicle_types?.label || vehicle.type, [vehicle.marque, vehicle.modele].filter(Boolean).join(' '), vehicle.couleur].filter(Boolean);
+      document.getElementById('driverVehicle').textContent = parts.join(' · ');
+      document.getElementById('driverPlaque').textContent = vehicle.plaque || '';
+
+      if (vehicle.photo_urls && vehicle.photo_urls.length > 0) {
+        document.getElementById('driverAvatar').innerHTML = `<img src="${vehicle.photo_urls[0]}" alt="véhicule">`;
+      }
+    }
+  }
+
+  async function loadDriverPosition(order){
+    const { data } = await sb
+      .from('driver_locations')
+      .select('*')
+      .eq('order_id', order.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!data) {
+      document.getElementById('etaBox').classList.add('hidden');
+      return;
+    }
+
+    if (map) {
+      if (driverMarker) driverMarker.remove();
+      const el = document.createElement('div');
+      el.style.cssText = 'width:34px;height:34px;background:#D6362A;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;';
+      el.textContent = '🚚';
+      driverMarker = new mapboxgl.Marker({ element: el }).setLngLat([data.longitude, data.latitude]).addTo(map);
+    }
+
+    if (order.depart_lat && order.depart_lng) {
+      const distKm = haversine(data.latitude, data.longitude, order.depart_lat, order.depart_lng);
+      document.getElementById('etaBox').classList.remove('hidden');
+      document.getElementById('etaValue').textContent = distKm < 1 ? `${Math.round(distKm * 1000)} m` : `${distKm.toFixed(1)} km`;
+    }
+  }
+
+  function haversine(lat1, lon1, lat2, lon2){
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function initOrUpdateMap(order){
+    if (!order.depart_lat || !order.depart_lng || !order.destination_lat || !order.destination_lng) return;
+
+    if (typeof mapboxgl === 'undefined') {
+      const mapEl = document.getElementById('map');
+      if (mapEl && !mapEl.dataset.errorShown) {
+        mapEl.style.display = 'flex';
+        mapEl.style.alignItems = 'center';
+        mapEl.style.justifyContent = 'center';
+        mapEl.style.color = '#4a4438';
+        mapEl.style.fontSize = '13.5px';
+        mapEl.style.textAlign = 'center';
+        mapEl.style.padding = '20px';
+        mapEl.textContent = "Carte indisponible (connexion internet requise pour charger Mapbox). Le suivi du statut fonctionne quand même ci-dessous.";
+        mapEl.dataset.errorShown = 'true';
+      }
+      return;
+    }
+
+    if (!map) {
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [order.depart_lng, order.depart_lat],
+        zoom: 12
+      });
+
+      map.on('load', () => {
+        const bounds = new mapboxgl.LngLatBounds();
+
+        const dEl = document.createElement('div');
+        dEl.style.cssText = 'width:14px;height:14px;background:#2A7F76;border-radius:50%;border:2px solid white;';
+        departMarker = new mapboxgl.Marker({ element: dEl }).setLngLat([order.depart_lng, order.depart_lat]).addTo(map);
+        bounds.extend([order.depart_lng, order.depart_lat]);
+
+        const xEl = document.createElement('div');
+        xEl.style.cssText = 'width:14px;height:14px;background:#C1502E;border-radius:50%;border:2px solid white;';
+        destMarker = new mapboxgl.Marker({ element: xEl }).setLngLat([order.destination_lng, order.destination_lat]).addTo(map);
+        bounds.extend([order.destination_lng, order.destination_lat]);
+
+        map.fitBounds(bounds, { padding: 60 });
+      });
+    }
+  }
+
+  window.addEventListener('beforeunload', () => {
+    if (refreshInterval) clearInterval(refreshInterval);
+  });
+
+  init();
+</script>
+</body>
+</html>
