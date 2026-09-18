@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoonou — Admin · Commissions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:900px; margin:0 auto; padding:44px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1{font-size:26px; margin-bottom:6px;}
+  .subtitle{color:var(--muted); font-size:14.5px; margin-bottom:28px;}
+  .count-pill{font-family:'JetBrains Mono'; font-size:12px; background:rgba(22,33,62,0.08); color:var(--muted); padding:3px 10px; border-radius:100px; margin-left:8px;}
+
+  .empty-note{color:var(--muted); font-size:14.5px; padding:24px; background:#fff; border-radius:12px; border:1px solid rgba(22,33,62,0.08); text-align:center;}
+
+  .item{background:#fff; border-radius:12px; padding:24px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+  .item-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px;}
+  .driver-name{font-family:'Space Grotesk'; font-weight:700; font-size:16px;}
+  .driver-phone{color:var(--muted); font-size:13.5px; font-family:'JetBrains Mono';}
+  .amount-badge{font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:var(--laterite);}
+
+  .declared-box{
+    background:rgba(232,169,58,0.12); border-radius:8px; padding:12px 14px; margin:12px 0; font-size:13.5px;
+  }
+  .declared-box .lbl{color:#a5760f; font-weight:600;}
+  .no-declaration{color:var(--muted); font-size:13px; margin:12px 0; font-style:italic;}
+
+  .confirm-row{display:flex; gap:10px; align-items:flex-end; margin-top:14px; flex-wrap:wrap;}
+  .field{flex:1; min-width:140px;}
+  .field label{display:block; font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; margin-bottom:5px;}
+  .field select, .field input{width:100%; padding:10px 12px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:13.5px;}
+  .btn-confirm{
+    font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:11px 20px; border-radius:6px;
+    border:none; background:var(--teal); color:#fff; cursor:pointer; white-space:nowrap;
+  }
+  .btn-confirm:hover{background:#236b63;}
+  .btn-confirm:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
+
+  .item-msg{font-size:13px; margin-top:10px; padding:9px; border-radius:6px; display:none;}
+  .item-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .item-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+    <a href="espace.html" class="nav-link">← Mon espace</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+
+  <div id="content" class="hidden">
+    <h1>Commissions à confirmer<span class="count-pill" id="countPill">0</span></h1>
+    <p class="subtitle">Vérifie chaque paiement dans ton historique Wave/Orange Money avant de confirmer — le déblocage du compte transporteur est immédiat.</p>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUser = null;
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUser = session.user;
+
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
+    if (!profile || profile.role !== 'admin') { window.location.href = 'espace.html'; return; }
+
+    await loadList();
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+  }
+
+  async function loadList(){
+    const list = document.getElementById('list');
+    const countPill = document.getElementById('countPill');
+
+    const { data, error } = await sb
+      .from('commission_periods')
+      .select('*, profiles!commission_periods_transporteur_id_fkey(prenom, nom, whatsapp)')
+      .eq('status', 'CLOSED')
+      .order('declared_paid_at', { ascending: false, nullsFirst: false });
+
+    if (error) { console.error(error); list.innerHTML = '<div class="empty-note">Erreur de chargement.</div>'; return; }
+
+    countPill.textContent = (data || []).length;
+
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="empty-note">Aucune commission en attente de confirmation. 🎉</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(p => renderItem(p)).join('');
+    data.forEach(p => {
+      document.getElementById('confirm-' + p.id).addEventListener('click', () => confirmerPaiement(p.id));
+    });
+  }
+
+  const YOONOU_WAVE_NUMBER = '+221 77 420 34 00';
+  const YOONOU_OM_NUMBER = '+221 77 420 34 00';
+
+  function renderItem(p){
+    const driver = p.profiles || {};
+    const ref = p.id.slice(0, 8).toUpperCase();
+    const whatsappPhone = (driver.whatsapp || '').replace(/[^0-9]/g, '');
+    const message = `Bonjour ${driver.prenom || ''}, tu as atteint tes 20h d'activité sur Yoonou.\n\nCommission à payer : ${formatFcfa(p.commission_due)}\n\nLien de paiement Wave :\n[COLLE TON LIEN ICI]\n\nOu envoie directement via :\n- Wave : ${YOONOU_WAVE_NUMBER}\n- Orange Money : ${YOONOU_OM_NUMBER}\n\nMerci d'indiquer la référence : ${ref}\n\nDès réception, ton compte est réactivé et tu peux reprendre les courses.`;
+    const waLink = whatsappPhone ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}` : null;
+
+    return `
+      <div class="item" id="item-${p.id}">
+        <div class="item-top">
+          <div>
+            <div class="driver-name">${escapeHtml(driver.prenom || '')} ${escapeHtml(driver.nom || '')}</div>
+            <div class="driver-phone">${escapeHtml(driver.whatsapp || '—')}</div>
+          </div>
+          <div class="amount-badge">${formatFcfa(p.commission_due)}</div>
+        </div>
+
+        ${waLink ? `<a href="${waLink}" target="_blank" class="quick-link" style="display:inline-flex; align-items:center; gap:6px; font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px 16px; border-radius:6px; border:1.5px solid var(--teal); color:var(--teal); text-decoration:none; margin-bottom:12px;">💬 Envoyer le lien de paiement sur WhatsApp</a>` : ''}
+
+        ${p.declared_paid_at ? `
+          <div class="declared-box">
+            <span class="lbl">Déclaré par le chauffeur</span> — ${p.declared_payment_method === 'WAVE' ? 'Wave' : 'Orange Money'},
+            référence : <b>${escapeHtml(p.declared_reference || ref)}</b>,
+            le ${new Date(p.declared_paid_at).toLocaleString('fr-FR')}
+          </div>
+        ` : `
+          <div class="no-declaration">Le chauffeur n'a pas encore déclaré ce paiement. Référence attendue : ${ref}</div>
+        `}
+
+        <div class="confirm-row">
+          <div class="field">
+            <label>Moyen utilisé</label>
+            <select id="moyen-${p.id}">
+              <option value="WAVE" ${p.declared_payment_method === 'WAVE' ? 'selected' : ''}>Wave</option>
+              <option value="ORANGE_MONEY" ${p.declared_payment_method === 'ORANGE_MONEY' ? 'selected' : ''}>Orange Money</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Référence transaction</label>
+            <input type="text" id="ref-${p.id}" value="${escapeHtml(p.declared_reference || '')}" placeholder="${ref}">
+          </div>
+          <button class="btn-confirm" id="confirm-${p.id}">✅ Activer (paiement reçu)</button>
+        </div>
+        <div class="item-msg" id="msg-${p.id}"></div>
+      </div>
+    `;
+  }
+
+  async function confirmerPaiement(periodeId){
+    const btn = document.getElementById('confirm-' + periodeId);
+    const msg = document.getElementById('msg-' + periodeId);
+    const moyen = document.getElementById('moyen-' + periodeId).value;
+    const reference = document.getElementById('ref-' + periodeId).value.trim();
+
+    btn.disabled = true;
+    btn.textContent = 'Confirmation...';
+    msg.className = 'item-msg';
+
+    try {
+      const { data, error } = await sb.rpc('confirmer_paiement_commission', {
+        periode_id: periodeId,
+        moyen_paiement: moyen,
+        reference_paiement: reference || null,
+        confirme_par_id: currentUser.id
+      });
+      if (error) throw error;
+
+      if (data === true) {
+        msg.textContent = '✅ Paiement confirmé, compte du transporteur réactivé.';
+        msg.className = 'item-msg success';
+        setTimeout(loadList, 1200);
+      } else {
+        throw new Error("La période n'a pas pu être confirmée (déjà traitée ?).");
+      }
+    } catch (err) {
+      console.error(err);
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msg.className = 'item-msg error';
+      btn.disabled = false;
+      btn.textContent = 'Confirmer le paiement';
+    }
+  }
+
+  function formatFcfa(n){
+    if (n === null || n === undefined) return '—';
+    return Math.round(n).toLocaleString('fr-FR') + ' FCFA';
+  }
+
+  function escapeHtml(str){
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  init();
+</script>
+</body>
+</html>
