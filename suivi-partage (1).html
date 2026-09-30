@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Yoonou — Suivi de trajet partagé</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
+  nav .wrap{max-width:760px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:8px;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .badge{font-family:'JetBrains Mono'; font-size:10.5px; color:var(--sand-dim); background:rgba(243,233,210,0.1); padding:3px 9px; border-radius:100px; margin-left:auto;}
+  .wrap{max-width:760px; margin:0 auto; padding:36px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1{font-size:22px; margin-bottom:4px;}
+  .subtitle{color:var(--muted); font-size:13.5px; margin-bottom:24px;}
+
+  .status-banner{
+    background:var(--indigo-panel); color:var(--sand); border-radius:12px; padding:20px 24px; margin-bottom:20px;
+  }
+  .status-banner .label{font-family:'JetBrains Mono'; font-size:11px; color:var(--gold); letter-spacing:.05em;}
+  .status-banner .value{font-family:'Space Grotesk'; font-weight:700; font-size:17px; margin-top:4px;}
+
+  #map{width:100%; height:320px; border-radius:12px; margin-bottom:20px; background:#e5e5e5;}
+
+  .card{background:#fff; border-radius:12px; padding:24px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+  .card h2{font-size:15px; margin-bottom:14px;}
+
+  .driver-row{display:flex; align-items:center; gap:14px;}
+  .driver-avatar{
+    width:48px; height:48px; border-radius:50%; background:var(--sand); display:flex; align-items:center;
+    justify-content:center; font-size:22px; flex-shrink:0; overflow:hidden;
+  }
+  .driver-avatar img{width:100%; height:100%; object-fit:cover;}
+  .driver-name{font-family:'Space Grotesk'; font-weight:700; font-size:15.5px;}
+  .driver-vehicle{color:var(--muted); font-size:13px;}
+
+  .waiting-note{color:var(--muted); font-size:14px; text-align:center; padding:20px;}
+
+  .yoonou-promo{
+    text-align:center; padding:24px; color:var(--muted); font-size:13px;
+  }
+  .yoonou-promo a{color:var(--teal); font-weight:600; text-decoration:none;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <span class="logo"><span class="dot"></span>Yoonou</span>
+    <span class="badge">SUIVI PARTAGÉ</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement du trajet...</div>
+  <div id="notFoundState" class="loading hidden">Ce lien de suivi n'est plus valide ou a expiré.</div>
+
+  <div id="content" class="hidden">
+    <h1 id="routeTitle">—</h1>
+    <p class="subtitle">Suivi en lecture seule — quelqu'un a partagé ce trajet avec toi.</p>
+
+    <div class="status-banner">
+      <div class="label">STATUT ACTUEL</div>
+      <div class="value" id="statusValue">—</div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="card hidden" id="driverCard">
+      <h2>Transporteur</h2>
+      <div class="driver-row">
+        <div class="driver-avatar" id="driverAvatar">🚚</div>
+        <div>
+          <div class="driver-name" id="driverName">—</div>
+          <div class="driver-vehicle" id="driverVehicle">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="waitingCard">
+      <div class="waiting-note">🔍 En attente qu'un transporteur soit assigné...</div>
+    </div>
+
+    <div class="yoonou-promo">
+      Ce suivi est propulsé par <a href="https://yoonou.com" target="_blank">Yoonou</a> — transport de marchandises au Sénégal.
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('t');
+
+  let map = null, departMarker = null, destMarker = null, driverMarker = null;
+  let refreshInterval = null;
+
+  const STATUT_LABELS = {
+    REQUESTED: "Recherche d'un transporteur", DRIVER_ASSIGNED: 'Transporteur trouvé',
+    DRIVER_ARRIVING: 'En approche du départ', ARRIVED_PICKUP: 'Arrivé au point de départ',
+    PICKUP_CONFIRMED: 'Marchandise collectée', LOADING: 'Chargement en cours',
+    IN_TRANSIT: 'En route', ARRIVED_DESTINATION: 'Arrivé à destination',
+    PAYMENT_PENDING: 'Livré — finalisation', DELIVERED: 'Livré',
+    COMPLETED: 'Trajet terminé', CANCELLED: 'Trajet annulé'
+  };
+
+  async function init(){
+    if (!token) {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('notFoundState').classList.remove('hidden');
+      return;
+    }
+    await loadTracking();
+    refreshInterval = setInterval(loadTracking, 15000); // 15s : reste sous les 30s d'envoi GPS du chauffeur, sans surcharger Supabase
+  }
+
+  async function loadTracking(){
+    const { data, error } = await sb.rpc('get_tracking_by_token', { p_token: token });
+
+    if (error || !data || !data.found) {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('content').classList.add('hidden');
+      document.getElementById('notFoundState').classList.remove('hidden');
+      if (refreshInterval) clearInterval(refreshInterval);
+      return;
+    }
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('notFoundState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+
+    document.getElementById('routeTitle').textContent = `${data.depart} → ${data.destination}`;
+    document.getElementById('statusValue').textContent = STATUT_LABELS[data.statut] || data.statut;
+
+    initOrUpdateMap(data);
+
+    if (data.transporteur) {
+      document.getElementById('waitingCard').classList.add('hidden');
+      document.getElementById('driverCard').classList.remove('hidden');
+      document.getElementById('driverName').textContent = `${data.transporteur.prenom || ''} ${data.transporteur.nom || ''}`.trim() || 'Transporteur Yoonou';
+      if (data.vehicule) {
+        const parts = [data.vehicule.type_label, [data.vehicule.marque, data.vehicule.modele].filter(Boolean).join(' '), data.vehicule.couleur, data.vehicule.plaque].filter(Boolean);
+        document.getElementById('driverVehicle').textContent = parts.join(' · ');
+        if (data.vehicule.photo_url) {
+          try {
+            const marker = '/object/public/vehicle-photos/';
+            const idx = data.vehicule.photo_url.indexOf(marker);
+            const path = idx !== -1 ? data.vehicule.photo_url.substring(idx + marker.length) : null;
+            if (path) {
+              const { data: signed, error } = await sb.storage.from('vehicle-photos').createSignedUrl(path, 3600);
+              if (!error && signed) {
+                document.getElementById('driverAvatar').innerHTML = `<img src="${signed.signedUrl}" alt="véhicule">`;
+              }
+            }
+          } catch (err) {
+            console.warn('Lien signé véhicule indisponible :', err.message);
+          }
+        }
+      }
+      if (data.position && map) {
+        if (driverMarker) driverMarker.remove();
+        const el = document.createElement('div');
+        el.style.cssText = 'width:34px;height:34px;background:#D6362A;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;';
+        el.textContent = '🚚';
+        driverMarker = new mapboxgl.Marker({ element: el }).setLngLat([data.position.longitude, data.position.latitude]).addTo(map);
+      }
+    } else {
+      document.getElementById('waitingCard').classList.remove('hidden');
+      document.getElementById('driverCard').classList.add('hidden');
+    }
+
+    if (['COMPLETED', 'CANCELLED'].includes(data.statut) && refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  }
+
+  function initOrUpdateMap(data){
+    if (!data.depart_lat || !data.depart_lng || !data.destination_lat || !data.destination_lng) return;
+    if (typeof mapboxgl === 'undefined') return;
+
+    if (!map) {
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [data.depart_lng, data.depart_lat],
+        zoom: 12
+      });
+
+      map.on('load', () => {
+        const bounds = new mapboxgl.LngLatBounds();
+
+        const dEl = document.createElement('div');
+        dEl.style.cssText = 'width:14px;height:14px;background:#2A7F76;border-radius:50%;border:2px solid white;';
+        departMarker = new mapboxgl.Marker({ element: dEl }).setLngLat([data.depart_lng, data.depart_lat]).addTo(map);
+        bounds.extend([data.depart_lng, data.depart_lat]);
+
+        const xEl = document.createElement('div');
+        xEl.style.cssText = 'width:14px;height:14px;background:#C1502E;border-radius:50%;border:2px solid white;';
+        destMarker = new mapboxgl.Marker({ element: xEl }).setLngLat([data.destination_lng, data.destination_lat]).addTo(map);
+        bounds.extend([data.destination_lng, data.destination_lat]);
+
+        map.fitBounds(bounds, { padding: 60 });
+      });
+    }
+  }
+
+  window.addEventListener('beforeunload', () => {
+    if (refreshInterval) clearInterval(refreshInterval);
+  });
+
+  init();
+</script>
+</body>
+</html>

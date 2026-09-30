@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Yoonou — Vérifier mon numéro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
+  nav .wrap{max-width:560px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:8px;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .wrap{max-width:560px; margin:0 auto; padding:44px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+
+  h1{font-size:24px; margin-bottom:8px; text-align:center;}
+  .subtitle{color:var(--muted); font-size:14px; margin-bottom:28px; text-align:center; line-height:1.5;}
+
+  .card{background:#fff; border-radius:14px; padding:30px; border:1px solid rgba(22,33,62,0.08); text-align:center;}
+
+  .code-display{
+    font-family:'JetBrains Mono'; font-size:38px; font-weight:700; letter-spacing:.12em;
+    color:var(--indigo-deep); background:var(--sand); border-radius:10px; padding:18px; margin:18px 0;
+  }
+  .phone-shown{font-family:'JetBrains Mono'; font-size:13px; color:var(--muted); margin-bottom:4px;}
+
+  .wa-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+    font-family:'Space Grotesk'; font-weight:700; font-size:15px; padding:16px; border-radius:8px;
+    border:none; background:#25D366; color:#fff; text-decoration:none; margin-top:10px;
+  }
+  .wa-btn:hover{background:#1EBE5A;}
+
+  .steps{text-align:left; font-size:13.5px; color:var(--muted); margin-top:20px; line-height:1.9;}
+  .steps b{color:var(--ink);}
+
+  .regen-btn{
+    font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; padding:9px 16px; border-radius:6px;
+    border:1.5px solid rgba(22,33,62,0.15); background:none; color:var(--muted); cursor:pointer; margin-top:18px;
+  }
+  .regen-btn:disabled{opacity:0.5; cursor:not-allowed;}
+
+  .status-msg{font-size:13px; margin-top:14px; padding:10px; border-radius:6px; display:none;}
+  .status-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .status-msg.info{display:block; background:rgba(232,169,58,0.15); color:#a5760f;}
+
+  .pending-note{
+    display:flex; align-items:center; justify-content:center; gap:8px; margin-top:22px;
+    font-size:13px; color:var(--muted);
+  }
+  .pulse{width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.3;}}
+
+  .success-card{background:var(--teal); color:#fff;}
+  .success-card h2{color:#fff; font-size:22px; margin-bottom:8px;}
+  .success-card p{color:rgba(255,255,255,0.85); font-size:14px;}
+  .big-check{font-size:44px; margin-bottom:10px;}
+
+  .skip-link{display:block; text-align:center; margin-top:22px; font-size:13px; color:var(--muted); text-decoration:none;}
+  .skip-link:hover{color:var(--teal);}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap"><a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a></div></nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+
+  <div id="pendingState" class="hidden">
+    <h1>📱 Vérifie ton numéro</h1>
+    <p class="subtitle">Une seule étape, 100% gratuite — confirme que ce numéro WhatsApp est bien le tien.</p>
+
+    <div class="card">
+      <div class="phone-shown" id="phoneShown">—</div>
+      <div class="code-display" id="codeDisplay">------</div>
+
+      <a href="#" id="waBtn" target="_blank" class="wa-btn">💬 Valider via WhatsApp</a>
+
+      <div class="steps">
+        1. Tape sur le bouton ci-dessus<br>
+        2. WhatsApp s'ouvre avec un message déjà prêt<br>
+        3. <b>Appuie sur Envoyer</b> — ne modifie pas le message<br>
+        4. L'équipe Yoonou confirme ton numéro sous peu
+      </div>
+
+      <button type="button" class="regen-btn" id="regenBtn">🔄 Générer un nouveau code</button>
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+
+    <div class="pending-note" id="pendingNote">
+      <span class="pulse"></span> En attente de la confirmation...
+    </div>
+
+    <div style="text-align:center; font-size:12px; color:var(--muted); margin-top:20px; padding:0 20px;">
+      🔒 Yoonou ne te demandera jamais ce code par téléphone, WhatsApp ou message privé. Ne le communique qu'en l'envoyant toi-même via le bouton ci-dessus.
+    </div>
+
+    <a href="espace.html" class="skip-link">Plus tard — aller à mon espace</a>
+  </div>
+
+  <div id="successState" class="hidden">
+    <div class="card success-card">
+      <div class="big-check">✅</div>
+      <h2>Numéro vérifié !</h2>
+      <p>Ton compte Yoonou est maintenant confirmé.</p>
+    </div>
+    <a href="espace.html" class="skip-link" style="margin-top:24px;">Aller à mon espace →</a>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ⚠️ Numéro WhatsApp officiel Yoonou (le même que pour les commissions) —
+  // à confirmer/remplacer si un numéro dédié doit être utilisé pour ces validations.
+  const YOONOU_WHATSAPP_NUMBER = '221774203400';
+
+  let currentUser = null;
+  let currentCode = null;
+  let pollInterval = null;
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUser = session.user;
+
+    const { data: profile, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+    if (error || !profile) {
+      document.getElementById('loadingState').textContent = 'Impossible de charger ton profil.';
+      return;
+    }
+
+    if (profile.telephone_verifie) {
+      showSuccess();
+      return;
+    }
+
+    document.getElementById('phoneShown').textContent = profile.whatsapp;
+
+    const codeEncoreValide = profile.code_verification && profile.code_verification_expire_at && new Date(profile.code_verification_expire_at) > new Date();
+
+    if (codeEncoreValide) {
+      setCode(profile.code_verification, profile.whatsapp);
+    } else {
+      await genererNouveauCode(profile.whatsapp);
+    }
+
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('pendingState').classList.remove('hidden');
+
+    document.getElementById('regenBtn').addEventListener('click', () => genererNouveauCode(profile.whatsapp));
+
+    pollInterval = setInterval(checkVerified, 5000);
+  }
+
+  function setCode(code, whatsapp){
+    currentCode = code;
+    document.getElementById('codeDisplay').textContent = code;
+    const message = `Vérification Yoonou — Code : ${code}`;
+    const cleanNumber = (whatsapp || '').replace(/[^0-9]/g, '');
+    document.getElementById('waBtn').href = `https://wa.me/${YOONOU_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  }
+
+  async function genererNouveauCode(whatsapp){
+    const msg = document.getElementById('statusMsg');
+    const btn = document.getElementById('regenBtn');
+    msg.className = 'status-msg';
+    btn.disabled = true;
+
+    try {
+      const { data, error } = await sb.rpc('generer_code_verification_telephone', { p_user_id: currentUser.id });
+      if (error) throw error;
+      setCode(data, whatsapp);
+    } catch (err) {
+      msg.textContent = err.message || "Erreur, réessaie dans un instant.";
+      msg.className = 'status-msg error';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function checkVerified(){
+    const { data } = await sb.from('profiles').select('telephone_verifie').eq('id', currentUser.id).single();
+    if (data && data.telephone_verifie) {
+      if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+      showSuccess();
+    }
+  }
+
+  function showSuccess(){
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('pendingState').classList.add('hidden');
+    document.getElementById('successState').classList.remove('hidden');
+  }
+
+  window.addEventListener('beforeunload', () => {
+    if (pollInterval) clearInterval(pollInterval);
+  });
+
+  init();
+</script>
+</body>
+</html>
