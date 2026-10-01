@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Yoonou — Suivi de ma livraison</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,9 +20,9 @@
     --cta-red:#D6362A;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
   h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
-  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
   nav .wrap{max-width:760px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
   .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
   .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
@@ -114,6 +114,8 @@
       </div>
     </div>
 
+    <button id="shareTripBtn" style="width:100%; margin-bottom:20px; font-family:'Space Grotesk'; font-weight:700; font-size:14px; padding:13px; border-radius:8px; border:1.5px solid var(--teal); background:none; color:var(--teal); cursor:pointer;">📤 Partager ce trajet avec un proche</button>
+
     <div id="map"></div>
 
     <div class="card hidden" id="driverCard">
@@ -122,11 +124,32 @@
         <div class="driver-avatar" id="driverAvatar">🚚</div>
         <div>
           <div class="driver-name" id="driverName">—</div>
+          <div class="driver-vehicle" id="driverRating" style="display:none; color:var(--gold); font-weight:700;"></div>
           <div class="driver-vehicle" id="driverVehicle">—</div>
           <div class="driver-vehicle" id="driverPlaque" style="font-family:'JetBrains Mono'; font-weight:600;"></div>
         </div>
       </div>
-      <a href="#" id="contactBtn" class="contact-btn" target="_blank">💬 Contacter sur WhatsApp</a>
+      <div style="display:flex; gap:10px;">
+        <a href="#" id="callBtn" class="contact-btn" style="flex:1; text-align:center;">📞 Appeler</a>
+        <a href="#" id="contactBtn" class="contact-btn" target="_blank" style="flex:1; text-align:center;">💬 WhatsApp</a>
+      </div>
+    </div>
+
+    <div class="card hidden" id="pinCard">
+      <h2>Tes codes de vérification</h2>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">Ne donne ces codes qu'en personne, au bon moment — jamais par avance.</p>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <div id="pinPickupWrap" style="flex:1; min-width:140px; background:var(--sand); border-radius:10px; padding:14px; text-align:center;">
+          <div style="font-size:11.5px; color:var(--muted); font-family:'JetBrains Mono'; margin-bottom:6px;">📍 CODE DE COLLECTE</div>
+          <div style="font-family:'JetBrains Mono'; font-size:22px; font-weight:700; letter-spacing:.1em;" id="pinPickupValue">—</div>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:4px;">À donner au chauffeur</div>
+        </div>
+        <div id="pinLivraisonWrap" style="flex:1; min-width:140px; background:var(--sand); border-radius:10px; padding:14px; text-align:center;">
+          <div style="font-size:11.5px; color:var(--muted); font-family:'JetBrains Mono'; margin-bottom:6px;">🎯 CODE DE LIVRAISON</div>
+          <div style="font-family:'JetBrains Mono'; font-size:22px; font-weight:700; letter-spacing:.1em;" id="pinLivraisonValue">—</div>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:4px;">À donner au destinataire</div>
+        </div>
+      </div>
     </div>
 
     <div class="card hidden" id="waitingCard">
@@ -208,8 +231,10 @@
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('content').classList.remove('hidden');
 
-    refreshInterval = setInterval(loadOrder, 8000);
+    refreshInterval = setInterval(loadOrder, 15000); // 15s : reste sous les 30s d'envoi GPS du chauffeur, sans surcharger Supabase
   }
+
+  let currentOrderData = null;
 
   async function loadOrder(){
     const { data: order, error } = await sb.from('orders').select('*').eq('id', orderId).single();
@@ -220,6 +245,7 @@
       if (refreshInterval) clearInterval(refreshInterval);
       return;
     }
+    currentOrderData = order;
 
     document.getElementById('routeTitle').textContent = `${order.depart} → ${order.destination}`;
     document.getElementById('orderMeta').textContent = order.prix ? `${Math.round(order.prix).toLocaleString('fr-FR')} FCFA` : '';
@@ -231,6 +257,7 @@
     renderTimeline(stepKey);
     renderCargo(order);
     initOrUpdateMap(order);
+    renderPinCard(order);
 
     if (order.transporteur_id) {
       document.getElementById('waitingCard').classList.add('hidden');
@@ -306,6 +333,20 @@
     }
   }
 
+  function renderPinCard(order){
+    const card = document.getElementById('pinCard');
+    if (['COMPLETED', 'CANCELLED'].includes(order.statut) || (!order.pin_pickup && !order.pin_livraison)) {
+      card.classList.add('hidden');
+      return;
+    }
+    card.classList.remove('hidden');
+    document.getElementById('pinPickupValue').textContent = order.pin_pickup || '—';
+    document.getElementById('pinLivraisonValue').textContent = order.pin_livraison || '—';
+
+    const pickupDone = !['REQUESTED','DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP'].includes(order.statut);
+    document.getElementById('pinPickupWrap').style.opacity = pickupDone ? '0.4' : '1';
+  }
+
   function renderTimeline(currentKey){
     const currentIdx = STEPS.findIndex(s => s.key === currentKey);
     const list = document.getElementById('timelineList');
@@ -317,7 +358,24 @@
     }).join('');
   }
 
-  function renderCargo(order){
+  // Les buckets photos sont privés : on convertit chaque URL stockée en lien signé temporaire.
+  async function getSignedPhotoUrl(bucket, storedUrl){
+    if (!storedUrl) return null;
+    try {
+      const marker = `/object/public/${bucket}/`;
+      const idx = storedUrl.indexOf(marker);
+      if (idx === -1) return storedUrl;
+      const path = storedUrl.substring(idx + marker.length);
+      const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 3600);
+      if (error) throw error;
+      return data.signedUrl;
+    } catch (err) {
+      console.warn('Lien signé indisponible pour', bucket, err.message);
+      return null;
+    }
+  }
+
+  async function renderCargo(order){
     const card = document.getElementById('cargoCard');
     if (!order.description && (!order.cargo_photo_urls || order.cargo_photo_urls.length === 0)) {
       card.classList.add('hidden');
@@ -326,18 +384,29 @@
     card.classList.remove('hidden');
     document.getElementById('cargoDesc').textContent = order.description || '';
     const photosEl = document.getElementById('cargoPhotos');
-    photosEl.innerHTML = (order.cargo_photo_urls || []).map(url => `<img src="${url}" alt="photo marchandise">`).join('');
+    const signedUrls = await Promise.all(
+      (order.cargo_photo_urls || []).map(url => getSignedPhotoUrl('cargo-photos', url))
+    );
+    photosEl.innerHTML = signedUrls.filter(Boolean).map(url => `<img src="${url}" alt="photo marchandise">`).join('');
   }
 
   async function loadDriverInfo(transporteurId){
     const { data: driver } = await sb.from('profiles').select('prenom, nom, whatsapp').eq('id', transporteurId).single();
     const { data: vehicle } = await sb.from('vehicles').select('*, vehicle_types(label)').eq('transporteur_id', transporteurId).eq('statut', 'actif').limit(1).maybeSingle();
+    const { data: rating } = await sb.from('user_rating_summary').select('*').eq('user_id', transporteurId).maybeSingle();
+
+    if (rating) {
+      const ratingEl = document.getElementById('driverRating');
+      ratingEl.style.display = 'block';
+      ratingEl.textContent = `⭐ ${rating.note_moyenne} (${rating.nombre_notes} avis)`;
+    }
 
     if (driver) {
       document.getElementById('driverName').textContent = `${driver.prenom || ''} ${driver.nom || ''}`.trim() || 'Transporteur Yoonou';
       if (driver.whatsapp) {
         const phoneClean = driver.whatsapp.replace(/[^0-9]/g, '');
         document.getElementById('contactBtn').href = `https://wa.me/${phoneClean}`;
+        document.getElementById('callBtn').href = `tel:+${phoneClean}`;
       }
     }
     if (vehicle) {
@@ -346,7 +415,8 @@
       document.getElementById('driverPlaque').textContent = vehicle.plaque || '';
 
       if (vehicle.photo_urls && vehicle.photo_urls.length > 0) {
-        document.getElementById('driverAvatar').innerHTML = `<img src="${vehicle.photo_urls[0]}" alt="véhicule">`;
+        const signedUrl = await getSignedPhotoUrl('vehicle-photos', vehicle.photo_urls[0]);
+        if (signedUrl) document.getElementById('driverAvatar').innerHTML = `<img src="${signedUrl}" alt="véhicule">`;
       }
     }
   }
@@ -435,6 +505,28 @@
 
   window.addEventListener('beforeunload', () => {
     if (refreshInterval) clearInterval(refreshInterval);
+  });
+
+  document.getElementById('shareTripBtn').addEventListener('click', async () => {
+    if (!currentOrderData) return;
+    const shareUrl = `${window.location.origin}/suivi-partage.html?t=${currentOrderData.share_token}`;
+    const shareText = `Suis mon trajet Yoonou en direct : ${currentOrderData.depart} → ${currentOrderData.destination}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Suivi Yoonou', text: shareText, url: shareUrl });
+      } catch (e) { /* annulé par l'utilisateur, pas grave */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+        const btn = document.getElementById('shareTripBtn');
+        const original = btn.textContent;
+        btn.textContent = '✅ Lien copié !';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      } catch (e) {
+        prompt('Copie ce lien pour le partager :', shareUrl);
+      }
+    }
   });
 
   init();

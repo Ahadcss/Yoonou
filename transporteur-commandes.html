@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Yoonou — Mes commandes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,9 +18,9 @@
     --cta-red:#D6362A; --cta-red-dark:#B62C21;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
   h1,h2,h3{font-family:'Space Grotesk', sans-serif; font-weight:700;}
-  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
   nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
   .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
   .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
@@ -306,12 +306,13 @@
     document.getElementById('content').classList.remove('hidden');
 
     refreshInterval = setInterval(refreshAll, 20000); // actualisation auto toutes les 20s
-    gpsInterval = setInterval(sendLocationIfOnActiveOrder, 10000); // GPS haute fréquence si course active
-    sendLocationIfOnActiveOrder();
+
+    // GPS adaptatif : rien si hors ligne, 1 position/min si en ligne sans course,
+    // 1 position/30s si en ligne avec une course active. Même logique que espace.html.
+    if (currentProfile.disponibilite === 'ONLINE') startSendingLocation();
   }
 
-  async function sendLocationIfOnActiveOrder(){
-    if (!navigator.geolocation) return;
+  async function getActiveOrderId(){
     const { data } = await sb
       .from('orders')
       .select('id')
@@ -319,16 +320,49 @@
       .in('statut', ['DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP','PICKUP_CONFIRMED','LOADING','IN_TRANSIT','ARRIVED_DESTINATION'])
       .limit(1)
       .maybeSingle();
-    if (!data) return;
+    return data ? data.id : null;
+  }
+
+  let gpsDureeActuelle = null;
+
+  function sendCurrentLocation(){
+    if (!navigator.geolocation) return;
+    if (currentProfile.disponibilite !== 'ONLINE') { stopSendingLocation(); return; }
 
     navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords;
+      const activeOrderId = await getActiveOrderId();
       await sb.from('driver_locations').insert([{
         transporteur_id: currentUser.id,
-        order_id: data.id,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude
+        order_id: activeOrderId,
+        latitude: latitude,
+        longitude: longitude
       }]);
-    }, () => {});
+
+      // Fréquence adaptative : haute fréquence pendant une course active,
+      // basse fréquence si simplement en ligne sans course (économie batterie/data).
+      const dureeIdeale = activeOrderId ? 30000 : 60000;
+      if (gpsInterval && gpsDureeActuelle !== dureeIdeale) {
+        clearInterval(gpsInterval);
+        gpsInterval = setInterval(sendCurrentLocation, dureeIdeale);
+        gpsDureeActuelle = dureeIdeale;
+      }
+    }, (err) => {
+      console.error('Erreur de géolocalisation:', err);
+    });
+  }
+
+  function startSendingLocation(){
+    if (gpsInterval) return;
+    gpsDureeActuelle = 60000;
+    sendCurrentLocation();
+    gpsInterval = setInterval(sendCurrentLocation, gpsDureeActuelle);
+  }
+
+  function stopSendingLocation(){
+    if (gpsInterval) { clearInterval(gpsInterval); gpsInterval = null; }
+    gpsDureeActuelle = null;
+  }
 
   async function loadVehicleTypeLabels(){
     const { data } = await sb.from('vehicle_types').select('type, label');
@@ -345,6 +379,37 @@
     await Promise.all([loadAvailableOrders(), loadOngoingOrders()]);
   }
 
+  // ---- Dispatch intelligent (Brique 1) : tri par proximité réelle ----
+  let driverCurrentPos = null;
+  let driverPosFetchedAt = 0;
+
+  function distanceKm(lat1, lng1, lat2, lng2){
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLng/2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function getDriverPositionForSorting(){
+    // Réutilise la position pendant 2 minutes pour éviter de solliciter le GPS à chaque rafraîchissement
+    if (driverCurrentPos && (Date.now() - driverPosFetchedAt) < 120000) {
+      return Promise.resolve(driverCurrentPos);
+    }
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          driverCurrentPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          driverPosFetchedAt = Date.now();
+          resolve(driverCurrentPos);
+        },
+        () => resolve(null),
+        { timeout: 5000 }
+      );
+    });
+  }
+
   async function loadAvailableOrders(){
     const list = document.getElementById('availableList');
     const countEl = document.getElementById('availableCount');
@@ -355,24 +420,32 @@
       return;
     }
 
-    const { data, error } = await sb
-      .from('orders')
-      .select('*')
-      .eq('statut', 'REQUESTED')
-      .is('transporteur_id', null)
-      .in('type_vehicule', myVehicleTypes)
-      .order('created_at', { ascending: true });
+    const { data, error } = await sb.rpc('get_available_orders_for_driver', { p_vehicle_types: myVehicleTypes });
 
     if (error) { console.error(error); return; }
 
     const refused = getRefusedIds();
-    const visible = (data || []).filter(o => !refused.includes(o.id));
+    let visible = (data || []).filter(o => !refused.includes(o.id));
 
     countEl.textContent = visible.length;
 
     if (visible.length === 0) {
       list.innerHTML = '<div class="empty-note">Aucune commande disponible pour l\'instant sur tes types de véhicules.</div>';
       return;
+    }
+
+    // Tri par proximité réelle du point de collecte, si la position du chauffeur est disponible.
+    // Les commandes les plus proches remontent en premier. Sans position dispo, ordre chronologique conservé.
+    const pos = await getDriverPositionForSorting();
+    if (pos) {
+      visible = visible.map(o => ({
+        ...o,
+        _distancePickup: (o.depart_lat && o.depart_lng) ? distanceKm(pos.lat, pos.lng, o.depart_lat, o.depart_lng) : null
+      })).sort((a, b) => {
+        if (a._distancePickup === null) return 1;
+        if (b._distancePickup === null) return -1;
+        return a._distancePickup - b._distancePickup;
+      });
     }
 
     list.innerHTML = visible.map(o => renderAvailableCard(o)).join('');
@@ -389,7 +462,8 @@
           <span class="vehicle-badge">${vehicleTypeLabels[o.type_vehicule] || o.type_vehicule}</span>
         </div>
         <div class="meta-row">
-          ${o.distance_km ? `<span><b>${o.distance_km} km</b></span>` : ''}
+          ${o._distancePickup !== undefined && o._distancePickup !== null ? `<span>📍 <b>${o._distancePickup.toFixed(1)} km</b> de toi</span>` : ''}
+          ${o.distance_km ? `<span>Trajet : <b>${o.distance_km} km</b></span>` : ''}
           ${o.poids_kg ? `<span>Poids : <b>${o.poids_kg} kg</b></span>` : ''}
           ${o.cargo_categorie ? `<span>Marchandise : <b>${escapeHtml(o.cargo_categorie)}</b></span>` : ''}
           ${o.cargo_quantite && o.cargo_quantite > 1 ? `<span>Quantité : <b>${o.cargo_quantite}</b></span>` : ''}
@@ -465,12 +539,7 @@
     const list = document.getElementById('ongoingList');
     const countEl = document.getElementById('ongoingCount');
 
-    const { data, error } = await sb
-      .from('orders')
-      .select('*')
-      .eq('transporteur_id', currentUser.id)
-      .in('statut', ONGOING_STATUSES)
-      .order('created_at', { ascending: false });
+    const { data, error } = await sb.rpc('get_ongoing_orders_for_driver');
 
     if (error) { console.error(error); return; }
 
@@ -502,7 +571,28 @@
     document.querySelectorAll('#ongoingList [data-action="confirm-cash"]').forEach(btn => {
       btn.addEventListener('click', () => confirmerCash(btn.dataset.id, btn));
     });
+    document.querySelectorAll('#ongoingList .share-trip-btn').forEach(btn => {
+      btn.addEventListener('click', () => shareTripLink(btn.dataset.token, btn.dataset.depart, btn.dataset.dest, btn));
+    });
   }
+
+  async function shareTripLink(token, depart, dest, btn){
+    const shareUrl = `${window.location.origin}/suivi-partage.html?t=${token}`;
+    const shareText = `Suis ce trajet Yoonou en direct : ${depart} → ${dest}`;
+
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Suivi Yoonou', text: shareText, url: shareUrl }); }
+      catch (e) { /* annulé, pas grave */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+        const original = btn.textContent;
+        btn.textContent = '✅ Lien copié !';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      } catch (e) {
+        prompt('Copie ce lien pour le partager :', shareUrl);
+      }
+    }
 
   function attachVerifyHandlers(orderId){
     document.querySelector(`#step-zone-${orderId} [data-action="close-verify"]`).addEventListener('click', () => {
@@ -696,6 +786,9 @@
     const commission = o.commission ?? Math.round((o.prix || 0) * 0.05);
     const net = o.montant_transporteur ?? ((o.prix || 0) - commission);
     const canStillCancel = ['DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP'].includes(o.statut);
+    const clientPhone = (o.profiles?.whatsapp || '').replace(/[^0-9]/g, '');
+    const clientNom = `${o.profiles?.prenom || ''} ${o.profiles?.nom || ''}`.trim() || 'Client';
+    const navLink = renderNavLink(o);
 
     return `
       <div class="order-card" data-order-id="${o.id}" data-statut="${o.statut}">
@@ -708,19 +801,47 @@
           <span>${vehicleTypeLabels[o.type_vehicule] || o.type_vehicule}</span>
           ${o.cargo_quantite ? `<span>Quantité annoncée : <b>${o.cargo_quantite}</b></span>` : ''}
         </div>
-        ${o.instructions_pickup ? `<div class="meta-row"><span>📍 Pickup : ${escapeHtml(o.instructions_pickup)}</span></div>` : ''}
-        ${o.instructions_destination ? `<div class="meta-row"><span>🎯 Destination : ${escapeHtml(o.instructions_destination)}</span></div>` : ''}
+        ${o.pickup_instructions ? `<div class="meta-row"><span>📍 Pickup : ${escapeHtml(o.pickup_instructions)}</span></div>` : ''}
+        ${o.destination_instructions ? `<div class="meta-row"><span>🎯 Destination : ${escapeHtml(o.destination_instructions)}</span></div>` : ''}
+        ${navLink}
         <div class="price-box">
           <div class="price-row net"><span class="lbl">Ton revenu net</span><span class="val">${formatFcfa(net)}</span></div>
         </div>
+
+        ${clientPhone ? `
+        <div class="meta-row" style="margin:10px 0 0; font-weight:600;">👤 ${escapeHtml(clientNom)}</div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <a href="tel:+${clientPhone}" style="flex:1; text-align:center; font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px; border-radius:6px; border:1.5px solid var(--indigo-deep); background:none; color:var(--indigo-deep); text-decoration:none;">📞 Appeler</a>
+          <a href="https://wa.me/${clientPhone}" target="_blank" style="flex:1; text-align:center; font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px; border-radius:6px; border:1.5px solid var(--teal); background:none; color:var(--teal); text-decoration:none;">💬 WhatsApp</a>
+        </div>` : ''}
 
         <div class="step-zone" id="step-zone-${o.id}">
           ${renderStepAction(o)}
         </div>
 
+        <button type="button" class="share-trip-btn" data-token="${o.share_token}" data-depart="${escapeHtml(o.depart)}" data-dest="${escapeHtml(o.destination)}" style="width:100%; margin-top:10px; font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:10px; border-radius:6px; border:1.5px solid var(--teal); background:none; color:var(--teal); cursor:pointer;">📤 Partager ce trajet</button>
+
         ${canStillCancel ? `<button class="btn-cancel" data-action="open-cancel" data-id="${o.id}">Annuler cette course</button>` : ''}
       </div>
     `;
+  }
+
+  // Avant la collecte : itinéraire vers le point de départ (position du client).
+  // Après la collecte : itinéraire vers la destination.
+  function renderNavLink(o){
+    const beforePickup = ['DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP'].includes(o.statut);
+    const afterPickup = ['PICKUP_CONFIRMED','LOADING','IN_TRANSIT','ARRIVED_DESTINATION'].includes(o.statut);
+
+    let lat, lng, label;
+    if (beforePickup && o.depart_lat && o.depart_lng) {
+      lat = o.depart_lat; lng = o.depart_lng; label = '🧭 Itinéraire jusqu\'au point de départ';
+    } else if (afterPickup && o.destination_lat && o.destination_lng) {
+      lat = o.destination_lat; lng = o.destination_lng; label = '🧭 Itinéraire jusqu\'à la destination';
+    } else {
+      return '';
+    }
+
+    return `<a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" style="display:block; text-align:center; margin-top:10px; font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:11px; border-radius:6px; border:none; background:var(--indigo-deep); color:var(--sand); text-decoration:none;">${label}</a>`;
   }
 
   function renderStepAction(o){
@@ -810,15 +931,14 @@
     btn.textContent = 'Annulation...';
 
     try {
-      const { error } = await sb.from('orders').update({
-        statut: 'CANCELLED',
-        cancellation_reason: reason,
-        cancellation_note: note || null,
-        cancelled_by: currentUser.id,
-        cancelled_at: new Date().toISOString()
-      }).eq('id', pendingCancelOrderId);
+      const { data: ok, error } = await sb.rpc('annuler_commande', {
+        p_order_id: pendingCancelOrderId,
+        p_raison: reason,
+        p_note: note || null
+      });
 
       if (error) throw error;
+      if (!ok) throw new Error("Cette commande ne peut plus être annulée (déjà terminée ou déjà annulée).");
 
       document.getElementById('cancelModal').classList.remove('open');
       pendingCancelOrderId = null;
@@ -859,7 +979,7 @@
 
   init();
 </script>
-<button id="sosFloatBtn" style="position:fixed; bottom:24px; right:24px; width:56px; height:56px; border-radius:50%; background:var(--cta-red); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(214,54,42,0.5); cursor:pointer; z-index:90;">🆘</button>
+<button id="sosFloatBtn" style="position:fixed; bottom:calc(24px + env(safe-area-inset-bottom)); right:24px; width:56px; height:56px; border-radius:50%; background:var(--cta-red); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(214,54,42,0.5); cursor:pointer; z-index:90;">🆘</button>
 
 <div id="supportModal" style="display:none; position:fixed; inset:0; background:rgba(22,33,62,0.55); align-items:center; justify-content:center; padding:20px; z-index:100;">
   <div style="background:#fff; border-radius:14px; padding:28px; max-width:440px; width:100%; max-height:85vh; overflow-y:auto;">
@@ -959,6 +1079,93 @@
     } catch (err) {
       msgEl.textContent = 'Erreur : ' + (err.message || 'réessaie.');
       msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(193,80,46,0.1); color:var(--laterite); font-size:13px;';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Envoyer';
+    }
+  });
+</script>
+
+<button id="zoneFloatBtn" style="position:fixed; bottom:calc(90px + env(safe-area-inset-bottom)); right:24px; width:56px; height:56px; border-radius:50%; background:var(--teal); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(42,127,118,0.5); cursor:pointer; z-index:90;">📍</button>
+
+<div id="zoneModalDriver" style="display:none; position:fixed; inset:0; background:rgba(22,33,62,0.55); align-items:center; justify-content:center; padding:20px; z-index:100;">
+  <div style="background:#fff; border-radius:14px; padding:26px; max-width:420px; width:100%;">
+    <h3 style="font-family:'Space Grotesk'; font-weight:700; font-size:17px; margin-bottom:6px;">Ajouter ta zone actuelle</h3>
+    <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">Tu es dans une zone mal reconnue sur la carte ? Ajoute-la avec ta position actuelle. Un admin Yoonou valide avant qu'elle apparaisse pour tout le monde.</p>
+    <div class="field">
+      <label>Nom de la zone</label>
+      <input type="text" id="zoneNameDriver" placeholder="Ex : Cité Keur Gorgui, Bloc C">
+    </div>
+    <div class="field">
+      <label>Repère utile (optionnel)</label>
+      <input type="text" id="zoneDescriptionDriver" placeholder="Ex : Près de la pharmacie...">
+    </div>
+    <div class="hint" id="zoneGpsHintDriver" style="font-size:12px; color:var(--muted); margin-top:4px;">📍 Récupération de ta position...</div>
+    <div class="card-msg" id="zoneMsgDriver"></div>
+    <div style="display:flex; gap:10px; margin-top:16px;">
+      <button type="button" id="closeZoneModalDriver" style="flex:1; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; padding:12px; border-radius:8px; border:1.5px solid rgba(22,33,62,0.15); background:none; color:var(--muted); cursor:pointer;">Annuler</button>
+      <button type="button" id="submitZoneDriverBtn" style="flex:1; font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:12px; border-radius:8px; border:none; background:var(--teal); color:#fff; cursor:pointer;">Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let zoneCoordsDriver = null;
+
+  document.getElementById('zoneFloatBtn').addEventListener('click', () => {
+    document.getElementById('zoneNameDriver').value = '';
+    document.getElementById('zoneDescriptionDriver').value = '';
+    document.getElementById('zoneMsgDriver').className = 'card-msg';
+    zoneCoordsDriver = null;
+    document.getElementById('zoneGpsHintDriver').textContent = '📍 Récupération de ta position...';
+    document.getElementById('zoneModalDriver').style.display = 'flex';
+
+    if (!navigator.geolocation) {
+      document.getElementById('zoneGpsHintDriver').textContent = "❌ Géolocalisation indisponible sur cet appareil.";
+      return;
+    }
+    navigator.geolocation.getCurrentPosition((pos) => {
+      zoneCoordsDriver = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      document.getElementById('zoneGpsHintDriver').textContent = '✅ Position récupérée.';
+    }, () => {
+      document.getElementById('zoneGpsHintDriver').textContent = "❌ Impossible de récupérer ta position. Vérifie que la localisation est autorisée.";
+    });
+  });
+
+  document.getElementById('closeZoneModalDriver').addEventListener('click', () => {
+    document.getElementById('zoneModalDriver').style.display = 'none';
+  });
+
+  document.getElementById('submitZoneDriverBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('submitZoneDriverBtn');
+    const msg = document.getElementById('zoneMsgDriver');
+    const nom = document.getElementById('zoneNameDriver').value.trim();
+    const description = document.getElementById('zoneDescriptionDriver').value.trim();
+
+    if (!zoneCoordsDriver) {
+      msg.textContent = "Ta position n'est pas encore disponible, réessaie dans un instant.";
+      msg.className = 'card-msg error';
+      return;
+    }
+    if (!nom) {
+      msg.textContent = 'Donne un nom à cette zone.';
+      msg.className = 'card-msg error';
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Envoi...';
+    try {
+      const { error } = await sb.from('zone_suggestions').insert([{
+        suggested_by: currentUser.id, nom_zone: nom, description: description || null,
+        latitude: zoneCoordsDriver.lat, longitude: zoneCoordsDriver.lng
+      }]);
+      if (error) throw error;
+
+      msg.textContent = '✅ Merci ! Ta zone sera visible une fois validée.';
+      msg.className = 'card-msg success';
+      setTimeout(() => { document.getElementById('zoneModalDriver').style.display = 'none'; }, 1500);
+    } catch (err) {
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msg.className = 'card-msg error';
     } finally {
       btn.disabled = false; btn.textContent = 'Envoyer';
     }

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Yoonou — Admin · Vérification KYC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,9 +18,9 @@
     --cta-red:#D6362A;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
   h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
-  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
   nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
   .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
   .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
@@ -94,7 +94,11 @@
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let currentUser = null;
-  const docLabels = { cni: "Carte d'identité (CNI)", permis: "Permis de conduire", autre: "Autre document" };
+  const docLabels = {
+    cni: "Carte d'identité (CNI)", extrait_naissance: 'Extrait de naissance', carte_scolaire: "Carte d'élève/étudiant",
+    autre_piece: "Autre pièce d'identité", permis: 'Permis de conduire', selfie: 'Photo du visage (selfie)',
+    carte_grise: 'Carte grise du véhicule', assurance: 'Assurance du véhicule', autre: 'Autre document'
+  };
 
   async function init(){
     const { data: { session } } = await sb.auth.getSession();
@@ -116,7 +120,7 @@
 
     const { data, error } = await sb
       .from('driver_documents')
-      .select('*, profiles!driver_documents_transporteur_id_fkey(prenom, nom, whatsapp)')
+      .select('*, profiles!driver_documents_transporteur_id_fkey(prenom, nom, whatsapp, date_naissance)')
       .in('statut', ['PENDING', 'UNDER_REVIEW'])
       .order('created_at', { ascending: true });
 
@@ -135,26 +139,96 @@
       loadSignedLink(d.id, d.url_fichier);
       document.getElementById('verify-' + d.id).addEventListener('click', () => traiterDocument(d.id, 'VERIFIED'));
       document.getElementById('reject-' + d.id).addEventListener('click', () => traiterDocument(d.id, 'REJECTED'));
+      document.getElementById('ban-' + d.id).addEventListener('click', () => bannirCompte(d.transporteur_id, d.id));
+      document.getElementById('activer-' + d.id).addEventListener('click', () => activerTransporteur(d.transporteur_id, d.id));
+      checkBannedMatch(d);
     }
+  }
+
+  async function activerTransporteur(transporteurId, docId){
+    const msg = document.getElementById('msg-' + docId);
+    try {
+      const { data, error } = await sb.rpc('activer_transporteur', { p_transporteur_id: transporteurId });
+      if (error) throw error;
+      msg.textContent = data ? '✅ Transporteur activé — il peut désormais recevoir des courses.' : 'Compte introuvable.';
+      msg.className = 'item-msg success';
+    } catch (err) {
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msg.className = 'item-msg error';
+    }
+  }
+
+  async function checkBannedMatch(d){
+    const driver = d.profiles || {};
+    if (!driver.nom || !driver.prenom) return;
+    const { data } = await sb
+      .from('comptes_bannis_identite')
+      .select('nom, prenom, ancien_whatsapp, raison, banni_le')
+      .ilike('nom', driver.nom)
+      .ilike('prenom', driver.prenom)
+      .limit(3);
+
+    if (data && data.length > 0) {
+      const wrap = document.getElementById('ban-match-' + d.id);
+      wrap.innerHTML = data.map(b => `
+        <div style="background:rgba(214,54,42,0.1); color:var(--cta-red); border-radius:6px; padding:8px 12px; font-size:12.5px; margin-bottom:8px; font-weight:600;">
+          🚫 Correspondance possible avec un compte banni : ${escapeHtml(b.nom)} ${escapeHtml(b.prenom)} (${escapeHtml(b.ancien_whatsapp || '—')}) — ${escapeHtml(b.raison)}, le ${new Date(b.banni_le).toLocaleDateString('fr-FR')}. Vérifie manuellement avant de valider.
+        </div>
+      `).join('');
+    }
+  }
+
+  async function bannirCompte(transporteurId, docId){
+    const raison = prompt("Raison du bannissement (visible uniquement en interne) :");
+    if (!raison) return;
+    const msg = document.getElementById('msg-' + docId);
+    try {
+      const { data, error } = await sb.rpc('bannir_transporteur', { p_transporteur_id: transporteurId, p_raison: raison });
+      if (error) throw error;
+      msg.textContent = data ? '🚫 Compte banni.' : 'Compte introuvable.';
+      msg.className = 'item-msg success';
+      setTimeout(loadList, 1200);
+    } catch (err) {
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msg.className = 'item-msg error';
+    }
+  }
+
+  function calculerAge(dateNaissance){
+    if (!dateNaissance) return null;
+    const naissance = new Date(dateNaissance);
+    const auj = new Date();
+    let age = auj.getFullYear() - naissance.getFullYear();
+    const m = auj.getMonth() - naissance.getMonth();
+    if (m < 0 || (m === 0 && auj.getDate() < naissance.getDate())) age--;
+    return age;
   }
 
   function renderItem(d){
     const driver = d.profiles || {};
+    const age = calculerAge(driver.date_naissance);
+    const mineur = age !== null && age < 18;
     return `
       <div class="item" id="item-${d.id}">
         <div class="item-top">
           <div>
-            <div class="driver-name">${escapeHtml(driver.prenom || '')} ${escapeHtml(driver.nom || '')}</div>
-            <div class="driver-phone">${escapeHtml(driver.whatsapp || '—')}</div>
+            <div class="driver-name">${escapeHtml(driver.prenom || '')} ${escapeHtml(driver.nom || '')} ${mineur ? '<span style="color:var(--laterite); font-weight:700;">· MINEUR (' + age + ' ans)</span>' : ''}</div>
+            <div class="driver-phone">${escapeHtml(driver.whatsapp || '—')}${driver.date_naissance ? ' · Né(e) le ' + new Date(driver.date_naissance).toLocaleDateString('fr-FR') : ''}</div>
           </div>
           <span class="doc-type-badge">${docLabels[d.type_document] || d.type_document}</span>
         </div>
+        ${mineur ? '<div style="background:rgba(193,80,46,0.1); color:var(--laterite); border-radius:6px; padding:8px 12px; font-size:12.5px; margin-bottom:10px;">⚠️ Vérifie que ce transporteur n\'a enregistré que des véhicules vélo/charrette — restriction déjà appliquée automatiquement côté serveur.</div>' : ''}
+        <div id="ban-match-${d.id}"></div>
 
         <div id="link-wrap-${d.id}"><span class="link-loading">Génération du lien sécurisé...</span></div>
 
         <div class="action-row">
-          <button class="btn-verify" id="verify-${d.id}">✓ Vérifier</button>
+          <button class="btn-verify" id="verify-${d.id}">✓ Vérifier ce document</button>
           <button class="btn-reject" id="reject-${d.id}">✕ Rejeter</button>
+          <button class="btn-reject" id="ban-${d.id}" style="border-color:var(--cta-red); color:var(--cta-red);">🚫 Bannir ce compte</button>
+        </div>
+        <div class="action-row" style="margin-top:10px;">
+          <button class="btn-verify" id="activer-${d.id}" style="background:var(--indigo-deep);">✅ Activer ce transporteur (tous documents + véhicules vérifiés)</button>
         </div>
         <div class="item-msg" id="msg-${d.id}"></div>
       </div>

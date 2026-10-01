@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Yoonou — Admin · Vue d'ensemble</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,9 +18,9 @@
     --cta-red:#D6362A;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
   h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
-  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
   nav .wrap{max-width:980px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
   .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
   .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
@@ -105,6 +105,22 @@
         <span class="n" id="ticketsCount">—</span>
       </a>
     </div>
+    <div class="alert-grid">
+      <a href="admin-zones.html" class="alert-card" id="zonesAlert">
+        <span class="t">📍 Zones communautaires en attente</span>
+        <span class="n" id="zonesCount">—</span>
+      </a>
+      <a href="admin-verification-telephone.html" class="alert-card" id="phoneVerifAlert">
+        <span class="t">📱 Numéros à vérifier</span>
+        <span class="n" id="phoneVerifCount">—</span>
+      </a>
+    </div>
+    <div class="alert-grid">
+      <a href="admin-risques.html" class="alert-card" id="risqueAlert" style="grid-column:1 / -1;">
+        <span class="t">⚠️ Anomalies GPS (24h)</span>
+        <span class="n" id="risqueCount">—</span>
+      </a>
+    </div>
 
     <div class="stat-grid">
       <div class="stat-box">
@@ -145,8 +161,12 @@
       <h2>Accès rapide</h2>
       <div class="quick-links">
         <a href="admin-support.html" class="quick-link">Support & urgences</a>
+        <a href="admin-cargo-restrictions.html" class="quick-link">Marchandises autorisées</a>
+        <a href="admin-zones.html" class="quick-link">Zones communautaires</a>
         <a href="admin-kyc.html" class="quick-link">Vérification KYC</a>
+        <a href="admin-verification-telephone.html" class="quick-link">Vérification téléphone</a>
         <a href="admin-commissions.html" class="quick-link">Commissions</a>
+        <a href="admin-risques.html" class="quick-link">Anomalies GPS</a>
       </div>
     </div>
 
@@ -223,15 +243,24 @@
     const { count: commissionCount } = await sb.from('commission_periods').select('*', { count: 'exact', head: true }).eq('status', 'CLOSED');
     const { count: urgentCount } = await sb.from('disputes').select('*', { count: 'exact', head: true }).eq('is_urgent', true).in('status', ['OUVERT','EN_COURS']);
     const { count: ticketsCount } = await sb.from('disputes').select('*', { count: 'exact', head: true }).in('status', ['OUVERT','EN_COURS','EN_ATTENTE']);
+    const { count: zonesCount } = await sb.from('zone_suggestions').select('*', { count: 'exact', head: true }).eq('statut', 'EN_ATTENTE');
+    const { count: phoneVerifCount } = await sb.from('profiles').select('*', { count: 'exact', head: true }).eq('telephone_verifie', false).not('code_verification', 'is', null);
+    const { count: risqueCount } = await sb.from('risk_events').select('*', { count: 'exact', head: true }).gte('created_at', new Date(Date.now() - 24*60*60*1000).toISOString());
 
     document.getElementById('kycCount').textContent = kycCount ?? 0;
     document.getElementById('commissionCount').textContent = commissionCount ?? 0;
     document.getElementById('urgentCount').textContent = urgentCount ?? 0;
     document.getElementById('ticketsCount').textContent = ticketsCount ?? 0;
+    document.getElementById('zonesCount').textContent = zonesCount ?? 0;
+    document.getElementById('phoneVerifCount').textContent = phoneVerifCount ?? 0;
     document.getElementById('kycAlert').classList.toggle('zero', !kycCount);
     document.getElementById('commissionAlert').classList.toggle('zero', !commissionCount);
     document.getElementById('urgentAlert').classList.toggle('zero', !urgentCount);
     document.getElementById('ticketsAlert').classList.toggle('zero', !ticketsCount);
+    document.getElementById('zonesAlert').classList.toggle('zero', !zonesCount);
+    document.getElementById('phoneVerifAlert').classList.toggle('zero', !phoneVerifCount);
+    document.getElementById('risqueCount').textContent = risqueCount ?? 0;
+    document.getElementById('risqueAlert').classList.toggle('zero', !risqueCount);
   }
 
   async function loadRecentOrders(){

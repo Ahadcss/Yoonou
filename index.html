@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Yoonou — Transport de marchandises au Sénégal | Vélo, moto, tricycle, camion</title>
 <meta name="google-site-verification" content="OjC0_Xk-4VEn_4KUUzHIYyb8cwdRg0mGlxXdq_i0vnU" />
 <link rel="canonical" href="https://yoonou.com/">
@@ -39,7 +39,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="lang.js"></script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -78,6 +78,9 @@
     color:var(--ink);
     line-height:1.55;
     overflow-x:hidden;
+    padding-bottom:env(safe-area-inset-bottom);
+    padding-left:env(safe-area-inset-left);
+    padding-right:env(safe-area-inset-right);
   }
   h1,h2,h3,h4{font-family:'Space Grotesk', sans-serif; font-weight:700; line-height:1.1;}
   .mono{font-family:'JetBrains Mono', monospace;}
@@ -105,12 +108,20 @@
   /* NAV */
   nav{
     position:fixed; top:0; left:0; right:0; z-index:100;
-    padding:16px 0;
+    padding:calc(16px + env(safe-area-inset-top)) 0 16px;
+    padding-left:env(safe-area-inset-left);
+    padding-right:env(safe-area-inset-right);
     background:rgba(22,33,62,0.9);
     backdrop-filter:blur(10px);
     border-bottom:1px solid rgba(243,233,210,0.06);
   }
   nav .wrap{display:flex; align-items:center; justify-content:space-between;}
+  .lang-switcher-nav{display:flex; gap:5px;}
+  .yoonou-lang-btn{
+    font-family:'Space Grotesk'; font-weight:600; font-size:11.5px; padding:5px 10px; border-radius:100px;
+    border:1.5px solid rgba(243,233,210,0.2); background:none; color:var(--sand-dim); cursor:pointer;
+  }
+  .yoonou-lang-btn.active{background:var(--sand); color:var(--indigo-deep); border-color:var(--sand);}
   .logo{
     font-family:'Space Grotesk'; font-weight:700; font-size:21px; color:var(--sand);
     letter-spacing:-0.02em; display:flex; align-items:center; gap:8px;
@@ -445,20 +456,21 @@
       <a class="nl" href="#drivers">Transporteurs</a>
       <a class="nl" href="#faq">FAQ</a>
       <a class="nl" href="#contact">Contact</a>
-      <button class="nav-cta js-open-modal">Être informé du lancement</button>
+      <div class="lang-switcher-nav" id="langSwitcher"></div>
+      <a class="nav-cta" href="auth.html" data-i18n="nav_start">Commencer</a>
     </div>
   </div>
 </nav>
 
 <header class="hero">
   <div class="wrap">
-    <div class="eyebrow">🇸🇳 Né au Sénégal · Bientôt disponible</div>
-    <h1>Votre marchandise a une destination.<br><em>Yoonou</em> lui trace la voie.</h1>
-    <p class="hero-meaning">« Yoonou » signifie <em>la voie</em> en wolof.</p>
-    <p class="lead">Du petit colis au camion complet, sur une seule plateforme. Vélo, moto, tricycle, charrette, voiture, SUV, minivan, pick-up, camionnette ou camion : un transporteur partenaire prend en charge vos marchandises, où que vous soyez au Sénégal.</p>
+    <div class="eyebrow" data-i18n="home_eyebrow">🇸🇳 Né au Sénégal · Disponible maintenant</div>
+    <h1><span data-i18n="home_hero_title_1">Votre marchandise a une destination.</span><br><em data-i18n="home_hero_title_2">Yoonou lui trace la voie.</em></h1>
+    <p class="hero-meaning" data-i18n="home_hero_meaning">« Yoonou » signifie <em>la voie</em> en wolof.</p>
+    <p class="lead" data-i18n="home_hero_lead">Du petit colis au camion complet, sur une seule plateforme. Vélo, moto, tricycle, charrette, voiture, SUV, minivan, pick-up, camionnette ou camion : un transporteur partenaire prend en charge vos marchandises, où que vous soyez au Sénégal.</p>
     <div class="hero-cta">
-      <button class="btn cta-red js-open-modal">🚀 Être informé du lancement</button>
-      <a href="#how" class="btn btn-ghost">Voir comment ça marche</a>
+      <a href="auth.html" class="btn cta-red" data-i18n="home_hero_cta_primary">🚀 Commencer maintenant</a>
+      <a href="#how" class="btn btn-ghost" data-i18n="home_hero_cta_secondary">Voir comment ça marche</a>
     </div>
 
     <div class="hero-stats">
@@ -611,8 +623,7 @@
       <p class="lead">Transformez vos trajets en opportunités. Que vous ayez une moto, un tricycle, une voiture ou un camion, vous pourrez recevoir des demandes correspondant à votre véhicule, votre zone et vos disponibilités.</p>
       <div class="commission-badge">💰 <strong>5% de commission</strong> — vous gardez <strong>95%</strong> de chaque course</div>
       <p class="payment-note">Que vous possédiez un vélo, une moto, une charrette, un tricycle, une voiture ou un camion, chaque moyen de transport a sa place sur Yoonou : vous pourrez commencer à gagner de l'argent avec ce que vous avez déjà, sans investissement supplémentaire.</p>
-      <button class="btn cta-red js-open-modal">🚚 Devenir transporteur</button>
-      <a href="auth.html" class="account-link">Déjà convaincu ? Créer votre compte transporteur →</a>
+      <a href="auth.html" class="btn cta-red">🚚 Devenir transporteur</a>
     </div>
     <div class="perks reveal-stagger">
       <div class="perk"><span class="em">💵</span>Revenus supplémentaires</div>
@@ -659,7 +670,7 @@
     <div class="testi-box reveal">
       <div class="em">💬</div>
       <p>Les premiers témoignages seront publiés après nos premières livraisons.</p>
-      <p class="cta-line">Rejoignez-nous dès le lancement.</p>
+      <p class="cta-line">Rejoignez la communauté Yoonou.</p>
     </div>
   </div>
 </section>
@@ -753,79 +764,13 @@
 
 <section class="final-cta" id="cta">
   <div class="wrap reveal">
-    <h2>Soyez parmi les premiers à découvrir Yoonou dès son lancement.</h2>
-    <p>Yoonou arrive bientôt au Sénégal. Laissez-nous vos coordonnées pour être parmi les premiers informés.</p>
+    <h2>Envoyez votre première marchandise dès aujourd'hui.</h2>
+    <p>Yoonou est disponible partout au Sénégal. Créez votre compte et commandez votre premier transport en quelques minutes.</p>
     <div class="hero-cta">
-      <button class="btn cta-red js-open-modal">🚀 Être informé du lancement</button>
+      <a href="auth.html" class="btn cta-red">🚀 Créer mon compte</a>
     </div>
   </div>
 </section>
-
-<div class="modal-overlay" id="signupModal">
-  <div class="modal-box">
-    <button class="modal-close js-close-modal" aria-label="Fermer">✕</button>
-
-    <div id="modalForm">
-      <div class="modal-eyebrow">🚀 Rejoignez-nous dès le lancement</div>
-      <p class="modal-sub">Soyez parmi les premiers utilisateurs de Yoonou. Laissez-nous vos coordonnées et nous vous préviendrons dès que la plateforme sera disponible.</p>
-
-      <form id="preSignupForm" novalidate>
-        <div class="field">
-          <label for="fPrenom">Prénom</label>
-          <input type="text" id="fPrenom" name="prenom" autocomplete="given-name">
-          <div class="field-error" id="errPrenom">Le prénom est obligatoire.</div>
-        </div>
-        <div class="field">
-          <label for="fNom">Nom</label>
-          <input type="text" id="fNom" name="nom" autocomplete="family-name">
-          <div class="field-error" id="errNom">Le nom est obligatoire.</div>
-        </div>
-        <div class="field">
-          <label for="fWhatsapp">Numéro WhatsApp</label>
-          <input type="tel" id="fWhatsapp" name="whatsapp" placeholder="77 000 00 00" autocomplete="tel">
-          <div class="field-error" id="errWhatsapp">Merci d'indiquer un numéro WhatsApp valide.</div>
-        </div>
-        <div class="field">
-          <label for="fVille">Ville</label>
-          <input type="text" id="fVille" name="ville" autocomplete="address-level2">
-          <div class="field-error" id="errVille">La ville est obligatoire.</div>
-        </div>
-
-        <div class="profile-label">Comment souhaitez-vous utiliser Yoonou ?</div>
-        <label class="profile-opt">
-          <input type="checkbox" name="profil" value="envoyer">
-          <span>📦 Je veux envoyer des marchandises</span>
-        </label>
-        <label class="profile-opt">
-          <input type="checkbox" name="profil" value="entreprise">
-          <span>🏢 J'ai besoin de solutions de transport pour mon entreprise</span>
-        </label>
-        <label class="profile-opt">
-          <input type="checkbox" name="profil" value="transporteur">
-          <span>🚚 Je suis transporteur</span>
-        </label>
-        <div class="field-error" id="errProfil">Sélectionnez au moins un profil.</div>
-
-        <label class="consent">
-          <input type="checkbox" id="fConsent" name="consent">
-          <span>J'accepte de recevoir des informations concernant le lancement de Yoonou par WhatsApp/SMS.</span>
-        </label>
-        <div class="field-error" id="errConsent">Le consentement est obligatoire pour continuer.</div>
-
-        <button type="submit" class="modal-submit pending" id="submitBtn">🚀 Être informé du lancement</button>
-        <div class="field-error" id="errGeneral">Merci de compléter tous les champs requis ci-dessus avant de continuer.</div>
-        <div class="field-error" id="errNetwork">Une erreur est survenue lors de l'enregistrement. Vérifie ta connexion et réessaie.</div>
-      </form>
-    </div>
-
-    <div id="modalSuccess" class="modal-success hidden">
-      <div class="em">🎉</div>
-      <h3>C'est enregistré !</h3>
-      <p>Merci pour votre intérêt pour Yoonou.<br>Nous vous préviendrons dès que la plateforme sera officiellement disponible.</p>
-      <button class="js-close-modal">Fermer</button>
-    </div>
-  </div>
-</div>
 
 <footer>
   <div class="wrap">
@@ -843,8 +788,8 @@
       </div>
       <div class="foot-col">
         <h5>Légal</h5>
-        <a href="#">Conditions d'utilisation</a>
-        <a href="#">Politique de confidentialité</a>
+        <a href="conditions-generales.html">Conditions d'utilisation</a>
+        <a href="confidentialite.html">Politique de confidentialité</a>
       </div>
       <div class="foot-col">
         <h5>Contact</h5>
@@ -860,11 +805,6 @@
 </footer>
 
 <script>
-  // Connexion Supabase — clé publique "anon", protégée par Row Level Security
-  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
-  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
   // Scroll reveal
   const revealEls = document.querySelectorAll('.reveal, .reveal-stagger');
   const io = new IntersectionObserver((entries) => {
@@ -876,144 +816,6 @@
     });
   }, {threshold:0.15});
   revealEls.forEach(el => io.observe(el));
-
-  // Modal open/close
-  const modal = document.getElementById('signupModal');
-  const modalForm = document.getElementById('modalForm');
-  const modalSuccess = document.getElementById('modalSuccess');
-
-  function openModal(){
-    modal.classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeModal(){
-    modal.classList.remove('open');
-    document.body.style.overflow = '';
-    // reset to form view after the closing transition
-    setTimeout(() => {
-      modalSuccess.classList.add('hidden');
-      modalForm.classList.remove('hidden');
-      form.reset();
-      profilBoxes().forEach(b => b.closest('.profile-opt').classList.remove('checked'));
-      document.querySelectorAll('#preSignupForm .field-error.show').forEach(el => el.classList.remove('show'));
-      document.getElementById('errNetwork').classList.remove('show');
-      document.querySelectorAll('#preSignupForm input.err').forEach(el => el.classList.remove('err'));
-      submitBtn.classList.add('pending');
-      Object.keys(touched).forEach(k => delete touched[k]);
-    }, 250);
-  }
-  document.querySelectorAll('.js-open-modal').forEach(btn => btn.addEventListener('click', openModal));
-  document.querySelectorAll('.js-close-modal').forEach(btn => btn.addEventListener('click', closeModal));
-  modal.addEventListener('click', (e) => { if(e.target === modal) closeModal(); });
-  document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
-
-  // Form validation
-  const form = document.getElementById('preSignupForm');
-  const fPrenom = document.getElementById('fPrenom');
-  const fNom = document.getElementById('fNom');
-  const fWhatsapp = document.getElementById('fWhatsapp');
-  const fVille = document.getElementById('fVille');
-  const fConsent = document.getElementById('fConsent');
-  const submitBtn = document.getElementById('submitBtn');
-  const profilBoxes = () => Array.from(form.querySelectorAll('input[name="profil"]'));
-  const touched = {};
-
-  function isPhoneValid(v){
-    const digits = v.replace(/[\s.-]/g, '');
-    return /^(\+?221)?[37][0-9]{8}$/.test(digits);
-  }
-
-  function fieldValid(name){
-    if(name === 'prenom') return fPrenom.value.trim().length > 0;
-    if(name === 'nom') return fNom.value.trim().length > 0;
-    if(name === 'whatsapp') return isPhoneValid(fWhatsapp.value);
-    if(name === 'ville') return fVille.value.trim().length > 0;
-    if(name === 'profil') return profilBoxes().some(b => b.checked);
-    if(name === 'consent') return fConsent.checked;
-  }
-
-  function updateFieldUI(name, input, errId){
-    const errEl = document.getElementById(errId);
-    if(touched[name]){
-      const valid = fieldValid(name);
-      input.classList.toggle('err', !valid);
-      errEl.classList.toggle('show', !valid);
-    }
-  }
-
-  function updateAll(){
-    updateFieldUI('prenom', fPrenom, 'errPrenom');
-    updateFieldUI('nom', fNom, 'errNom');
-    updateFieldUI('whatsapp', fWhatsapp, 'errWhatsapp');
-    updateFieldUI('ville', fVille, 'errVille');
-    if(touched.profil){
-      document.getElementById('errProfil').classList.toggle('show', !fieldValid('profil'));
-    }
-    if(touched.consent){
-      document.getElementById('errConsent').classList.toggle('show', !fieldValid('consent'));
-    }
-    const allValid = ['prenom','nom','whatsapp','ville','profil','consent'].every(fieldValid);
-    submitBtn.classList.toggle('pending', !allValid);
-    document.getElementById('errGeneral').classList.remove('show');
-    return allValid;
-  }
-
-  [['prenom',fPrenom],['nom',fNom],['whatsapp',fWhatsapp],['ville',fVille]].forEach(([name, input]) => {
-    input.addEventListener('blur', () => { touched[name] = true; updateAll(); });
-    input.addEventListener('input', updateAll);
-  });
-  profilBoxes().forEach(box => {
-    box.addEventListener('change', () => {
-      touched.profil = true;
-      box.closest('.profile-opt').classList.toggle('checked', box.checked);
-      updateAll();
-    });
-  });
-  fConsent.addEventListener('change', () => { touched.consent = true; updateAll(); });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    touched.prenom = touched.nom = touched.whatsapp = touched.ville = touched.profil = touched.consent = true;
-    const allValid = updateAll();
-    document.getElementById('errNetwork').classList.remove('show');
-    if(!allValid){
-      document.getElementById('errGeneral').classList.add('show');
-      const firstInvalid = form.querySelector('.err') || (!fieldValid('profil') ? form.querySelector('.profile-opt') : null) || (!fieldValid('consent') ? fConsent : null);
-      if(firstInvalid) firstInvalid.scrollIntoView({behavior:'smooth', block:'center'});
-      return;
-    }
-
-    const payload = {
-      prenom: fPrenom.value.trim(),
-      nom: fNom.value.trim(),
-      whatsapp: fWhatsapp.value.trim(),
-      ville: fVille.value.trim(),
-      profils: profilBoxes().filter(b => b.checked).map(b => b.value),
-      consent: fConsent.checked
-    };
-
-    const originalLabel = submitBtn.textContent;
-    submitBtn.textContent = 'Envoi en cours...';
-    submitBtn.disabled = true;
-
-    try{
-      const { error } = await supabaseClient.from('preinscriptions').insert([payload]);
-      if(error) throw error;
-
-      modalForm.classList.add('hidden');
-      modalSuccess.classList.remove('hidden');
-      form.reset();
-      profilBoxes().forEach(b => b.closest('.profile-opt').classList.remove('checked'));
-      Object.keys(touched).forEach(k => delete touched[k]);
-    } catch(err){
-      console.error('Erreur Supabase:', err);
-      document.getElementById('errNetwork').classList.add('show');
-    } finally {
-      submitBtn.textContent = originalLabel;
-      submitBtn.disabled = false;
-      submitBtn.classList.add('pending');
-    }
-  });
 
   // FAQ accordion
   document.querySelectorAll('.faq-item').forEach(item => {

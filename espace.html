@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Yoonou — Mon espace</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,9 +22,9 @@
     --cta-red:#D6362A; --cta-red-dark:#B62C21;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
   h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
-  nav{background:var(--indigo-deep); padding:18px 0;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
   nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
   .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px;}
   .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
@@ -84,9 +84,20 @@
   }
   .btn-primary-sm:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
   .form-msg{font-size:13px; margin-top:10px; padding:10px; border-radius:6px; display:none;}
+  .hint{font-size:12px; color:var(--muted); margin-top:5px;}
   .form-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
   .form-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
   .empty-note{color:var(--muted); font-size:14px; padding:10px 0;}
+
+  .phone-verify-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+    background:rgba(232,169,58,0.15); border:1.5px solid rgba(232,169,58,0.4); border-radius:10px;
+    padding:14px 18px; margin-bottom:24px; font-size:13.5px; color:#a5760f;
+  }
+  .phone-verify-banner a{
+    font-family:'Space Grotesk'; font-weight:700; font-size:13px; padding:9px 16px; border-radius:6px;
+    background:#a5760f; color:#fff; text-decoration:none; white-space:nowrap;
+  }
 
   .next-phase{
     background:var(--indigo-panel); color:var(--sand); border-radius:12px; padding:28px 30px; text-align:center;
@@ -108,6 +119,10 @@
   <div id="loadingState" class="loading">Chargement de ton espace...</div>
 
   <div id="content" class="hidden">
+    <div class="phone-verify-banner hidden" id="phoneVerifyBanner">
+      <span>📱 Ton numéro n'est pas encore vérifié.</span>
+      <a href="verification-telephone.html">Vérifier maintenant →</a>
+    </div>
     <div class="welcome">
       <div>
         <div class="badge" id="roleBadge"></div>
@@ -118,6 +133,7 @@
       <a href="nouvelle-demande.html" class="dispo-toggle hidden" id="newOrderBtn" style="background:var(--cta-red); color:#fff; text-decoration:none; display:inline-flex; align-items:center;">📦 Nouvelle demande</a>
       <a href="transporteur-commandes.html" class="dispo-toggle hidden" id="ordersBtn" style="background:var(--indigo-panel); color:var(--sand); text-decoration:none; display:inline-flex; align-items:center;">🚚 Mes commandes</a>
       <a href="mes-revenus.html" class="dispo-toggle hidden" id="earningsBtn" style="background:none; border:1.5px solid var(--gold); color:var(--gold); text-decoration:none; display:inline-flex; align-items:center;">📊 Mes revenus</a>
+      <a href="zones-demande.html" class="dispo-toggle hidden" id="demandMapBtn" style="background:none; border:1.5px solid var(--laterite); color:var(--laterite); text-decoration:none; display:inline-flex; align-items:center;">🔥 Zones de demande</a>
       <a href="ma-commission.html" class="dispo-toggle hidden" id="commissionBtn" style="background:none; border:1.5px solid var(--teal); color:var(--teal); text-decoration:none; display:inline-flex; align-items:center;">💰 Ma commission</a>
     </div>
 
@@ -126,6 +142,7 @@
       <div class="info-row"><span class="lbl">Nom complet</span><span class="val" id="infoNom"></span></div>
       <div class="info-row"><span class="lbl">Email</span><span class="val" id="infoEmail"></span></div>
       <div class="info-row"><span class="lbl">WhatsApp</span><span class="val" id="infoWhatsapp"></span></div>
+      <div class="info-row"><span class="lbl">Téléphone vérifié</span><span class="val" id="infoTelVerifie"></span></div>
       <div class="info-row"><span class="lbl">Ville</span><span class="val" id="infoVille"></span></div>
       <div class="info-row"><span class="lbl">Statut du compte</span><span class="val" id="infoStatutCompte"></span></div>
       <div class="info-row"><span class="lbl">Vérification KYC</span><span class="val" id="infoStatut"></span></div>
@@ -174,16 +191,54 @@
 
     <div class="card hidden" id="documentsCard">
       <h2>Mes documents (vérification d'identité)</h2>
+      <p class="hint" style="margin-bottom:14px;">Ces documents sont vérifiés manuellement par l'équipe Yoonou avant d'activer ton compte, pour la sécurité de tous.</p>
       <div id="documentsList"></div>
 
       <div class="field-row">
         <div class="field">
-          <label>Carte d'identité (CNI)</label>
-          <input type="file" id="docCni" accept="image/*,.pdf" capture="environment">
+          <label>Date de naissance</label>
+          <input type="date" id="docDateNaissance">
+          <div class="hint" id="mineurHint" style="display:none; color:var(--laterite);">Tu es mineur(e) : pour ta sécurité, tu ne peux enregistrer qu'un vélo ou une charrette comme véhicule.</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Photo de ton visage (selfie)</label>
+          <input type="file" id="docSelfie" accept="image/*" capture="user">
+          <div class="hint">Bien visible, sans lunettes de soleil ni casque.</div>
         </div>
         <div class="field">
-          <label>Permis de conduire</label>
+          <label>Type de pièce d'identité</label>
+          <select id="docIdType">
+            <option value="cni">Carte d'identité nationale (CNI)</option>
+            <option value="extrait_naissance">Extrait de naissance</option>
+            <option value="carte_scolaire">Carte d'élève / étudiant</option>
+            <option value="autre_piece">Autre pièce d'identité</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label id="pieceIdentiteLabel">Photo de la pièce d'identité</label>
+          <input type="file" id="docPieceIdentite" accept="image/*,.pdf" capture="environment">
+        </div>
+        <div class="field" id="permisWrap">
+          <label id="permisLabel">Permis de conduire</label>
           <input type="file" id="docPermis" accept="image/*,.pdf" capture="environment">
+          <div class="hint" id="permisHint"></div>
+        </div>
+      </div>
+      <div class="field-row" id="documentsMotorisesRow">
+        <div class="field" id="carteGriseWrap">
+          <label>Carte grise du véhicule</label>
+          <input type="file" id="docCarteGrise" accept="image/*,.pdf" capture="environment">
+          <div class="hint">Requis uniquement pour les véhicules motorisés.</div>
+        </div>
+        <div class="field" id="assuranceWrap">
+          <label>Assurance du véhicule</label>
+          <input type="file" id="docAssurance" accept="image/*,.pdf" capture="environment">
+          <div class="hint">Requis uniquement pour les véhicules motorisés.</div>
         </div>
       </div>
       <button class="btn-primary-sm" id="submitDocuments">Envoyer mes documents</button>
@@ -228,6 +283,9 @@
     }
 
     currentProfile = profile;
+    if (profile.date_naissance) {
+      document.getElementById('docDateNaissance').value = profile.date_naissance;
+    }
 
     document.getElementById('roleBadge').textContent = roleLabels[profile.role] || profile.role;
     document.getElementById('roleBadge').classList.add(profile.role);
@@ -235,6 +293,8 @@
     document.getElementById('infoNom').textContent = `${profile.prenom} ${profile.nom}`;
     document.getElementById('infoEmail').textContent = currentUser.email;
     document.getElementById('infoWhatsapp').textContent = profile.whatsapp;
+    document.getElementById('infoTelVerifie').textContent = profile.telephone_verifie ? '✅ Vérifié' : '❌ Non vérifié';
+    document.getElementById('phoneVerifyBanner').classList.toggle('hidden', !!profile.telephone_verifie);
     document.getElementById('infoVille').textContent = profile.ville;
     document.getElementById('infoStatutCompte').textContent = statutCompteLabels[profile.statut_compte] || profile.statut_compte;
     document.getElementById('infoStatut').textContent = statutLabels[profile.statut_verification] || profile.statut_verification;
@@ -244,6 +304,7 @@
       setupDispoToggle(profile.disponibilite);
       document.getElementById('ordersBtn').classList.remove('hidden');
       document.getElementById('earningsBtn').classList.remove('hidden');
+      document.getElementById('demandMapBtn').classList.remove('hidden');
       document.getElementById('commissionBtn').classList.remove('hidden');
       document.getElementById('vehiclesCard').classList.remove('hidden');
       document.getElementById('documentsCard').classList.remove('hidden');
@@ -356,7 +417,7 @@
 
       // Fréquence adaptative : haute fréquence pendant une course active,
       // basse fréquence si simplement en ligne sans course (économie batterie/data).
-      const dureeIdeale = activeOrderId ? 10000 : 45000;
+      const dureeIdeale = activeOrderId ? 30000 : 60000;
       if (locationInterval && dureeActuelle !== dureeIdeale) {
         clearInterval(locationInterval);
         locationInterval = setInterval(sendCurrentLocation, dureeIdeale);
@@ -367,12 +428,12 @@
     });
   }
 
-  let dureeActuelle = 45000;
+  let dureeActuelle = 60000;
 
   function startSendingLocation(){
     if (locationInterval) return;
     sendCurrentLocation();
-    dureeActuelle = 45000;
+    dureeActuelle = 60000;
     locationInterval = setInterval(sendCurrentLocation, dureeActuelle);
   }
 
@@ -390,14 +451,34 @@
   }
 
   const TYPES_SANS_PLAQUE = ['velo', 'charrette'];
+  const VEHICULES_AUTORISES_MINEURS = ['velo', 'charrette'];
+  let allVehicleTypesData = [];
+
+  function estMineur(dateNaissanceStr){
+    if (!dateNaissanceStr) return false;
+    const naissance = new Date(dateNaissanceStr);
+    const aujourdhui = new Date();
+    let age = aujourdhui.getFullYear() - naissance.getFullYear();
+    const m = aujourdhui.getMonth() - naissance.getMonth();
+    if (m < 0 || (m === 0 && aujourdhui.getDate() < naissance.getDate())) age--;
+    return age < 18;
+  }
+
+  function renderVehicleTypeOptions(dateNaissanceStr){
+    const select = document.getElementById('vType');
+    const mineur = estMineur(dateNaissanceStr);
+    const data = mineur ? allVehicleTypesData.filter(t => VEHICULES_AUTORISES_MINEURS.includes(t.type)) : allVehicleTypesData;
+    select.innerHTML = data.map(t => `<option value="${t.type}">${t.label}</option>`).join('');
+    document.getElementById('mineurHint').style.display = mineur ? 'block' : 'none';
+    updatePlaqueVisibility();
+  }
 
   async function loadVehicleTypes(){
     const { data, error } = await sb.from('vehicle_types').select('*').eq('actif', true).order('max_weight_kg');
     if (error) { console.error(error); return; }
-    const select = document.getElementById('vType');
-    select.innerHTML = data.map(t => `<option value="${t.type}">${t.label}</option>`).join('');
-    updatePlaqueVisibility();
-    select.addEventListener('change', updatePlaqueVisibility);
+    allVehicleTypesData = data;
+    renderVehicleTypeOptions(currentProfile.date_naissance);
+    document.getElementById('vType').addEventListener('change', updatePlaqueVisibility);
   }
 
   function updatePlaqueVisibility(){
@@ -412,10 +493,15 @@
     }
   }
 
+  const NON_MOTORIZED_TYPES = ['velo', 'charrette'];
+  let myVehicleTypesList = [];
+
   async function loadVehicles(){
     const { data, error } = await sb.from('vehicles').select('*, vehicle_types(label)').eq('transporteur_id', currentUser.id);
     const list = document.getElementById('vehiclesList');
     if (error) { console.error(error); return; }
+    myVehicleTypesList = (data || []).map(v => v.type);
+    updatePermisRequirement();
     if (!data || data.length === 0) {
       list.innerHTML = "<p class=\"empty-note\">Aucun véhicule enregistré pour l'instant.</p>";
       return;
@@ -427,6 +513,46 @@
       </div>
     `).join('');
   }
+
+  function updatePermisRequirement(){
+    const permisWrap = document.getElementById('permisWrap');
+    const permisHint = document.getElementById('permisHint');
+    const permisInput = document.getElementById('docPermis');
+    const motorisesRow = document.getElementById('documentsMotorisesRow');
+    if (!permisWrap) return;
+
+    if (myVehicleTypesList.length === 0) {
+      permisHint.textContent = 'Ajoute un véhicule pour savoir quels documents sont nécessaires.';
+      permisInput.removeAttribute('required');
+      if (motorisesRow) motorisesRow.style.display = 'none';
+      return;
+    }
+    // Motorisé = tout sauf vélo et charrette (pas de moteur, pas de plaque, pas de permis)
+    const needsPermis = myVehicleTypesList.some(t => !NON_MOTORIZED_TYPES.includes(t));
+    if (needsPermis) {
+      permisWrap.style.display = 'block';
+      permisHint.textContent = 'Obligatoire pour ton type de véhicule.';
+      if (motorisesRow) motorisesRow.style.display = 'flex';
+    } else {
+      permisWrap.style.display = 'block';
+      permisHint.textContent = "Pas obligatoire pour un vélo/charrette — tu peux laisser vide.";
+      if (motorisesRow) motorisesRow.style.display = 'none';
+    }
+  }
+
+  document.getElementById('docDateNaissance').addEventListener('change', (e) => {
+    renderVehicleTypeOptions(e.target.value);
+  });
+
+  document.getElementById('docIdType').addEventListener('change', (e) => {
+    const labels = {
+      cni: "Photo de la carte d'identité",
+      extrait_naissance: "Photo de l'extrait de naissance",
+      carte_scolaire: "Photo de la carte d'élève/étudiant",
+      autre_piece: "Photo de la pièce d'identité"
+    };
+    document.getElementById('pieceIdentiteLabel').textContent = labels[e.target.value] || "Photo de la pièce d'identité";
+  });
 
   document.getElementById('showAddVehicle').addEventListener('click', () => {
     document.getElementById('addVehicleForm').classList.toggle('open');
@@ -497,7 +623,11 @@
       list.innerHTML = "<p class=\"empty-note\">Aucun document envoyé pour l'instant.</p>";
       return;
     }
-    const labels = { cni: "Carte d'identité", permis: "Permis de conduire", autre: "Autre document" };
+    const labels = {
+      cni: "Carte d'identité", extrait_naissance: 'Extrait de naissance', carte_scolaire: "Carte d'élève/étudiant",
+      autre_piece: 'Autre pièce d\'identité', permis: 'Permis de conduire', selfie: 'Photo du visage',
+      carte_grise: 'Carte grise du véhicule', assurance: 'Assurance du véhicule', autre: 'Autre document'
+    };
     list.innerHTML = data.map(d => `
       <div class="vehicle-item">
         <span>${labels[d.type_document] || d.type_document}</span>
@@ -512,19 +642,42 @@
     msg.className = 'form-msg';
     btn.disabled = true; btn.textContent = 'Envoi...';
 
-    const cniInput = document.getElementById('docCni');
+    const selfieInput = document.getElementById('docSelfie');
+    const pieceInput = document.getElementById('docPieceIdentite');
     const permisInput = document.getElementById('docPermis');
+    const carteGriseInput = document.getElementById('docCarteGrise');
+    const assuranceInput = document.getElementById('docAssurance');
+    const idType = document.getElementById('docIdType').value;
+    const dateNaissance = document.getElementById('docDateNaissance').value || null;
 
     try {
+      if (dateNaissance) {
+        const { error: dnError } = await sb.from('profiles').update({ date_naissance: dateNaissance }).eq('id', currentUser.id);
+        if (dnError) console.error(dnError);
+        else currentProfile.date_naissance = dateNaissance;
+      }
+
       const rows = [];
 
-      if (cniInput.files[0]) {
-        const [url] = await uploadFiles('kyc-documents', currentUser.id, cniInput.files);
-        if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'cni', url_fichier: url });
+      if (selfieInput.files[0]) {
+        const [url] = await uploadFiles('kyc-documents', currentUser.id, selfieInput.files);
+        if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'selfie', url_fichier: url });
+      }
+      if (pieceInput.files[0]) {
+        const [url] = await uploadFiles('kyc-documents', currentUser.id, pieceInput.files);
+        if (url) rows.push({ transporteur_id: currentUser.id, type_document: idType, url_fichier: url });
       }
       if (permisInput.files[0]) {
         const [url] = await uploadFiles('kyc-documents', currentUser.id, permisInput.files);
         if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'permis', url_fichier: url });
+      }
+      if (carteGriseInput.files[0]) {
+        const [url] = await uploadFiles('kyc-documents', currentUser.id, carteGriseInput.files);
+        if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'carte_grise', url_fichier: url });
+      }
+      if (assuranceInput.files[0]) {
+        const [url] = await uploadFiles('kyc-documents', currentUser.id, assuranceInput.files);
+        if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'assurance', url_fichier: url });
       }
 
       if (rows.length === 0) {
@@ -538,7 +691,8 @@
 
       msg.textContent = '✅ Documents envoyés, en attente de vérification.';
       msg.className = 'form-msg success';
-      cniInput.value = '';
+      selfieInput.value = '';
+      pieceInput.value = '';
       permisInput.value = '';
       await loadDocuments();
     } catch (err) {
