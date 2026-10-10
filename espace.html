@@ -104,6 +104,35 @@
   }
   .next-phase h2{color:var(--sand); font-size:18px; margin-bottom:10px;}
   .next-phase p{color:var(--sand-dim); font-size:14px; line-height:1.6;}
+
+  /* Cloche de notifications */
+  .nav-right{display:flex; align-items:center; gap:14px;}
+  .notif-bell-wrap{position:relative;}
+  .notif-bell{background:none; border:none; font-size:21px; cursor:pointer; position:relative; padding:4px; display:flex; align-items:center;}
+  .notif-badge{
+    position:absolute; top:-3px; right:-4px; background:var(--cta-red); color:#fff; font-size:10px;
+    font-family:'JetBrains Mono'; font-weight:700; border-radius:100px; min-width:17px; height:17px;
+    display:flex; align-items:center; justify-content:center; padding:0 4px;
+  }
+  .notif-dropdown{
+    position:absolute; top:calc(100% + 14px); right:0; width:340px; max-height:420px; overflow-y:auto;
+    background:#fff; border-radius:12px; box-shadow:0 12px 32px -8px rgba(0,0,0,0.3); z-index:60;
+  }
+  .notif-head{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid rgba(22,33,62,0.08);}
+  .notif-head span{font-family:'Space Grotesk'; font-weight:700; font-size:14px;}
+  .notif-head button{background:none; border:none; color:var(--teal); font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; cursor:pointer;}
+  .notif-item{padding:14px 16px; border-bottom:1px solid rgba(22,33,62,0.06); cursor:pointer; text-align:left;}
+  .notif-item:last-child{border-bottom:none;}
+  .notif-item:hover{background:var(--sand);}
+  .notif-item.unread{background:rgba(42,127,118,0.07);}
+  .notif-item .t{font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; color:var(--ink); margin-bottom:3px;}
+  .notif-item .m{font-size:12.5px; color:var(--muted); line-height:1.4;}
+  .notif-item .time{font-size:11px; color:var(--muted); margin-top:5px; font-family:'JetBrains Mono';}
+  .notif-empty{padding:26px; text-align:center; color:var(--muted); font-size:13.5px;}
+  /* Mobile : le panneau prend la largeur de l'écran au lieu d'être coupé */
+  @media (max-width:640px){
+    .notif-dropdown{position:fixed; top:calc(70px + env(safe-area-inset-top)); left:12px; right:12px; width:auto; max-height:70vh;}
+  }
 </style>
 </head>
 <body>
@@ -111,7 +140,13 @@
 <nav>
   <div class="wrap">
     <div class="logo"><span class="dot"></span>Yoonou</div>
-    <button class="logout-btn" id="logoutBtn">Se déconnecter</button>
+    <div class="nav-right">
+      <div class="notif-bell-wrap" id="notifBellWrap">
+        <button class="notif-bell" id="notifBellBtn" aria-label="Notifications">🔔<span class="notif-badge hidden" id="notifBadge">0</span></button>
+        <div class="notif-dropdown hidden" id="notifDropdown"></div>
+      </div>
+      <button class="logout-btn" id="logoutBtn">Se déconnecter</button>
+    </div>
   </div>
 </nav>
 
@@ -134,18 +169,19 @@
       <a href="transporteur-commandes.html" class="dispo-toggle hidden" id="ordersBtn" style="background:var(--indigo-panel); color:var(--sand); text-decoration:none; display:inline-flex; align-items:center;">🚚 Mes commandes</a>
       <a href="mes-revenus.html" class="dispo-toggle hidden" id="earningsBtn" style="background:none; border:1.5px solid var(--gold); color:var(--gold); text-decoration:none; display:inline-flex; align-items:center;">📊 Mes revenus</a>
       <a href="zones-demande.html" class="dispo-toggle hidden" id="demandMapBtn" style="background:none; border:1.5px solid var(--laterite); color:var(--laterite); text-decoration:none; display:inline-flex; align-items:center;">🔥 Zones de demande</a>
+      <a href="parametres.html" class="dispo-toggle hidden" id="settingsBtn" style="background:none; border:1.5px solid rgba(22,33,62,0.35); color:var(--indigo-deep); text-decoration:none; display:inline-flex; align-items:center;">⚙️ Paramètres</a>
+      <a href="admin-dashboard.html" class="dispo-toggle hidden" id="adminDashBtn" style="background:var(--cta-red); color:#fff; text-decoration:none; display:inline-flex; align-items:center;">🛠 Tableau de bord admin</a>
       <a href="ma-commission.html" class="dispo-toggle hidden" id="commissionBtn" style="background:none; border:1.5px solid var(--teal); color:var(--teal); text-decoration:none; display:inline-flex; align-items:center;">💰 Ma commission</a>
     </div>
 
     <div class="card">
       <h2>Mon profil</h2>
       <div class="info-row"><span class="lbl">Nom complet</span><span class="val" id="infoNom"></span></div>
-      <div class="info-row"><span class="lbl">Email</span><span class="val" id="infoEmail"></span></div>
       <div class="info-row"><span class="lbl">WhatsApp</span><span class="val" id="infoWhatsapp"></span></div>
       <div class="info-row"><span class="lbl">Téléphone vérifié</span><span class="val" id="infoTelVerifie"></span></div>
       <div class="info-row"><span class="lbl">Ville</span><span class="val" id="infoVille"></span></div>
       <div class="info-row"><span class="lbl">Statut du compte</span><span class="val" id="infoStatutCompte"></span></div>
-      <div class="info-row"><span class="lbl">Vérification KYC</span><span class="val" id="infoStatut"></span></div>
+      <div class="info-row" id="infoStatutRow"><span class="lbl">Vérification KYC</span><span class="val" id="infoStatut"></span></div>
     </div>
 
     <div class="card hidden" id="vehiclesCard">
@@ -245,8 +281,8 @@
       <div class="form-msg" id="documentsMsg"></div>
     </div>
 
-    <div class="next-phase">
-      <h2>🚧 Prochaine étape</h2>
+    <div class="next-phase hidden" id="nextPhasePanel">
+      <h2 id="nextPhaseTitle">Où en est ton compte ?</h2>
       <p id="nextPhaseText"></p>
     </div>
   </div>
@@ -260,11 +296,27 @@
   const roleLabels = { client: '📦 Espace client', transporteur: '🚚 Espace transporteur', admin: '🛠 Espace administrateur' };
   const statutLabels = { PENDING: 'En attente de vérification', VERIFIED: 'Vérifié', REJECTED: 'Refusé', SUSPENDED: 'Suspendu' };
   const statutCompteLabels = { ACTIVE: '✅ Actif', SUSPENDED: 'Suspendu', BANNED: 'Banni', UNDER_REVIEW: 'En cours de revue', COMMISSION_DUE: 'Commission due' };
-  const nextPhaseTexts = {
-    client: "Ton compte fonctionne ! La création de demande de transport arrive dans la Phase 2.",
-    transporteur: "Ton compte et tes véhicules sont enregistrés ! La réception et l'acceptation de courses arrivent dans la Phase 3-4.",
-    admin: "Ton compte admin fonctionne ! Le tableau de bord complet arrive dans la Phase 8."
-  };
+  // Message d'état réel du compte (affiché uniquement pour les transporteurs)
+  function escapeHtml(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function getAccountStatusMessage(profile){
+    if (profile.role !== 'transporteur') return '';
+    if (profile.statut_compte === 'UNDER_REVIEW') {
+      return "Ton compte est en cours de vérification par l'équipe Yoonou. Envoie tes documents ci-dessus : dès que ton compte sera activé, tu pourras passer en ligne et recevoir des courses.";
+    }
+    if (profile.statut_compte === 'COMMISSION_DUE') {
+      return "Ta commission est due. Ouvre « Ma commission » pour la régler et débloquer ton compte.";
+    }
+    if (profile.statut_compte === 'SUSPENDED') {
+      return "Ton compte est suspendu. Contacte le support Yoonou via le bouton SOS.";
+    }
+    if (profile.statut_compte === 'BANNED') {
+      return "Ton compte est désactivé. Contacte le support Yoonou si tu penses qu'il s'agit d'une erreur.";
+    }
+    return "Ton compte est actif. Passe « En ligne » pour recevoir des courses, puis ouvre « Mes commandes ».";
+  }
 
   let currentUser = null;
   let currentProfile = null;
@@ -291,14 +343,18 @@
     document.getElementById('roleBadge').classList.add(profile.role);
     document.getElementById('welcomeText').textContent = `Bienvenue, ${profile.prenom} !`;
     document.getElementById('infoNom').textContent = `${profile.prenom} ${profile.nom}`;
-    document.getElementById('infoEmail').textContent = currentUser.email;
     document.getElementById('infoWhatsapp').textContent = profile.whatsapp;
     document.getElementById('infoTelVerifie').textContent = profile.telephone_verifie ? '✅ Vérifié' : '❌ Non vérifié';
     document.getElementById('phoneVerifyBanner').classList.toggle('hidden', !!profile.telephone_verifie);
     document.getElementById('infoVille').textContent = profile.ville;
     document.getElementById('infoStatutCompte').textContent = statutCompteLabels[profile.statut_compte] || profile.statut_compte;
     document.getElementById('infoStatut').textContent = statutLabels[profile.statut_verification] || profile.statut_verification;
-    document.getElementById('nextPhaseText').textContent = nextPhaseTexts[profile.role] || '';
+    const statusMsg = getAccountStatusMessage(profile);
+    document.getElementById('nextPhaseText').textContent = statusMsg;
+    document.getElementById('nextPhasePanel').classList.toggle('hidden', !statusMsg);
+
+    // La ligne "Vérification KYC" n'a de sens que pour les transporteurs
+    document.getElementById('infoStatutRow').classList.toggle('hidden', profile.role !== 'transporteur');
 
     if (profile.role === 'transporteur') {
       setupDispoToggle(profile.disponibilite);
@@ -317,11 +373,116 @@
       document.getElementById('newOrderBtn').classList.remove('hidden');
     }
 
+    if (profile.role === 'admin') {
+      document.getElementById('adminDashBtn').classList.remove('hidden');
+    }
+
+    // Paramètres (langue, ajouter un lieu, aide) : clients et chauffeurs
+    if (profile.role === 'client' || profile.role === 'transporteur') {
+      document.getElementById('settingsBtn').classList.remove('hidden');
+      document.getElementById('sosFloatBtn').classList.remove('hidden');
+    }
+
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('content').classList.remove('hidden');
 
+    await loadNotifications();
+    setInterval(loadNotifications, 60000);
+
     await setupPushNotifications();
   }
+
+
+  // ---- NOTIFICATIONS (cloche) ----
+  // Chaque notification mène à la bonne page selon son type et le rôle de la personne.
+  function notifTarget(n){
+    const role = currentProfile ? currentProfile.role : null;
+    switch (n.type) {
+      case 'NEW_ORDER_AVAILABLE': return 'transporteur-commandes.html';
+      case 'COMMISSION_REMINDER': return 'ma-commission.html';
+      case 'COMMISSION_PAYMENT_DECLARED': return 'admin-commissions.html';
+      case 'SUPPORT_URGENT': return 'admin-support.html';
+      case 'RISK_GPS_ANOMALIE': return 'admin-risques.html';
+      // Alertes de l'admin
+      case 'KYC_DOCUMENT': return 'admin-kyc.html';
+      case 'NEW_DRIVER': return 'admin-kyc.html';
+      case 'NEW_TICKET': return 'admin-support.html';
+      case 'NEW_ZONE': return 'admin-zones.html';
+      case 'AVATAR_PENDING': return 'admin-photos.html';
+      case 'PHONE_TO_VERIFY': return 'admin-verification-telephone.html';
+      case 'DRIVER_BLOCKED_COMMISSION': return 'admin-commissions.html';
+      // Autres alertes
+      case 'AVATAR_APPROVED': return 'parametres.html';
+      case 'AVATAR_REJECTED': return 'parametres.html';
+      case 'POSITION_RECEIVED': return 'nouvelle-demande.html';
+      case 'GPS_LOST': return 'transporteur-commandes.html';
+      case 'ORDER_CANCELLED_BY_CLIENT': return 'transporteur-commandes.html';
+    }
+    if (n.order_id) {
+      if (role === 'client') return `suivi-commande.html?id=${n.order_id}`;
+      if (role === 'transporteur') return 'transporteur-commandes.html';
+      if (role === 'admin') return 'admin-support.html';
+    }
+    return null;
+  }
+
+  function timeAgo(dateStr){
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (diff < 60) return "à l'instant";
+    if (diff < 3600) return `il y a ${Math.floor(diff/60)} min`;
+    if (diff < 86400) return `il y a ${Math.floor(diff/3600)} h`;
+    return `il y a ${Math.floor(diff/86400)} j`;
+  }
+
+  async function loadNotifications(){
+    if (!currentUser) return;
+    const { data, error } = await sb.from('notifications').select('*')
+      .eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(20);
+    if (error) { console.warn('Notifications indisponibles :', error.message); return; }
+
+    const list = data || [];
+    const unread = list.filter(n => !n.read).length;
+    const badge = document.getElementById('notifBadge');
+    if (unread > 0) { badge.textContent = unread > 9 ? '9+' : unread; badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+
+    const dropdown = document.getElementById('notifDropdown');
+    if (list.length === 0) {
+      dropdown.innerHTML = '<div class="notif-empty">Aucune notification pour l\'instant.</div>';
+      return;
+    }
+    dropdown.innerHTML = `
+      <div class="notif-head"><span>Notifications</span>${unread > 0 ? '<button id="markAllRead">Tout marquer comme lu</button>' : ''}</div>
+      ${list.map(n => `
+        <div class="notif-item ${!n.read ? 'unread' : ''}" data-id="${n.id}">
+          <div class="t">${escapeHtml(n.title)}</div>
+          <div class="m">${escapeHtml(n.message || '')}</div>
+          <div class="time">${timeAgo(n.created_at)}</div>
+        </div>`).join('')}`;
+
+    const markAll = document.getElementById('markAllRead');
+    if (markAll) markAll.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await sb.from('notifications').update({ read: true }).eq('user_id', currentUser.id).eq('read', false);
+      await loadNotifications();
+    });
+    dropdown.querySelectorAll('.notif-item').forEach(el => {
+      el.addEventListener('click', async () => {
+        const n = list.find(x => String(x.id) === el.dataset.id);
+        await sb.from('notifications').update({ read: true }).eq('id', el.dataset.id);
+        const target = n ? notifTarget(n) : null;
+        if (target) window.location.href = target; else await loadNotifications();
+      });
+    });
+  }
+
+  document.getElementById('notifBellBtn').addEventListener('click', () => {
+    document.getElementById('notifDropdown').classList.toggle('hidden');
+  });
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('notifBellWrap');
+    if (!wrap.contains(e.target)) document.getElementById('notifDropdown').classList.add('hidden');
+  });
 
   // ---- NOTIFICATIONS PUSH ----
   const VAPID_PUBLIC_KEY = 'BEuGEVvkQe-cJ6dA5u5UnPiG4QHawlLFn6a9KMHsqzYOlDZAX5ix_fCggOPv11Dgqj5UBNdyo3PvjFQolODVmz8';
@@ -508,8 +669,8 @@
     }
     list.innerHTML = data.map(v => `
       <div class="vehicle-item">
-        <span>${v.vehicle_types?.label || v.type}${v.marque ? ' — ' + v.marque : ''}${v.modele ? ' ' + v.modele : ''}${v.plaque ? ' (' + v.plaque + ')' : ''}</span>
-        <span class="vehicle-status ${v.statut_verification}">${v.statut_verification}</span>
+        <span>${escapeHtml(v.vehicle_types?.label || v.type)}${v.marque ? ' — ' + escapeHtml(v.marque) : ''}${v.modele ? ' ' + escapeHtml(v.modele) : ''}${v.plaque ? ' (' + escapeHtml(v.plaque) + ')' : ''}</span>
+        <span class="vehicle-status ${escapeHtml(v.statut_verification)}">${escapeHtml(v.statut_verification)}</span>
       </div>
     `).join('');
   }
@@ -710,6 +871,10 @@
   });
 
   loadEspace();
+</script>
+<button id="sosFloatBtn" class="hidden" style="position:fixed; bottom:calc(24px + env(safe-area-inset-bottom)); right:24px; width:56px; height:56px; border-radius:50%; background:var(--cta-red); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(214,54,42,0.5); cursor:pointer; z-index:90;">🆘</button>
+<script>
+  document.getElementById('sosFloatBtn').addEventListener('click', () => { window.location.href = 'aide.html'; });
 </script>
 </body>
 </html>

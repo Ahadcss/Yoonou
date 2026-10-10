@@ -213,6 +213,7 @@
         <div class="item-top">
           <div>
             <div class="driver-name">${escapeHtml(driver.prenom || '')} ${escapeHtml(driver.nom || '')} ${mineur ? '<span style="color:var(--laterite); font-weight:700;">· MINEUR (' + age + ' ans)</span>' : ''}</div>
+            <a href="admin-fiche.html?id=${d.transporteur_id}" style="font-size:12.5px; color:var(--teal); font-weight:600; text-decoration:none;">👤 Voir la fiche complète (tous les documents, véhicule, historique)</a>
             <div class="driver-phone">${escapeHtml(driver.whatsapp || '—')}${driver.date_naissance ? ' · Né(e) le ' + new Date(driver.date_naissance).toLocaleDateString('fr-FR') : ''}</div>
           </div>
           <span class="doc-type-badge">${docLabels[d.type_document] || d.type_document}</span>

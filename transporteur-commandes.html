@@ -8,6 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="chauffeur-nav.js"></script>
 <style>
   :root{
     --indigo-deep:#16213E; --indigo-panel:#1F2E52;
@@ -153,6 +156,11 @@
     font-family:'Space Grotesk'; font-weight:600; font-size:14px; padding:13px 18px; border-radius:8px;
     border:1.5px solid rgba(22,33,62,0.15); background:none; color:var(--muted); cursor:pointer;
   }
+
+  .nav-open-btn{display:block; width:100%; text-align:center; margin-top:10px; padding:14px; border:none; border-radius:10px;
+    background:var(--indigo-deep); color:var(--sand); font-family:'Space Grotesk'; font-weight:700; font-size:15px; cursor:pointer;}
+  .keepalive{border-radius:10px; padding:11px 14px; font-size:13px; line-height:1.45; margin-bottom:14px; background:rgba(42,127,118,.1); color:var(--teal);}
+  .keepalive.warn{background:#fff3cd; color:#7a5200; border:1px solid var(--gold);}
 </style>
 </head>
 <body>
@@ -178,6 +186,8 @@
       </div>
       <button class="refresh-btn" id="refreshBtn">↻ Actualiser</button>
     </div>
+
+    <div id="keepAliveBanner" class="keepalive hidden"></div>
 
     <h2 class="section-title">Courses en cours<span class="count-pill" id="ongoingCount">0</span></h2>
     <div id="ongoingList"></div>
@@ -239,6 +249,7 @@
   const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
 
   let currentUser = null;
   let currentProfile = null;
@@ -297,6 +308,9 @@
       return;
     }
     currentProfile = profile;
+
+    // Navigation dans Yoonou (carte, itinéraire, voix) : plus besoin de Google Maps
+    YoonouNav.init({ sb, userId: currentUser.id, token: MAPBOX_TOKEN, onClose: () => { refreshAll(); } });
 
     await loadVehicleTypeLabels();
     await loadMyVehicleTypes();
@@ -535,6 +549,43 @@
     countEl.textContent = Math.max(0, parseInt(countEl.textContent || '0') - 1);
   }
 
+
+  // ---- Maintien de l'écran allumé et avertissement quand Yoonou passe en arrière-plan ----
+  const MOVING_STATUSES = ['DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP','PICKUP_CONFIRMED','LOADING','IN_TRANSIT','ARRIVED_DESTINATION'];
+
+  function setKeepAliveBanner(text, warn){
+    const el = document.getElementById('keepAliveBanner');
+    if (!text) { el.classList.add('hidden'); return; }
+    el.textContent = text;
+    el.classList.toggle('warn', !!warn);
+    el.classList.remove('hidden');
+  }
+
+  function keepAliveStatusText(){
+    if (YoonouKeepAlive.isActive()) return "📡 Ton client te suit en direct. L'écran reste allumé : garde Yoonou ouvert (n'éteins pas le téléphone avec le bouton).";
+    if (YoonouKeepAlive.isSupported()) return "📡 Garde Yoonou ouvert et l'écran allumé pour que ton client te suive en direct.";
+    return "📡 Garde Yoonou ouvert. Dans les réglages du téléphone, mets l'extinction automatique de l'écran sur « Jamais » pendant les livraisons.";
+  }
+
+  function syncKeepAlive(list){
+    const moving = list.some(o => MOVING_STATUSES.includes(o.statut));
+    if (moving) {
+      YoonouKeepAlive.start({ onResume: handleBackgroundReturn });
+      setKeepAliveBanner(keepAliveStatusText(), false);
+      setTimeout(() => { if (YoonouKeepAlive.isWanted()) setKeepAliveBanner(keepAliveStatusText(), false); }, 800);
+    } else {
+      YoonouKeepAlive.stop();
+      setKeepAliveBanner('', false);
+    }
+  }
+
+  function handleBackgroundReturn(awayMs){
+    const min = Math.max(1, Math.round(awayMs / 60000));
+    setKeepAliveBanner(`⚠️ Yoonou est resté en arrière-plan ${min} min : ta position n'était plus envoyée à ton client (elle repart d'ici quelques secondes). Garde l'application ouverte pendant la livraison.`, true);
+    setTimeout(() => setKeepAliveBanner(keepAliveStatusText(), false), 20000);
+  }
+
+
   async function loadOngoingOrders(){
     const list = document.getElementById('ongoingList');
     const countEl = document.getElementById('ongoingCount');
@@ -544,6 +595,7 @@
     if (error) { console.error(error); return; }
 
     countEl.textContent = (data || []).length;
+    syncKeepAlive(data || []);
 
     if (!data || data.length === 0) {
       list.innerHTML = '<div class="empty-note">Aucune course en cours pour l\'instant.</div>';
@@ -571,6 +623,9 @@
     document.querySelectorAll('#ongoingList [data-action="confirm-cash"]').forEach(btn => {
       btn.addEventListener('click', () => confirmerCash(btn.dataset.id, btn));
     });
+    document.querySelectorAll('#ongoingList .nav-open-btn').forEach(btn => {
+      btn.addEventListener('click', () => YoonouNav.open({ lat: btn.dataset.lat, lng: btn.dataset.lng, label: btn.dataset.label, orderId: btn.dataset.order }));
+    });
     document.querySelectorAll('#ongoingList .share-trip-btn').forEach(btn => {
       btn.addEventListener('click', () => shareTripLink(btn.dataset.token, btn.dataset.depart, btn.dataset.dest, btn));
     });
@@ -593,6 +648,7 @@
         prompt('Copie ce lien pour le partager :', shareUrl);
       }
     }
+  }
 
   function attachVerifyHandlers(orderId){
     document.querySelector(`#step-zone-${orderId} [data-action="close-verify"]`).addEventListener('click', () => {
@@ -782,6 +838,27 @@
     }
   });
 
+
+  // Numéro au format WhatsApp (chiffres seulement ; indicatif 221 ajouté si 9 chiffres)
+  function waDigits(raw){
+    let d = String(raw || '').replace(/[^0-9]/g, '');
+    if (d.startsWith('00')) d = d.slice(2);
+    if (d.length === 9) d = '221' + d;
+    return d;
+  }
+
+  // Bloc de contact (appeler / WhatsApp) pour une personne liée à la course
+  function contactBlock(label, name, rawPhone){
+    const digits = waDigits(rawPhone);
+    if (!digits) return '';
+    return `
+        <div class="meta-row" style="margin:10px 0 0; font-weight:600;">${label}${name ? ' : ' + escapeHtml(name) : ''}</div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <a href="tel:+${digits}" style="flex:1; text-align:center; font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px; border-radius:6px; border:1.5px solid var(--indigo-deep); background:none; color:var(--indigo-deep); text-decoration:none;">📞 Appeler</a>
+          <a href="https://wa.me/${digits}" target="_blank" style="flex:1; text-align:center; font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px; border-radius:6px; border:1.5px solid var(--teal); background:none; color:var(--teal); text-decoration:none;">💬 WhatsApp</a>
+        </div>`;
+  }
+
   function renderOngoingCard(o){
     const commission = o.commission ?? Math.round((o.prix || 0) * 0.05);
     const net = o.montant_transporteur ?? ((o.prix || 0) - commission);
@@ -808,12 +885,9 @@
           <div class="price-row net"><span class="lbl">Ton revenu net</span><span class="val">${formatFcfa(net)}</span></div>
         </div>
 
-        ${clientPhone ? `
-        <div class="meta-row" style="margin:10px 0 0; font-weight:600;">👤 ${escapeHtml(clientNom)}</div>
-        <div style="display:flex; gap:8px; margin-top:6px;">
-          <a href="tel:+${clientPhone}" style="flex:1; text-align:center; font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px; border-radius:6px; border:1.5px solid var(--indigo-deep); background:none; color:var(--indigo-deep); text-decoration:none;">📞 Appeler</a>
-          <a href="https://wa.me/${clientPhone}" target="_blank" style="flex:1; text-align:center; font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px; border-radius:6px; border:1.5px solid var(--teal); background:none; color:var(--teal); text-decoration:none;">💬 WhatsApp</a>
-        </div>` : ''}
+        ${contactBlock('👤 Expéditeur', clientNom, o.profiles?.whatsapp)}
+        ${o.pickup_telephone ? contactBlock('📍 Contact au point de départ', '', o.pickup_telephone) : ''}
+        ${contactBlock('📦 Destinataire', o.destinataire_nom || '', o.destinataire_telephone)}
 
         <div class="step-zone" id="step-zone-${o.id}">
           ${renderStepAction(o)}
@@ -832,16 +906,17 @@
     const beforePickup = ['DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP'].includes(o.statut);
     const afterPickup = ['PICKUP_CONFIRMED','LOADING','IN_TRANSIT','ARRIVED_DESTINATION'].includes(o.statut);
 
-    let lat, lng, label;
+    let lat, lng, text, place;
     if (beforePickup && o.depart_lat && o.depart_lng) {
-      lat = o.depart_lat; lng = o.depart_lng; label = '🧭 Itinéraire jusqu\'au point de départ';
+      lat = o.depart_lat; lng = o.depart_lng; text = "Naviguer jusqu'au point de départ"; place = o.depart;
     } else if (afterPickup && o.destination_lat && o.destination_lng) {
-      lat = o.destination_lat; lng = o.destination_lng; label = '🧭 Itinéraire jusqu\'à la destination';
+      lat = o.destination_lat; lng = o.destination_lng; text = "Naviguer jusqu'à la destination"; place = o.destination;
     } else {
       return '';
     }
 
-    return `<a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" style="display:block; text-align:center; margin-top:10px; font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:11px; border-radius:6px; border:none; background:var(--indigo-deep); color:var(--sand); text-decoration:none;">${label}</a>`;
+    // La navigation s'ouvre DANS Yoonou (carte, itinéraire, voix) : plus de Google Maps.
+    return `<button type="button" class="nav-open-btn" data-lat="${lat}" data-lng="${lng}" data-label="${escapeHtml(place || '')}" data-order="${o.id}">🧭 ${text}</button>`;
   }
 
   function renderStepAction(o){
@@ -875,7 +950,7 @@
       <div class="verify-form" id="verify-form-${orderId}">
         <div class="field">
           <label>${isPickup ? 'PIN donné par le client' : 'PIN donné par le destinataire'}</label>
-          <input type="text" id="pin-${orderId}" placeholder="Laisse vide si aucun PIN n'a été communiqué">
+          <input type="text" id="pin-${orderId}" placeholder="Code à 4 chiffres (obligatoire)" inputmode="numeric" maxlength="8" autocomplete="off">
         </div>
         <div class="field">
           <label>Quantité ${isPickup ? 'collectée' : 'livrée'}</label>
@@ -981,194 +1056,18 @@
 </script>
 <button id="sosFloatBtn" style="position:fixed; bottom:calc(24px + env(safe-area-inset-bottom)); right:24px; width:56px; height:56px; border-radius:50%; background:var(--cta-red); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(214,54,42,0.5); cursor:pointer; z-index:90;">🆘</button>
 
-<div id="supportModal" style="display:none; position:fixed; inset:0; background:rgba(22,33,62,0.55); align-items:center; justify-content:center; padding:20px; z-index:100;">
-  <div style="background:#fff; border-radius:14px; padding:28px; max-width:440px; width:100%; max-height:85vh; overflow-y:auto;">
-    <h3 style="font-family:'Space Grotesk'; font-weight:700; font-size:18px; margin-bottom:6px;">Besoin d'aide ?</h3>
-    <p style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">Décris ton problème, on te répond rapidement.</p>
-
-    <div style="margin-bottom:14px;">
-      <label style="display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;">Catégorie</label>
-      <select id="supportCategory" style="width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px;">
-        <option value="Problème avec une course">Problème avec une course</option>
-        <option value="Problème avec un client">Problème avec un client</option>
-        <option value="Problème avec une marchandise">Problème avec une marchandise</option>
-        <option value="Problème de paiement">Problème de paiement</option>
-        <option value="Problème avec mon compte">Problème avec mon compte</option>
-        <option value="Problème avec l'application">Problème avec l'application</option>
-        <option value="Sécurité / urgence">🆘 Sécurité / urgence</option>
-        <option value="Autre">Autre</option>
-      </select>
-    </div>
-
-    <div style="margin-bottom:14px;">
-      <label style="display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;">Décris la situation</label>
-      <textarea id="supportDescription" rows="4" style="width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px; resize:vertical;" placeholder="Explique ce qui se passe..."></textarea>
-    </div>
-
-    <div id="supportMsg" style="font-size:13px; margin-bottom:12px; padding:10px; border-radius:6px; display:none;"></div>
-
-    <button id="submitSupportBtn" style="width:100%; font-family:'Space Grotesk'; font-weight:700; font-size:14.5px; padding:13px; border-radius:8px; border:none; background:var(--cta-red); color:#fff; cursor:pointer;">Envoyer</button>
-
-    <a id="whatsappSupportLink" href="#" target="_blank" style="display:block; text-align:center; margin-top:12px; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--teal); text-decoration:none;">💬 Ou contacte-nous directement sur WhatsApp</a>
-
-    <button id="closeSupportModal" style="display:block; margin:14px auto 0; background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer;">Fermer</button>
-  </div>
-</div>
-
 <script>
-  const YOONOU_SUPPORT_WHATSAPP = '+221774203400';
-
+  // Le bouton SOS ouvre la page d'aide (historique des livraisons + signalement)
   document.getElementById('sosFloatBtn').addEventListener('click', () => {
-    document.getElementById('supportModal').style.display = 'flex';
-    document.getElementById('supportMsg').style.display = 'none';
-  });
-  document.getElementById('closeSupportModal').addEventListener('click', () => {
-    document.getElementById('supportModal').style.display = 'none';
-  });
-
-  document.getElementById('supportCategory').addEventListener('change', updateWhatsappSupportLink);
-  function updateWhatsappSupportLink(){
-    const category = document.getElementById('supportCategory').value;
-    const msg = `Bonjour, j'ai besoin d'aide (Transporteur Yoonou). Catégorie : ${category}`;
-    document.getElementById('whatsappSupportLink').href = `https://wa.me/${YOONOU_SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`;
-  }
-  updateWhatsappSupportLink();
-
-  document.getElementById('submitSupportBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('submitSupportBtn');
-    const msgEl = document.getElementById('supportMsg');
-    const category = document.getElementById('supportCategory').value;
-    const description = document.getElementById('supportDescription').value.trim();
-
-    if (!description) {
-      msgEl.textContent = 'Décris un peu la situation avant d\'envoyer.';
-      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(193,80,46,0.1); color:var(--laterite); font-size:13px;';
-      return;
-    }
-
-    btn.disabled = true; btn.textContent = 'Envoi...';
-
-    const isUrgent = category === 'Sécurité / urgence';
-    let gps_lat = null, gps_lng = null;
-
-    if (isUrgent && navigator.geolocation) {
-      try {
-        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000 }));
-        gps_lat = pos.coords.latitude;
-        gps_lng = pos.coords.longitude;
-      } catch(e) { /* pas grave si la position n'est pas dispo */ }
-    }
-
-    try {
-      const { error } = await sb.from('disputes').insert([{
-        user_id: currentUser.id,
-        reason: category,
-        category: category,
-        description: description,
-        raised_by_role: 'transporteur',
-        is_urgent: isUrgent,
-        gps_lat, gps_lng
-      }]);
-      if (error) throw error;
-
-      msgEl.textContent = isUrgent
-        ? '🆘 Signalement envoyé en urgence. L\'équipe Yoonou a été alertée immédiatement.'
-        : '✅ Ta demande a été envoyée, on te répond rapidement.';
-      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(42,127,118,0.1); color:var(--teal); font-size:13px;';
-      document.getElementById('supportDescription').value = '';
-    } catch (err) {
-      msgEl.textContent = 'Erreur : ' + (err.message || 'réessaie.');
-      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(193,80,46,0.1); color:var(--laterite); font-size:13px;';
-    } finally {
-      btn.disabled = false; btn.textContent = 'Envoyer';
-    }
+    window.location.href = 'aide.html';
   });
 </script>
 
 <button id="zoneFloatBtn" style="position:fixed; bottom:calc(90px + env(safe-area-inset-bottom)); right:24px; width:56px; height:56px; border-radius:50%; background:var(--teal); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(42,127,118,0.5); cursor:pointer; z-index:90;">📍</button>
 
-<div id="zoneModalDriver" style="display:none; position:fixed; inset:0; background:rgba(22,33,62,0.55); align-items:center; justify-content:center; padding:20px; z-index:100;">
-  <div style="background:#fff; border-radius:14px; padding:26px; max-width:420px; width:100%;">
-    <h3 style="font-family:'Space Grotesk'; font-weight:700; font-size:17px; margin-bottom:6px;">Ajouter ta zone actuelle</h3>
-    <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">Tu es dans une zone mal reconnue sur la carte ? Ajoute-la avec ta position actuelle. Un admin Yoonou valide avant qu'elle apparaisse pour tout le monde.</p>
-    <div class="field">
-      <label>Nom de la zone</label>
-      <input type="text" id="zoneNameDriver" placeholder="Ex : Cité Keur Gorgui, Bloc C">
-    </div>
-    <div class="field">
-      <label>Repère utile (optionnel)</label>
-      <input type="text" id="zoneDescriptionDriver" placeholder="Ex : Près de la pharmacie...">
-    </div>
-    <div class="hint" id="zoneGpsHintDriver" style="font-size:12px; color:var(--muted); margin-top:4px;">📍 Récupération de ta position...</div>
-    <div class="card-msg" id="zoneMsgDriver"></div>
-    <div style="display:flex; gap:10px; margin-top:16px;">
-      <button type="button" id="closeZoneModalDriver" style="flex:1; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; padding:12px; border-radius:8px; border:1.5px solid rgba(22,33,62,0.15); background:none; color:var(--muted); cursor:pointer;">Annuler</button>
-      <button type="button" id="submitZoneDriverBtn" style="flex:1; font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:12px; border-radius:8px; border:none; background:var(--teal); color:#fff; cursor:pointer;">Envoyer</button>
-    </div>
-  </div>
-</div>
-
 <script>
-  let zoneCoordsDriver = null;
-
   document.getElementById('zoneFloatBtn').addEventListener('click', () => {
-    document.getElementById('zoneNameDriver').value = '';
-    document.getElementById('zoneDescriptionDriver').value = '';
-    document.getElementById('zoneMsgDriver').className = 'card-msg';
-    zoneCoordsDriver = null;
-    document.getElementById('zoneGpsHintDriver').textContent = '📍 Récupération de ta position...';
-    document.getElementById('zoneModalDriver').style.display = 'flex';
-
-    if (!navigator.geolocation) {
-      document.getElementById('zoneGpsHintDriver').textContent = "❌ Géolocalisation indisponible sur cet appareil.";
-      return;
-    }
-    navigator.geolocation.getCurrentPosition((pos) => {
-      zoneCoordsDriver = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      document.getElementById('zoneGpsHintDriver').textContent = '✅ Position récupérée.';
-    }, () => {
-      document.getElementById('zoneGpsHintDriver').textContent = "❌ Impossible de récupérer ta position. Vérifie que la localisation est autorisée.";
-    });
-  });
-
-  document.getElementById('closeZoneModalDriver').addEventListener('click', () => {
-    document.getElementById('zoneModalDriver').style.display = 'none';
-  });
-
-  document.getElementById('submitZoneDriverBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('submitZoneDriverBtn');
-    const msg = document.getElementById('zoneMsgDriver');
-    const nom = document.getElementById('zoneNameDriver').value.trim();
-    const description = document.getElementById('zoneDescriptionDriver').value.trim();
-
-    if (!zoneCoordsDriver) {
-      msg.textContent = "Ta position n'est pas encore disponible, réessaie dans un instant.";
-      msg.className = 'card-msg error';
-      return;
-    }
-    if (!nom) {
-      msg.textContent = 'Donne un nom à cette zone.';
-      msg.className = 'card-msg error';
-      return;
-    }
-
-    btn.disabled = true; btn.textContent = 'Envoi...';
-    try {
-      const { error } = await sb.from('zone_suggestions').insert([{
-        suggested_by: currentUser.id, nom_zone: nom, description: description || null,
-        latitude: zoneCoordsDriver.lat, longitude: zoneCoordsDriver.lng
-      }]);
-      if (error) throw error;
-
-      msg.textContent = '✅ Merci ! Ta zone sera visible une fois validée.';
-      msg.className = 'card-msg success';
-      setTimeout(() => { document.getElementById('zoneModalDriver').style.display = 'none'; }, 1500);
-    } catch (err) {
-      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
-      msg.className = 'card-msg error';
-    } finally {
-      btn.disabled = false; btn.textContent = 'Envoyer';
-    }
+    window.location.href = 'ajouter-zone.html';
   });
 </script>
 

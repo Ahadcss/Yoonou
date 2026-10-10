@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+<title>Yoonou — Ajouter un lieu</title>
+<meta name="theme-color" content="#16213E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="lang.js"></script>
+<script src="lieux.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52; --laterite:#C1502E;
+    --sand:#F3E9D2; --teal:#2A7F76; --ink:#1A1712; --muted:#6b6455;
+    --cta-red:#D6362A; --pin:#EF5B3C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{font-family:'Work Sans', sans-serif; color:var(--ink); background:#fff; overflow:hidden;}
+  #app{display:flex; flex-direction:column; height:100dvh;}
+  #mapWrap{position:relative; flex:1; min-height:200px;}
+  #map{position:absolute; inset:0;}
+
+  /* Épingle fixe au centre de la carte (la pointe est au centre exact) */
+  #centerPin{position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); pointer-events:none; z-index:5; display:flex; flex-direction:column; align-items:center; transition:transform .15s ease;}
+  #centerPin.moving{transform:translate(-50%,calc(-100% - 10px));}
+  #centerPin .head{width:46px; height:46px; border-radius:12px; background:var(--pin); color:#fff; font-size:30px; font-weight:300; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(0,0,0,.28);}
+  #centerPin .stem{width:3px; height:26px; background:#111; border-radius:2px;}
+  #centerPin .dot{width:8px; height:8px; border-radius:50%; background:#111; opacity:.55; margin-top:-3px;}
+
+  #topHint{position:absolute; top:calc(14px + env(safe-area-inset-top)); left:70px; right:70px; text-align:center; z-index:6;
+    font-family:'Space Grotesk'; font-weight:600; font-size:15px; color:#111; text-shadow:0 0 6px #fff, 0 0 6px #fff, 0 0 10px #fff; pointer-events:none;}
+  .round-btn{position:absolute; width:48px; height:48px; border-radius:50%; background:#fff; border:none; z-index:7;
+    box-shadow:0 3px 12px rgba(0,0,0,.22); font-size:21px; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  #backBtn{top:calc(10px + env(safe-area-inset-top)); left:12px;}
+  #searchToggle{top:calc(10px + env(safe-area-inset-top)); right:12px;}
+  #locateBtn{bottom:14px; right:12px;}
+
+  #searchWrap{position:absolute; top:calc(66px + env(safe-area-inset-top)); left:12px; right:12px; z-index:8; display:none;}
+  #searchWrap.open{display:block;}
+  #searchInput{width:100%; padding:14px 16px; border-radius:12px; border:none; font-size:15px; box-shadow:0 4px 16px rgba(0,0,0,.2);}
+  #searchResults{background:#fff; border-radius:12px; margin-top:6px; box-shadow:0 4px 16px rgba(0,0,0,.2); max-height:40vh; overflow-y:auto;}
+  .sr-item{padding:13px 16px; font-size:14px; border-bottom:1px solid rgba(0,0,0,.06); cursor:pointer;}
+  .sr-item:last-child{border-bottom:none;}
+  .sr-item.yoonou{color:var(--teal); font-weight:600;}
+  .sr-empty{padding:14px 16px; font-size:13.5px; color:var(--muted);}
+
+  #sheet{flex:none; background:#fff; border-radius:22px 22px 0 0; margin-top:-22px; position:relative; z-index:9;
+    padding:20px 20px calc(18px + env(safe-area-inset-bottom)); max-height:62dvh; overflow-y:auto; box-shadow:0 -6px 24px rgba(0,0,0,.12);}
+  #sheet h1{font-family:'Space Grotesk'; font-weight:700; font-size:24px; line-height:1.15; margin-bottom:4px;}
+  #sheet .sub{color:var(--muted); font-size:14.5px; margin-bottom:12px;}
+  .row{display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid rgba(0,0,0,.08);}
+  .row .ico{width:26px; text-align:center; font-size:21px; flex:none;}
+  .row .body{flex:1; min-width:0;}
+  .row input, .row select{width:100%; border:none; outline:none; font-size:16px; font-family:inherit; background:transparent; color:var(--ink); -webkit-appearance:none; appearance:none;}
+  .row input::placeholder{color:#a39d8f;}
+  .row .chev{color:#999; font-size:18px;}
+  #addrText{font-size:16px; line-height:1.3;}
+  .skeleton{height:18px; border-radius:9px; background:linear-gradient(90deg,#eee,#f7f7f7,#eee); background-size:200% 100%; animation:sk 1.2s infinite;}
+  @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .btn{width:100%; margin-top:16px; padding:17px; border:none; border-radius:30px; font-family:'Space Grotesk'; font-weight:700; font-size:17px; cursor:pointer; background:var(--pin); color:#fff;}
+  .btn:disabled{background:#f1a99b; cursor:not-allowed;}
+  .btn.ghost{background:#eee; color:var(--ink); margin-top:10px;}
+  .msg{margin-top:12px; padding:11px 13px; border-radius:10px; font-size:13.5px; display:none;}
+  .msg.err{display:block; background:rgba(193,80,46,.1); color:var(--laterite);}
+  .msg.ok{display:block; background:rgba(42,127,118,.1); color:var(--teal);}
+  .recap{background:#f6f2e8; border-radius:14px; padding:6px 16px; margin:8px 0;}
+  .recap .r{display:flex; justify-content:space-between; gap:14px; padding:11px 0; border-bottom:1px solid rgba(0,0,0,.07); font-size:14.5px;}
+  .recap .r:last-child{border-bottom:none;}
+  .recap .k{color:var(--muted);} .recap .v{font-weight:600; text-align:right;}
+  .hidden{display:none !important;}
+  .done{text-align:center; padding:10px 0 4px;}
+  .done .big{font-size:54px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div id="centerPin"><div class="head">+</div><div class="stem"></div><div class="dot"></div></div>
+    <div id="topHint" data-i18n="zone_move_hint">Tu peux déplacer la carte</div>
+    <button class="round-btn" id="backBtn" aria-label="Retour">←</button>
+    <button class="round-btn" id="searchToggle" aria-label="Rechercher">🔍</button>
+    <button class="round-btn" id="locateBtn" aria-label="Ma position">➤</button>
+    <div id="searchWrap">
+      <input id="searchInput" type="text" placeholder="Rechercher un lieu pour s'y rendre" autocomplete="off" data-i18n-placeholder="zone_search_ph">
+      <div id="searchResults"></div>
+    </div>
+  </div>
+
+  <div id="sheet">
+    <!-- ÉTAPE 1 -->
+    <div id="step1">
+      <h1 data-i18n="zone_title">Indique l'emplacement sur la carte</h1>
+      <div class="sub" data-i18n="zone_sub">Et saisis les informations</div>
+
+      <div class="row"><div class="ico">📍</div>
+        <div class="body"><div id="addrText"><div class="skeleton"></div></div></div></div>
+
+      <div class="row"><div class="ico">🏪</div>
+        <div class="body">
+          <select id="typeLieu">
+            <option value="" data-i18n="zone_type_ph">Type de lieu</option>
+            <option value="pharmacie">Pharmacie</option>
+            <option value="sante">Dispensaire / Clinique / Hôpital</option>
+            <option value="commerce">Magasin / Boutique</option>
+            <option value="marche">Marché</option>
+            <option value="restaurant">Restaurant / Café</option>
+            <option value="ecole">École / Université</option>
+            <option value="religion">Mosquée / Église</option>
+            <option value="transport">Gare / Station / Arrêt</option>
+            <option value="station_service">Station-service</option>
+            <option value="carrefour">Rond-point / Carrefour</option>
+            <option value="quartier">Quartier / Résidence / Cité</option>
+            <option value="entreprise">Entreprise / Bureau</option>
+            <option value="administration">Administration / Mairie</option>
+            <option value="autre">Autre</option>
+          </select></div><div class="chev">›</div></div>
+
+      <div class="row"><div class="ico">✏️</div>
+        <div class="body"><input id="nomLieu" type="text" maxlength="100" placeholder="Nom" data-i18n-placeholder="zone_name_ph" autocomplete="off"></div></div>
+
+      <div class="row" style="border-bottom:none;"><div class="ico">🧭</div>
+        <div class="body"><input id="repere" type="text" maxlength="160" placeholder="Repère utile (optionnel) — ex : en face de la pharmacie" data-i18n-placeholder="zone_landmark_ph" autocomplete="off"></div></div>
+
+      <div class="msg" id="msg1"></div>
+      <button class="btn" id="nextBtn" disabled data-i18n="zone_next">Suivant</button>
+    </div>
+
+    <!-- ÉTAPE 2 : récapitulatif -->
+    <div id="step2" class="hidden">
+      <h1 data-i18n="zone_recap_title">Vérifie avant d'envoyer</h1>
+      <div class="sub" data-i18n="zone_recap_sub">Un admin Yoonou valide ce lieu avant qu'il apparaisse pour tout le monde.</div>
+      <div class="recap">
+        <div class="r"><span class="k">Nom</span><span class="v" id="rNom"></span></div>
+        <div class="r"><span class="k">Type</span><span class="v" id="rType"></span></div>
+        <div class="r"><span class="k">Adresse</span><span class="v" id="rAdr"></span></div>
+        <div class="r" id="rRepRow"><span class="k">Repère</span><span class="v" id="rRep"></span></div>
+      </div>
+      <div class="msg" id="msg2"></div>
+      <button class="btn" id="sendBtn" data-i18n="zone_send">Envoyer</button>
+      <button class="btn ghost" id="editBtn" data-i18n="zone_edit">Modifier</button>
+    </div>
+
+    <!-- ÉTAPE 3 : merci -->
+    <div id="step3" class="hidden">
+      <div class="done">
+        <div class="big">✅</div>
+        <h1 data-i18n="zone_thanks">Merci !</h1>
+        <div class="sub" data-i18n="zone_thanks_sub">Ton lieu sera visible pour tout le monde une fois validé par Yoonou.</div>
+      </div>
+      <button class="btn" id="againBtn" data-i18n="zone_again">Ajouter un autre lieu</button>
+      <button class="btn ghost" id="doneBtn" data-i18n="zone_done">Retour</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  const TYPE_LABELS = {};
+  document.querySelectorAll('#typeLieu option').forEach(o => { if (o.value) TYPE_LABELS[o.value] = o.textContent; });
+
+  function t(key, fallback){
+    try { const d = (YOONOU_TRANSLATIONS && YOONOU_TRANSLATIONS[yoonouGetLang()]) || {}; return d[key] || fallback; }
+    catch (e) { return fallback; }
+  }
+  function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+
+  let map, currentUser, center = { lat: 14.7167, lng: -17.4677 };
+  let currentAddress = '', nameTouched = false, reqCounter = 0, moveTimer = null;
+
+  const $ = id => document.getElementById(id);
+
+  function goBack(){
+    if (document.referrer && history.length > 1) history.back();
+    else window.location.href = 'parametres.html';
+  }
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUser = session.user;
+
+    map = new mapboxgl.Map({
+      container: 'map', style: 'mapbox://styles/mapbox/streets-v12',
+      center: [center.lng, center.lat], zoom: 14.5, attributionControl: false
+    });
+    map.on('movestart', () => { $('centerPin').classList.add('moving'); $('addrText').innerHTML = '<div class="skeleton"></div>'; });
+    map.on('moveend', () => { $('centerPin').classList.remove('moving'); clearTimeout(moveTimer); moveTimer = setTimeout(onMapSettled, 250); });
+    map.on('load', () => { onMapSettled(); locate(false); });
+
+    $('backBtn').addEventListener('click', goBack);
+    $('locateBtn').addEventListener('click', () => locate(true));
+    $('searchToggle').addEventListener('click', () => { $('searchWrap').classList.toggle('open'); if ($('searchWrap').classList.contains('open')) $('searchInput').focus(); });
+    setupSearch();
+
+    $('typeLieu').addEventListener('change', validate);
+    $('nomLieu').addEventListener('input', () => { nameTouched = true; validate(); });
+    $('nextBtn').addEventListener('click', goStep2);
+    $('editBtn').addEventListener('click', () => showStep(1));
+    $('sendBtn').addEventListener('click', send);
+    $('againBtn').addEventListener('click', resetForm);
+    $('doneBtn').addEventListener('click', goBack);
+  }
+
+  function locate(showError){
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      pos => map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 17, duration: 900 }),
+      () => { if (showError) alert(t('zone_geo_error', "Impossible de récupérer ta position. Vérifie que la localisation est autorisée.")); },
+      { timeout: 6000, enableHighAccuracy: true }
+    );
+  }
+
+  async function onMapSettled(){
+    const c = map.getCenter();
+    center = { lat: c.lat, lng: c.lng };
+    const my = ++reqCounter;
+
+    // 1) Le nom du lieu écrit sur la carte, au centre
+    const poiName = yoonouPoiAtPoint(map, map.project(c), 26);
+    if (poiName && !nameTouched) { $('nomLieu').value = poiName; validate(); }
+
+    // 2) L'adresse (géocodage inverse)
+    let label = '';
+    try {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${center.lng},${center.lat}.json?access_token=${MAPBOX_TOKEN}&language=fr&types=address,poi,neighborhood,locality,place&limit=1`;
+      const res = await fetch(url); const data = await res.json();
+      label = (data.features && data.features[0]) ? data.features[0].place_name : '';
+    } catch (e) { /* hors ligne */ }
+    if (my !== reqCounter) return;   // une carte plus récente a été demandée
+    currentAddress = label || `${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}`;
+    $('addrText').textContent = currentAddress;
+    validate();
+  }
+
+  function validate(){
+    const ok = $('typeLieu').value && $('nomLieu').value.trim().length >= 2 && currentAddress;
+    $('nextBtn').disabled = !ok;
+  }
+
+  // ---- Recherche pour se déplacer sur la carte ----
+  function setupSearch(){
+    let timer = null;
+    $('searchInput').addEventListener('input', () => {
+      clearTimeout(timer);
+      const q = $('searchInput').value.trim();
+      const box = $('searchResults');
+      if (q.length < 3) { box.innerHTML = ''; return; }
+      timer = setTimeout(async () => {
+        box.innerHTML = '<div class="sr-empty">Recherche…</div>';
+        const results = await yoonouSearchPlaces(q, sb, MAPBOX_TOKEN, { map, proximity: center });
+        if (!results.length) {
+          box.innerHTML = `<div class="sr-empty">${t('zone_no_result', "Aucun résultat. Déplace la carte jusqu'à l'endroit : c'est justement ce lieu qu'il faut ajouter.")}</div>`;
+          return;
+        }
+        box.innerHTML = results.map((r, i) => `<div class="sr-item ${r.yoonou ? 'yoonou' : ''}" data-i="${i}">${r.yoonou ? '📍 ' : ''}${escapeHtml(r.label)}</div>`).join('');
+        box.querySelectorAll('.sr-item').forEach(el => el.addEventListener('click', () => {
+          const r = results[parseInt(el.dataset.i)];
+          map.flyTo({ center: [r.lng, r.lat], zoom: 17.5, duration: 900 });
+          $('searchWrap').classList.remove('open'); box.innerHTML = ''; $('searchInput').value = '';
+        }));
+      }, 350);
+    });
+  }
+
+  // ---- Étapes ----
+  function showStep(n){
+    ['step1','step2','step3'].forEach((id, i) => $(id).classList.toggle('hidden', i !== n - 1));
+    $('searchWrap').classList.remove('open');
+    setTimeout(() => map.resize(), 50);
+  }
+
+  function goStep2(){
+    const nom = $('nomLieu').value.trim();
+    const type = $('typeLieu').value;
+    $('rNom').textContent = nom;
+    $('rType').textContent = TYPE_LABELS[type] || type;
+    $('rAdr').textContent = currentAddress;
+    const rep = $('repere').value.trim();
+    $('rRep').textContent = rep;
+    $('rRepRow').classList.toggle('hidden', !rep);
+    $('msg2').className = 'msg';
+    showStep(2);
+  }
+
+  async function send(){
+    const btn = $('sendBtn'), msg = $('msg2');
+    const nom = $('nomLieu').value.trim(), type = $('typeLieu').value, rep = $('repere').value.trim();
+    btn.disabled = true; btn.textContent = '…';
+    msg.className = 'msg';
+    try {
+      // Évite les doublons : un lieu validé ou à soi existe-t-il déjà à ~45 m ?
+      const d = 0.0004;
+      const { data: proches } = await sb.from('zone_suggestions').select('nom_zone')
+        .gte('latitude', center.lat - d).lte('latitude', center.lat + d)
+        .gte('longitude', center.lng - d).lte('longitude', center.lng + d).limit(5);
+      const doublon = (proches || []).find(z => yoonouNormalize(z.nom_zone) === yoonouNormalize(nom));
+      if (doublon) { throw new Error(t('zone_duplicate', 'Ce lieu existe déjà à cet endroit.')); }
+
+      const base = { suggested_by: currentUser.id, nom_zone: nom, description: rep || null, latitude: center.lat, longitude: center.lng };
+      let { error } = await sb.from('zone_suggestions').insert([{ ...base, type_lieu: type, adresse: currentAddress }]);
+      if (error && /type_lieu|adresse|column/i.test(error.message || '')) {
+        // La base n'a pas encore les nouvelles colonnes : on garde l'info dans la description.
+        const fallbackDesc = `[${TYPE_LABELS[type] || type}] ${rep}`.trim();
+        ({ error } = await sb.from('zone_suggestions').insert([{ ...base, description: fallbackDesc }]));
+      }
+      if (error) throw error;
+      showStep(3);
+    } catch (err) {
+      msg.textContent = (err && err.message) || 'Erreur, réessaie.';
+      msg.className = 'msg err';
+    } finally {
+      btn.disabled = false; btn.textContent = t('zone_send', 'Envoyer');
+    }
+  }
+
+  function resetForm(){
+    nameTouched = false;
+    $('nomLieu').value = ''; $('repere').value = ''; $('typeLieu').value = '';
+    $('msg1').className = 'msg';
+    showStep(1);
+    onMapSettled();
+  }
+
+  init();
+</script>
+</body>
+</html>

@@ -70,7 +70,6 @@
 
 <div class="card">
   <div class="logo"><span class="dot"></span><span>Yoonou</span></div>
-  <div class="lang-switcher" id="langSwitcher"></div>
 
   <div class="tabs">
     <div class="tab active" id="tabLogin" data-i18n="auth_tab_login">Connexion</div>
@@ -151,17 +150,6 @@
     el.className = 'msg ' + type;
   }
 
-  // Non-bloquant : si lang.js ne charge pas pour une raison quelconque,
-  // le reste de la page (et surtout l'inscription) doit continuer à fonctionner.
-  try {
-    if (typeof yoonouInjectLangSwitcher === 'function') {
-      yoonouInjectLangSwitcher('langSwitcher');
-    } else {
-      console.warn('yoonouInjectLangSwitcher indisponible — lang.js non chargé.');
-    }
-  } catch (err) {
-    console.warn('Sélecteur de langue indisponible :', err.message);
-  }
 
   // ---- Téléphone : normalisation, validation, email technique invisible ----
   function normalizePhone(v){

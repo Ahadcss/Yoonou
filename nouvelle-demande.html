@@ -15,6 +15,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="lieux.js"></script>
 <style>
   :root{
     --indigo-deep:#16213E; --indigo-panel:#1F2E52;
@@ -166,6 +167,13 @@
   .notif-item .m{font-size:12.5px; color:var(--muted); line-height:1.4;}
   .notif-item .time{font-size:11px; color:var(--muted); margin-top:5px; font-family:'JetBrains Mono';}
   .notif-empty{padding:24px; text-align:center; color:var(--muted); font-size:13.5px;}
+  /* Mobile : le panneau s'ouvre sur toute la largeur de l'écran au lieu d'être coupé à gauche */
+  @media (max-width:640px){
+    .notif-dropdown{
+      position:fixed; top:calc(64px + env(safe-area-inset-top)); left:12px; right:12px;
+      width:auto; max-height:70vh;
+    }
+  }
 </style>
 </head>
 <body>
@@ -277,27 +285,6 @@
         <div id="map"></div>
         <button type="button" id="suggestZoneBtn" style="width:100%; margin-top:10px; font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:10px; border-radius:6px; border:1.5px dashed rgba(22,33,62,0.25); background:none; color:var(--muted); cursor:pointer;">📍 Ta zone n'apparaît pas dans les résultats ? Ajoute-la à la carte Yoonou</button>
 
-        <div id="zoneModal" style="display:none; position:fixed; inset:0; background:rgba(22,33,62,0.55); align-items:center; justify-content:center; padding:20px; z-index:100;">
-          <div style="background:#fff; border-radius:14px; padding:26px; max-width:420px; width:100%;">
-            <h3 style="font-family:'Space Grotesk'; font-weight:700; font-size:17px; margin-bottom:6px;">Ajouter une zone</h3>
-            <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">Clique sur la carte à l'endroit exact, puis complète les infos. Un admin Yoonou valide avant que ça apparaisse pour tout le monde.</p>
-            <div class="field">
-              <label>Nom de la zone</label>
-              <input type="text" id="zoneName" placeholder="Ex : Cité Keur Gorgui, Bloc C">
-            </div>
-            <div class="field">
-              <label>Repère utile (optionnel)</label>
-              <input type="text" id="zoneDescription" placeholder="Ex : Près de la pharmacie, derrière le marché...">
-            </div>
-            <div class="hint" id="zoneCoordsHint">📍 Clique sur la carte pour placer le point.</div>
-            <div id="zoneMsg" class="form-msg" style="margin-top:10px;"></div>
-            <div style="display:flex; gap:10px; margin-top:16px;">
-              <button type="button" id="closeZoneModal" style="flex:1; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; padding:12px; border-radius:8px; border:1.5px solid rgba(22,33,62,0.15); background:none; color:var(--muted); cursor:pointer;">Annuler</button>
-              <button type="button" id="submitZoneBtn" style="flex:1; font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:12px; border-radius:8px; border:none; background:var(--teal); color:#fff; cursor:pointer;">Envoyer</button>
-            </div>
-          </div>
-        </div>
-
         <div class="route-info" id="routeInfo">
           <span>📏 Distance : <strong id="routeDistance">—</strong></span>
           <span>⏱ Durée estimée : <strong id="routeDuration">—</strong></span>
@@ -312,16 +299,21 @@
       </div>
 
       <div class="card">
-        <h2>👤 Destinataire (optionnel)</h2>
+        <h2>👤 Destinataire</h2>
         <div class="field-row">
           <div class="field">
             <label>Nom</label>
-            <input type="text" id="destinataireNom">
+            <input type="text" id="destinataireNom" placeholder="Nom de la personne qui reçoit">
           </div>
           <div class="field">
-            <label>Téléphone</label>
-            <input type="tel" id="destinataireTel">
+            <label>Téléphone <span style="color:var(--cta-red);">*</span></label>
+            <input type="tel" id="destinataireTel" required placeholder="ex. 77 123 45 67">
           </div>
+        </div>
+        <div style="font-size:12.5px; color:var(--muted); margin:-4px 0 10px;">Obligatoire : le chauffeur pourra l'appeler, et c'est à ce numéro qu'on envoie le code de livraison.</div>
+        <div class="field">
+          <label>Téléphone au point de départ (optionnel)</label>
+          <input type="tel" id="pickupTel" placeholder="Laisse vide si c'est toi qui seras présent">
         </div>
       </div>
 
@@ -455,59 +447,7 @@
 
   // ---- ZONES COMMUNAUTAIRES ----
   document.getElementById('suggestZoneBtn').addEventListener('click', () => {
-    ensureMap();
-    pickingMode = 'zone';
-    zoneCoords = null;
-    document.getElementById('zoneName').value = '';
-    document.getElementById('zoneDescription').value = '';
-    document.getElementById('zoneCoordsHint').textContent = '📍 Clique sur la carte pour placer le point.';
-    document.getElementById('zoneCoordsHint').style.color = 'var(--muted)';
-    document.getElementById('zoneMsg').className = 'form-msg';
-    document.getElementById('zoneModal').style.display = 'flex';
-  });
-
-  document.getElementById('closeZoneModal').addEventListener('click', () => {
-    document.getElementById('zoneModal').style.display = 'none';
-    pickingMode = null;
-  });
-
-  document.getElementById('submitZoneBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('submitZoneBtn');
-    const msg = document.getElementById('zoneMsg');
-    const nom = document.getElementById('zoneName').value.trim();
-    const description = document.getElementById('zoneDescription').value.trim();
-
-    if (!zoneCoords) {
-      msg.textContent = "Clique d'abord sur la carte pour placer le point.";
-      msg.className = 'form-msg error';
-      return;
-    }
-    if (!nom) {
-      msg.textContent = 'Donne un nom à cette zone.';
-      msg.className = 'form-msg error';
-      return;
-    }
-
-    btn.disabled = true; btn.textContent = 'Envoi...';
-    try {
-      const { error } = await sb.from('zone_suggestions').insert([{
-        suggested_by: currentUser.id, nom_zone: nom, description: description || null,
-        latitude: zoneCoords.lat, longitude: zoneCoords.lng
-      }]);
-      if (error) throw error;
-
-      msg.textContent = '✅ Merci ! Ta zone sera visible une fois validée par Yoonou.';
-      msg.className = 'form-msg success';
-      setTimeout(() => {
-        document.getElementById('zoneModal').style.display = 'none';
-        pickingMode = null;
-      }, 1500);
-    } catch (err) {
-      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
-      msg.className = 'form-msg error';
-    } finally {
-      btn.disabled = false; btn.textContent = 'Envoyer';
-    }
+    window.location.href = 'ajouter-zone.html';
   });
 
   // ---- ADRESSES ENREGISTRÉES ----
@@ -768,32 +708,9 @@
       if (query.length < 3) { box.classList.remove('open'); box.innerHTML = ''; return; }
       debounceTimer = setTimeout(async () => {
         try {
-          const urlStrict = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&country=sn&language=fr&limit=6&types=poi,address,neighborhood,locality,place&proximity=-17.4677,14.7167`;
-          let res = await fetch(urlStrict);
-          let data = await res.json();
-
-          // Si la recherche stricte ne trouve rien (fréquent pour les repères locaux
-          // type "rond-point X"), on réessaie en élargi : sans restriction de type,
-          // ce qui couvre aussi les quartiers, régions, points d'intérêt moins courants.
-          if (!data.features || data.features.length === 0) {
-            const urlLarge = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&country=sn&language=fr&limit=6&proximity=-17.4677,14.7167`;
-            res = await fetch(urlLarge);
-            data = await res.json();
-          }
-
-          const { data: zonesYoonou } = await sb.from('zone_suggestions')
-            .select('nom_zone, description, latitude, longitude')
-            .eq('statut', 'APPROUVEE')
-            .ilike('nom_zone', `%${query}%`)
-            .limit(3);
-
-          const mapboxResults = (data.features || []).map(f => ({
-            label: f.place_name, lat: f.center[1], lng: f.center[0], yoonou: false
-          }));
-          const zoneResults = (zonesYoonou || []).map(z => ({
-            label: z.nom_zone + (z.description ? ' — ' + z.description : ''), lat: z.latitude, lng: z.longitude, yoonou: true
-          }));
-          const allResults = [...zoneResults, ...mapboxResults];
+          // Recherche améliorée (voir lieux.js) : lieux Yoonou, Mapbox Search Box + Geocoding,
+          // variantes (pluriel, accents, mots en trop) et lieux écrits sur la carte affichée.
+          const allResults = await yoonouSearchPlaces(query, sb, MAPBOX_TOKEN, { map: (typeof map !== 'undefined' ? map : null) });
 
           if (allResults.length === 0) {
             box.innerHTML = `
@@ -833,8 +750,7 @@
     });
   }
 
-  let pickingMode = null; // null | 'depart' | 'destination' | 'zone'
-  let zoneCoords = null;
+  let pickingMode = null; // null | 'depart' | 'destination'
 
   function ensureMap(){
     if (map) return;
@@ -851,17 +767,9 @@
       const { lng, lat } = e.lngLat;
       const coords = { lat, lng };
 
-      if (pickingMode === 'zone') {
-        zoneCoords = coords;
-        const label = await reverseGeocode(lat, lng);
-        document.getElementById('zoneCoordsHint').innerHTML = `✅ Point placé près de : <strong>${label}</strong>`;
-        if (!document.getElementById('zoneName').value.trim()) {
-          document.getElementById('zoneName').value = label.split(',')[0];
-        }
-        return;
-      }
-
-      const label = await reverseGeocode(lat, lng);
+      const poiName = yoonouPoiAtPoint(map, e.point, 18);
+      const addr = await reverseGeocode(lat, lng);
+      const label = poiName ? `${poiName}, ${addr}` : addr;
 
       if (pickingMode === 'depart') {
         document.getElementById('depart').value = label;
@@ -1103,6 +1011,15 @@
       return;
     }
 
+    const destTelDigits = document.getElementById('destinataireTel').value.replace(/[^0-9]/g, '');
+    if (destTelDigits.length < 8) {
+      msg.textContent = "Ajoute le téléphone du destinataire (au moins 8 chiffres) : le chauffeur en a besoin et le code de livraison lui est envoyé.";
+      msg.className = 'form-msg error';
+      document.getElementById('destinataireTel').focus();
+      btn.disabled = false; btn.textContent = 'Confirmer la demande';
+      return;
+    }
+
     if (!selectedVehicleType) {
       msg.textContent = "Choisis un véhicule dans la liste avant de confirmer.";
       msg.className = 'form-msg error';
@@ -1126,6 +1043,7 @@
       duree_estimee_min: dureeEstimeeMin ? Math.round(dureeEstimeeMin) : null,
       type_vehicule: selectedVehicleType,
       destinataire_nom: document.getElementById('destinataireNom').value.trim() || null,
+      pickup_telephone: document.getElementById('pickupTel').value.trim() || null,
       destinataire_telephone: document.getElementById('destinataireTel').value.trim() || null,
       statut: 'REQUESTED'
     };
@@ -1151,13 +1069,30 @@
       const { data, error } = await sb.from('orders').insert([payload]).select().single();
       if (error) throw error;
 
+      // Les codes PIN sont rangés dans une table à part : on les relit si besoin.
+      let pinPickup = data.pin_pickup, pinLivraison = data.pin_livraison;
+      if (!pinPickup || !pinLivraison) {
+        try {
+          const { data: pins } = await sb.from('order_pins').select('pin_pickup, pin_livraison').eq('order_id', data.id).maybeSingle();
+          if (pins) { pinPickup = pinPickup || pins.pin_pickup; pinLivraison = pinLivraison || pins.pin_livraison; }
+        } catch (e) { console.warn('PIN non relus :', e.message); }
+      }
+
+      // Message WhatsApp prêt à envoyer au destinataire (code de livraison + lien de suivi)
+      const shareUrl = `${location.origin}/suivi-partage.html?t=${data.share_token}`;
+      const dName = payload.destinataire_nom, dTel = payload.destinataire_telephone;
+      const waText = `Bonjour${dName ? ' ' + dName : ''}, une livraison Yoonou arrive pour vous. Suivez-la en direct ici : ${shareUrl}\n\nQuand le chauffeur arrive, donnez-lui ce code de livraison : ${pinLivraison}\n(à ne donner qu'en main propre, au moment où vous recevez la marchandise).`;
+      const waDeliveryUrl = `https://wa.me/${yoonouWaNumber(dTel)}?text=${encodeURIComponent(waText)}`;
+
       msg.innerHTML = `
         🎉 Demande envoyée ! Prix confirmé : <b>${data.prix.toLocaleString('fr-FR')} FCFA</b>. Un transporteur va bientôt l'accepter.<br><br>
         📌 <b>Garde bien ces deux codes</b>, tu les retrouveras aussi dans le suivi de ta commande :<br>
-        Code de collecte (à donner au chauffeur) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${data.pin_pickup || '—'}</b><br>
-        Code de livraison (à donner au destinataire) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${data.pin_livraison || '—'}</b>
+        Code de collecte (à donner au chauffeur) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${pinPickup || '—'}</b><br>
+        Code de livraison (à donner au destinataire) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${pinLivraison || '—'}</b>
+        ${pinLivraison ? `<br><br><a href="${waDeliveryUrl}" target="_blank" style="display:inline-block; background:#25D366; color:#fff; padding:10px 16px; border-radius:8px; font-weight:700; text-decoration:none;">💬 Envoyer le code de livraison au destinataire</a>` : ''}
       `;
       msg.className = 'form-msg success';
+      if (window.__stopPositionPolls) window.__stopPositionPolls();
       document.getElementById('orderForm').reset();
       document.getElementById('cargoPhotos').value = '';
       document.getElementById('vehicleOptions').innerHTML = '';
@@ -1306,112 +1241,135 @@
   });
 
   init();
+
+  // ---- PARTAGE DE POSITION (lien Yoonou envoyé par WhatsApp) + COLLER UNE POSITION REÇUE ----
+  (function setupPositionTools(){
+    const POLL_MS = 4000, POLL_MAX_MS = 20 * 60 * 1000;
+    const pollers = {};
+    const qs = (sel, target) => document.querySelector(`${sel}[data-target="${target}"]`);
+
+    function toolsHtml(target){
+      const isDest = target === 'destination';
+      return `
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="map-action-btn ask-pos-btn" data-target="${target}">📲 ${isDest ? 'Demander la position du client' : "Demander la position de l'expéditeur"}</button>
+          <button type="button" class="map-action-btn paste-pos-btn" data-target="${target}">📋 Coller une position reçue</button>
+        </div>
+        <div class="hint pos-status" data-target="${target}" style="display:none; margin-top:8px; color:var(--teal); font-weight:600;"></div>
+        <div class="paste-box" data-target="${target}" style="display:none; margin-top:8px;">
+          <div style="display:flex; gap:8px;">
+            <input type="text" class="paste-input" data-target="${target}" placeholder="Colle ici un lien Google Maps / Plans, des coordonnées ou un code plus" style="flex:1;" autocomplete="off">
+            <button type="button" class="map-action-btn paste-ok-btn" data-target="${target}">OK</button>
+          </div>
+          <div class="hint paste-hint" data-target="${target}" style="margin-top:6px;"></div>
+        </div>`;
+    }
+
+    async function setPointFromCoords(target, lat, lng, hint){
+      const addr = await reverseGeocode(lat, lng);
+      const label = hint ? `${hint} — ${addr}` : addr;
+      if (target === 'depart') { document.getElementById('depart').value = label; departCoords = { lat, lng }; }
+      else { document.getElementById('destination').value = label; destCoords = { lat, lng }; }
+      await updateRoute();
+      try { if (typeof map !== 'undefined' && map) map.flyTo({ center: [lng, lat], zoom: 15 }); } catch (e) { /* carte pas encore affichée */ }
+    }
+
+    function poll(id, target, status){
+      clearInterval(pollers[target]);
+      const started = Date.now();
+      pollers[target] = setInterval(async () => {
+        if (Date.now() - started > POLL_MAX_MS) {
+          clearInterval(pollers[target]);
+          status.style.color = 'var(--muted)';
+          status.textContent = "Pas de réponse pour l'instant. Tu peux renvoyer le lien.";
+          return;
+        }
+        const { data } = await sb.from('position_requests').select('fulfilled_at, latitude, longitude, repere').eq('id', id).maybeSingle();
+        if (data && data.fulfilled_at) {
+          clearInterval(pollers[target]);
+          await setPointFromCoords(target, data.latitude, data.longitude, data.repere || '');
+          status.style.color = 'var(--teal)';
+          status.textContent = '✅ Position reçue : le point a été rempli automatiquement.';
+        }
+      }, POLL_MS);
+    }
+
+    async function ask(target){
+      const status = qs('.pos-status', target);
+      if (target === 'destination' && yoonouWaNumber(document.getElementById('destinataireTel').value).length < 8) {
+        status.style.display = 'block'; status.style.color = 'var(--laterite)';
+        status.textContent = "Écris d'abord le téléphone du destinataire plus bas : la discussion WhatsApp s'ouvrira directement avec lui.";
+        document.getElementById('destinataireTel').focus();
+        return;
+      }
+      const w = window.open('', '_blank');   // ouvert tout de suite : sinon le navigateur peut bloquer WhatsApp
+      status.style.display = 'block'; status.style.color = 'var(--teal)'; status.textContent = 'Préparation du lien…';
+      const { data, error } = await sb.rpc('creer_demande_position', { p_purpose: target === 'depart' ? 'collecte' : 'livraison' });
+      if (error) {
+        if (w) w.close();
+        status.style.color = 'var(--laterite)';
+        status.textContent = 'Impossible de créer la demande : ' + error.message + " (si le message parle d'une fonction introuvable, exécute migration_partage_position.sql dans Supabase)";
+        return;
+      }
+      const link = `${location.origin}/partager-position.html?t=${data.token}`;
+      const phone = yoonouWaNumber(document.getElementById(target === 'destination' ? 'destinataireTel' : 'pickupTel').value);
+      const text = target === 'depart'
+        ? `Bonjour, pour venir récupérer le colis, touche ce lien Yoonou et indique l'endroit exact : ${link}`
+        : `Bonjour, pour te livrer, touche ce lien Yoonou et confirme ta position (ça prend 10 secondes) : ${link}`;
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+      if (w) w.location.href = url;
+      status.innerHTML = `⏳ En attente de la position… le point se remplira tout seul. <a href="${url}" target="_blank" style="color:var(--teal); text-decoration:underline;">Rouvrir WhatsApp</a>`;
+      poll(data.id, target, status);
+    }
+
+    function applyPaste(target){
+      const input = qs('.paste-input', target), hint = qs('.paste-hint', target);
+      let ref = null;
+      try { if (typeof map !== 'undefined' && map) { const c = map.getCenter(); ref = { lat: c.lat, lng: c.lng }; } } catch (e) { /* pas de carte */ }
+      const r = yoonouParsePosition(input.value, ref || undefined);
+      if (!r) {
+        hint.style.color = 'var(--laterite)';
+        hint.textContent = "Position non reconnue. Colle un lien Google Maps / Plans, des coordonnées (14.7167, -17.4677) ou un code plus (7FG8+8R Dakar).";
+        return;
+      }
+      if (r.type === 'short') {
+        hint.style.color = 'var(--laterite)';
+        hint.textContent = "Ce lien court ne peut pas être lu directement. Ouvre-le, copie le lien long affiché (ou les coordonnées) et colle-le ici. Plus simple : « Demander la position ».";
+        return;
+      }
+      hint.style.color = 'var(--muted)'; hint.textContent = 'Lecture de la position…';
+      setPointFromCoords(target, r.lat, r.lng).then(() => {
+        hint.style.color = 'var(--teal)'; hint.textContent = '✅ Position ajoutée.'; input.value = '';
+      });
+    }
+
+    ['depart', 'destination'].forEach(target => {
+      const field = document.getElementById(target).closest('.field');
+      const box = document.createElement('div');
+      box.className = 'field';
+      box.style.marginTop = '-6px';
+      box.innerHTML = toolsHtml(target);
+      field.insertAdjacentElement('afterend', box);
+
+      qs('.ask-pos-btn', target).addEventListener('click', () => ask(target));
+      qs('.paste-pos-btn', target).addEventListener('click', () => {
+        const b = qs('.paste-box', target);
+        b.style.display = b.style.display === 'none' ? 'block' : 'none';
+        if (b.style.display === 'block') qs('.paste-input', target).focus();
+      });
+      qs('.paste-ok-btn', target).addEventListener('click', () => applyPaste(target));
+      qs('.paste-input', target).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyPaste(target); } });
+    });
+
+    window.__stopPositionPolls = () => Object.values(pollers).forEach(clearInterval);
+  })();
 </script>
 <button id="sosFloatBtn" style="position:fixed; bottom:calc(24px + env(safe-area-inset-bottom)); right:24px; width:56px; height:56px; border-radius:50%; background:var(--cta-red); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(214,54,42,0.5); cursor:pointer; z-index:90;">🆘</button>
 
-<div id="supportModal" style="display:none; position:fixed; inset:0; background:rgba(22,33,62,0.55); align-items:center; justify-content:center; padding:20px; z-index:100;">
-  <div style="background:#fff; border-radius:14px; padding:28px; max-width:440px; width:100%; max-height:85vh; overflow-y:auto;">
-    <h3 style="font-family:'Space Grotesk'; font-weight:700; font-size:18px; margin-bottom:6px;">Besoin d'aide ?</h3>
-    <p style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">Décris ton problème, on te répond rapidement.</p>
-
-    <div style="margin-bottom:14px;">
-      <label style="display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;">Catégorie</label>
-      <select id="supportCategory" style="width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px;">
-        <option value="Problème avec un transporteur">Problème avec un transporteur</option>
-        <option value="Problème avec ma commande">Problème avec ma commande</option>
-        <option value="Marchandise non livrée">Marchandise non livrée</option>
-        <option value="Marchandise endommagée">Marchandise endommagée</option>
-        <option value="Problème de paiement">Problème de paiement</option>
-        <option value="Problème de prix">Problème de prix</option>
-        <option value="Problème avec l'application">Problème avec l'application</option>
-        <option value="Sécurité / urgence">🆘 Sécurité / urgence</option>
-        <option value="Autre">Autre</option>
-      </select>
-    </div>
-
-    <div style="margin-bottom:14px;">
-      <label style="display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;">Décris la situation</label>
-      <textarea id="supportDescription" rows="4" style="width:100%; padding:11px 13px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px; resize:vertical;" placeholder="Explique ce qui se passe..."></textarea>
-    </div>
-
-    <div id="supportMsg" style="font-size:13px; margin-bottom:12px; padding:10px; border-radius:6px; display:none;"></div>
-
-    <button id="submitSupportBtn" style="width:100%; font-family:'Space Grotesk'; font-weight:700; font-size:14.5px; padding:13px; border-radius:8px; border:none; background:var(--cta-red); color:#fff; cursor:pointer;">Envoyer</button>
-
-    <a id="whatsappSupportLink" href="#" target="_blank" style="display:block; text-align:center; margin-top:12px; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--teal); text-decoration:none;">💬 Ou contacte-nous directement sur WhatsApp</a>
-
-    <button id="closeSupportModal" style="display:block; margin:14px auto 0; background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer;">Fermer</button>
-  </div>
-</div>
-
 <script>
-  const YOONOU_SUPPORT_WHATSAPP = '+221774203400';
-
+  // Le bouton SOS ouvre la page d'aide (historique des courses + signalement)
   document.getElementById('sosFloatBtn').addEventListener('click', () => {
-    document.getElementById('supportModal').style.display = 'flex';
-    document.getElementById('supportMsg').style.display = 'none';
-  });
-  document.getElementById('closeSupportModal').addEventListener('click', () => {
-    document.getElementById('supportModal').style.display = 'none';
-  });
-
-  document.getElementById('supportCategory').addEventListener('change', updateWhatsappSupportLink);
-  function updateWhatsappSupportLink(){
-    const category = document.getElementById('supportCategory').value;
-    const msg = `Bonjour, j'ai besoin d'aide (Client Yoonou). Catégorie : ${category}`;
-    document.getElementById('whatsappSupportLink').href = `https://wa.me/${YOONOU_SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`;
-  }
-  updateWhatsappSupportLink();
-
-  document.getElementById('submitSupportBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('submitSupportBtn');
-    const msgEl = document.getElementById('supportMsg');
-    const category = document.getElementById('supportCategory').value;
-    const description = document.getElementById('supportDescription').value.trim();
-
-    if (!description) {
-      msgEl.textContent = 'Décris un peu la situation avant d\'envoyer.';
-      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(193,80,46,0.1); color:var(--laterite); font-size:13px;';
-      return;
-    }
-
-    btn.disabled = true; btn.textContent = 'Envoi...';
-
-    const isUrgent = category === 'Sécurité / urgence';
-    let gps_lat = null, gps_lng = null;
-
-    if (isUrgent && navigator.geolocation) {
-      try {
-        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000 }));
-        gps_lat = pos.coords.latitude;
-        gps_lng = pos.coords.longitude;
-      } catch(e) { /* pas grave si la position n'est pas dispo */ }
-    }
-
-    try {
-      const { data: { session } } = await sb.auth.getSession();
-      const { error } = await sb.from('disputes').insert([{
-        user_id: session.user.id,
-        reason: category,
-        category: category,
-        description: description,
-        raised_by_role: 'client',
-        is_urgent: isUrgent,
-        gps_lat, gps_lng
-      }]);
-      if (error) throw error;
-
-      msgEl.textContent = isUrgent
-        ? '🆘 Signalement envoyé en urgence. L\'équipe Yoonou a été alertée immédiatement.'
-        : '✅ Ta demande a été envoyée, on te répond rapidement.';
-      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(42,127,118,0.1); color:var(--teal); font-size:13px;';
-      document.getElementById('supportDescription').value = '';
-    } catch (err) {
-      msgEl.textContent = 'Erreur : ' + (err.message || 'réessaie.');
-      msgEl.style.cssText = 'display:block; padding:10px; border-radius:6px; background:rgba(193,80,46,0.1); color:var(--laterite); font-size:13px;';
-    } finally {
-      btn.disabled = false; btn.textContent = 'Envoyer';
-    }
+    window.location.href = 'aide.html';
   });
 </script>
 

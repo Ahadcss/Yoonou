@@ -99,13 +99,7 @@
   }
 
   async function loadHeatmap(days){
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await sb
-      .from('orders')
-      .select('depart_lat, depart_lng')
-      .gte('created_at', since)
-      .not('depart_lat', 'is', null)
-      .not('depart_lng', 'is', null);
+    const { data, error } = await sb.rpc('get_zones_demande', { p_days: days });
 
     if (error) { console.error(error); return; }
 

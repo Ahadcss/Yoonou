@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Yoonou — Admin · Fiche utilisateur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{--indigo-deep:#16213E; --laterite:#C1502E; --sand:#F3E9D2; --sand-dim:#E6D9BB; --teal:#2A7F76; --gold:#E8A93A; --ink:#1A1712; --muted:#4a4438; --cta-red:#D6362A;}
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom);}
+  h1,h2,h3{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
+  nav .wrap{max-width:860px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); text-decoration:none;}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:860px; margin:0 auto; padding:32px 24px 60px;}
+  .loading{text-align:center; padding:60px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+  h1{font-size:26px; margin-bottom:6px;}
+  .subtitle{color:var(--muted); font-size:14px; margin-bottom:20px;}
+  .search{display:flex; gap:8px; margin-bottom:10px;}
+  .search input{flex:1; padding:13px 14px; border-radius:10px; border:1.5px solid rgba(22,33,62,0.15); font-size:15px; font-family:inherit;}
+  .btn{font-family:'Space Grotesk'; font-weight:700; font-size:14px; padding:12px 18px; border-radius:10px; border:none; background:var(--indigo-deep); color:var(--sand); cursor:pointer;}
+  .results{margin-bottom:18px;}
+  .res{display:flex; justify-content:space-between; align-items:center; gap:12px; background:#fff; border-radius:10px; padding:12px 16px; margin-bottom:8px; border:1px solid rgba(22,33,62,0.08); cursor:pointer;}
+  .res:hover{border-color:var(--teal);}
+  .res .n{font-weight:600;} .res .m{font-size:12.5px; color:var(--muted);}
+  .pill{display:inline-block; font-family:'JetBrains Mono'; font-size:11px; font-weight:600; padding:3px 9px; border-radius:100px; background:rgba(22,33,62,.08); color:var(--indigo-deep);}
+  .pill.ok{background:rgba(42,127,118,.14); color:var(--teal);}
+  .pill.warn{background:rgba(232,169,58,.2); color:#8a5d00;}
+  .pill.bad{background:rgba(214,54,42,.13); color:var(--cta-red);}
+  .card{background:#fff; border-radius:14px; padding:20px; border:1px solid rgba(22,33,62,0.08); margin-bottom:14px;}
+  .card h2{font-size:15px; margin-bottom:12px;}
+  .head{display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:flex-start;}
+  .head .name{font-family:'Space Grotesk'; font-weight:700; font-size:24px;}
+  .kv{display:flex; justify-content:space-between; gap:14px; padding:7px 0; font-size:13.5px; border-bottom:1px solid rgba(22,33,62,.06);}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--muted); flex:none;} .kv .v{font-weight:600; text-align:right; word-break:break-word;}
+  .contact{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
+  .contact a{font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px 14px; border-radius:8px; text-decoration:none; border:1.5px solid var(--indigo-deep); color:var(--indigo-deep);}
+  .contact a.wa{background:#25D366; border-color:#25D366; color:#fff;}
+  .alert{background:rgba(214,54,42,.1); border:1.5px solid var(--cta-red); color:var(--cta-red); border-radius:12px; padding:14px 16px; margin-bottom:14px; font-size:13.5px; line-height:1.5;}
+  .alert.warn{background:rgba(232,169,58,.15); border-color:var(--gold); color:#7a5200;}
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+  .stat{background:var(--sand); border-radius:10px; padding:12px; text-align:center;}
+  .stat .n{font-family:'Space Grotesk'; font-weight:700; font-size:22px;}
+  .stat .l{font-size:11.5px; color:var(--muted); margin-top:2px;}
+  .row{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid rgba(22,33,62,.06); font-size:13.5px;}
+  .row:last-child{border-bottom:none;}
+  .row .t{font-weight:600;} .row .s{font-size:12px; color:var(--muted);}
+  .open-btn{font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; padding:7px 12px; border-radius:6px; border:1.5px solid var(--teal); background:none; color:var(--teal); cursor:pointer; flex:none;}
+  .empty{color:var(--muted); font-size:13.5px;}
+  .note{font-size:12px; color:var(--muted); margin-top:18px; line-height:1.5;}
+  @media (max-width:560px){ .stats{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<nav><div class="wrap"><a href="espace.html" class="logo">Yoonou</a><a href="admin-dashboard.html" class="nav-link">← Vue d'ensemble</a></div></nav>
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+  <div id="content" class="hidden">
+    <h1>Fiche utilisateur</h1>
+    <p class="subtitle">Cherche un client ou un chauffeur par nom, prénom ou numéro de téléphone.</p>
+    <div class="search">
+      <input id="q" type="text" placeholder="Nom, prénom ou numéro (ex. 77 123 45 67)" autocomplete="off">
+      <button class="btn" id="goBtn">Rechercher</button>
+    </div>
+    <div class="results" id="results"></div>
+    <div id="fiche"></div>
+    <p class="note">🔒 Les pièces d'identité, permis et coordonnées sont des données sensibles. Chaque ouverture d'une fiche ou d'un document est enregistrée avec ton nom. N'ouvre que ce dont tu as besoin pour traiter un dossier.</p>
+  </div>
+</div>
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const $ = id => document.getElementById(id);
+  function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+  const fmtDT = v => v ? new Date(v).toLocaleString('fr-FR') : '—';
+  const fmtD = v => v ? new Date(v).toLocaleDateString('fr-FR') : '—';
+  const fmt = v => (v === null || v === undefined || v === '') ? '—' : escapeHtml(String(v));
+  function waDigits(raw){ let d = String(raw || '').replace(/[^0-9]/g, ''); if (d.startsWith('00')) d = d.slice(2); if (d.length === 9) d = '221' + d; return d; }
+
+  const DOC_LABELS = { cni: "Carte d'identité", extrait_naissance: 'Extrait de naissance', carte_scolaire: 'Carte scolaire', autre_piece: 'Autre pièce',
+                       permis: 'Permis de conduire', selfie: 'Selfie', carte_grise: 'Carte grise', assurance: 'Assurance', autre: 'Autre document' };
+  const ROLE_LABELS = { client: 'Client', transporteur: 'Chauffeur', admin: 'Admin' };
+  const STATUT_COMPTE = { ACTIVE: ['Actif', 'ok'], UNDER_REVIEW: ['En vérification', 'warn'], COMMISSION_DUE: ['Commission due', 'warn'], SUSPENDED: ['Suspendu', 'bad'], BANNED: ['Banni', 'bad'] };
+  const STATUT_COMMANDE = { REQUESTED: 'En attente', COMPLETED: 'Terminée', CANCELLED: 'Annulée' };
+
+  let currentUserId = null;
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+    if (!profile || profile.role !== 'admin') { window.location.href = 'espace.html'; return; }
+    $('loadingState').classList.add('hidden'); $('content').classList.remove('hidden');
+
+    $('goBtn').addEventListener('click', search);
+    $('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+    const id = new URLSearchParams(location.search).get('id');
+    if (id && /^[0-9a-f-]{36}$/i.test(id)) loadFiche(id);
+  }
+
+  async function search(){
+    const q = $('q').value.trim(), box = $('results');
+    if (q.length < 2) { box.innerHTML = '<div class="empty">Écris au moins 2 caractères.</div>'; return; }
+    box.innerHTML = '<div class="empty">Recherche…</div>';
+    const { data, error } = await sb.rpc('rechercher_utilisateurs_admin', { p_query: q });
+    if (error) { box.innerHTML = `<div class="empty">Erreur : ${escapeHtml(error.message)}<br>Si le message parle d'une fonction introuvable, exécute migration_contacts_et_acces.sql dans Supabase.</div>`; return; }
+    if (!data || !data.length) { box.innerHTML = '<div class="empty">Aucun résultat.</div>'; return; }
+    box.innerHTML = data.map(u => `
+      <div class="res" data-id="${u.id}">
+        <div><div class="n">${escapeHtml(u.prenom)} ${escapeHtml(u.nom)}</div><div class="m">${fmt(u.whatsapp)}</div></div>
+        <div><span class="pill">${ROLE_LABELS[u.role] || escapeHtml(u.role)}</span> <span class="pill ${(STATUT_COMPTE[u.statut_compte] || [,''])[1]}">${(STATUT_COMPTE[u.statut_compte] || [u.statut_compte])[0]}</span></div>
+      </div>`).join('');
+    box.querySelectorAll('.res').forEach(el => el.addEventListener('click', () => { box.innerHTML = ''; loadFiche(el.dataset.id); }));
+  }
+
+  async function signedOpen(bucket, fichier, userId, action){
+    const marker = `/object/public/${bucket}/`;
+    const path = String(fichier).includes(marker) ? String(fichier).split(marker)[1] : String(fichier);
+    const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 300);
+    if (error || !data) { alert("Impossible d'ouvrir ce fichier : " + (error ? error.message : 'introuvable')); return; }
+    sb.rpc('journaliser_acces_admin', { p_user_id: userId, p_action: action });   // enregistre l'ouverture (sans bloquer)
+    window.open(data.signedUrl, '_blank');
+  }
+
+  async function loadFiche(id){
+    currentUserId = id;
+    $('fiche').innerHTML = '<div class="loading">Chargement de la fiche…</div>';
+    const { data, error } = await sb.rpc('get_user_dossier_for_admin', { p_user_id: id });
+    if (error) { $('fiche').innerHTML = `<div class="card">Erreur : ${escapeHtml(error.message)}<br><br>Si le message parle d'une fonction introuvable, exécute migration_contacts_et_acces.sql dans Supabase.</div>`; return; }
+    if (!data || !data.found) { $('fiche').innerHTML = '<div class="card">Utilisateur introuvable.</div>'; return; }
+
+    const p = data.profile, isDriver = p.role === 'transporteur';
+    const [stLabel, stCls] = STATUT_COMPTE[p.statut_compte] || [p.statut_compte, ''];
+    const digits = waDigits(p.whatsapp);
+    const minor = data.age !== null && data.age < 18;
+
+    let html = '';
+    if ((data.bannis_correspondants || []).length) {
+      html += `<div class="alert">⛔ <strong>Correspondance avec un compte banni</strong> (nom, prénom ou numéro identiques). À vérifier avant toute activation :<br>${data.bannis_correspondants.map(b => `• ${escapeHtml(b.prenom || '')} ${escapeHtml(b.nom || '')} — ${escapeHtml(b.raison || '')} (${fmtD(b.banni_le)})`).join('<br>')}<br><em>Les noms peuvent se ressembler par coïncidence : c'est un signal, pas une preuve.</em></div>`;
+    }
+    if (minor && isDriver) html += `<div class="alert warn">⚠️ Chauffeur mineur (${data.age} ans) : seuls le vélo et la charrette sont autorisés.</div>`;
+
+    html += `
+      <div class="card">
+        <div class="head">
+          <div>
+            <div class="name">${escapeHtml(p.prenom)} ${escapeHtml(p.nom)}</div>
+            <div style="margin-top:6px;"><span class="pill">${ROLE_LABELS[p.role] || escapeHtml(p.role)}</span> <span class="pill ${stCls}">${stLabel}</span>
+              ${p.telephone_verifie ? '<span class="pill ok">Téléphone vérifié</span>' : '<span class="pill warn">Téléphone non vérifié</span>'}
+              ${isDriver ? `<span class="pill ${p.statut_verification === 'VERIFIED' ? 'ok' : 'warn'}">KYC : ${escapeHtml(p.statut_verification || '—')}</span>` : ''}</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="kv"><span class="k">WhatsApp</span><span class="v">${fmt(p.whatsapp)}</span></div>
+          <div class="kv"><span class="k">Ville</span><span class="v">${fmt(p.ville)}</span></div>
+          <div class="kv"><span class="k">Date de naissance</span><span class="v">${p.date_naissance ? fmtD(p.date_naissance) + ' (' + data.age + ' ans)' : '—'}</span></div>
+          <div class="kv"><span class="k">Inscrit le</span><span class="v">${fmtDT(p.created_at)}</span></div>
+          <div class="kv"><span class="k">Téléphone vérifié le</span><span class="v">${p.telephone_verifie ? fmtDT(p.telephone_verifie_le) + ' · ' + fmt(p.telephone_verifie_methode) : '—'}</span></div>
+          ${isDriver ? `<div class="kv"><span class="k">Disponibilité</span><span class="v">${fmt(p.disponibilite)}</span></div>` : ''}
+          <div class="kv"><span class="k">Identifiant</span><span class="v" style="font-family:'JetBrains Mono'; font-size:11.5px;">${escapeHtml(p.id)}</span></div>
+        </div>
+        ${digits ? `<div class="contact"><a href="tel:+${digits}">📞 Appeler</a><a class="wa" href="https://wa.me/${digits}" target="_blank">💬 WhatsApp</a></div>` : ''}
+      </div>
+
+      <div class="card"><div class="stats">
+        <div class="stat"><div class="n">${data.stats.commandes_passees}</div><div class="l">commandes passées</div></div>
+        <div class="stat"><div class="n">${data.stats.courses_terminees}</div><div class="l">courses effectuées</div></div>
+        <div class="stat"><div class="n">${data.stats.annulations}</div><div class="l">annulations</div></div>
+        <div class="stat"><div class="n">${data.stats.nombre_notes ? Number(data.stats.note_moyenne).toFixed(2) : '—'}</div><div class="l">note (${data.stats.nombre_notes} avis)</div></div>
+      </div></div>`;
+
+    if (isDriver || (data.documents || []).length) {
+      html += `<div class="card"><h2>📄 Pièces et documents (${(data.documents || []).length})</h2>`;
+      html += (data.documents || []).length ? data.documents.map(d => `
+        <div class="row"><div><div class="t">${DOC_LABELS[d.type] || escapeHtml(d.type)}</div><div class="s">${fmtDT(d.date)} · statut : ${escapeHtml(d.statut || '—')}</div></div>
+        <button class="open-btn" data-doc="${escapeHtml(d.fichier)}">Ouvrir</button></div>`).join('') : '<div class="empty">Aucun document envoyé.</div>';
+      html += '</div>';
+    }
+    if (isDriver || (data.vehicles || []).length) {
+      html += `<div class="card"><h2>🚚 Véhicules (${(data.vehicles || []).length})</h2>`;
+      html += (data.vehicles || []).length ? data.vehicles.map(v => `
+        <div class="row"><div><div class="t">${escapeHtml(v.type)} — ${escapeHtml(v.marque || '')} ${escapeHtml(v.modele || '')} ${v.couleur ? '· ' + escapeHtml(v.couleur) : ''}</div>
+        <div class="s">Plaque : <strong>${fmt(v.plaque)}</strong> · capacité ${fmt(v.capacite_kg)} kg · ${escapeHtml(v.verification || '—')}</div></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">${(v.photos || []).map((ph, i) => `<button class="open-btn" data-photo="${escapeHtml(ph)}">Photo ${i + 1}</button>`).join('')}</div></div>`).join('') : '<div class="empty">Aucun véhicule.</div>';
+      html += '</div>';
+    }
+    if (isDriver && (data.commission || []).length) {
+      html += `<div class="card"><h2>💰 Commission</h2>${data.commission.map(c => `<div class="row"><div class="t">Période du ${fmtD(c.debut)} · ${escapeHtml(c.statut)}</div><div class="s">${fmt(c.heures_actives)} h actives · ${Math.round(c.commission_due || 0)} FCFA</div></div>`).join('')}</div>`;
+    }
+    html += `<div class="card"><h2>📦 Commandes récentes</h2>`;
+    html += (data.commandes || []).length ? data.commandes.map(o => `
+      <div class="row"><div><div class="t"><a href="admin-support.html?ref=${escapeHtml(o.reference)}" style="color:var(--teal); text-decoration:none;">#${escapeHtml(o.reference)}</a> · ${fmtDT(o.date)}</div>
+      <div class="s">${escapeHtml(o.depart)} → ${escapeHtml(o.destination)} · ${o.role === 'client' ? 'comme client' : 'comme chauffeur'}</div></div>
+      <span class="pill">${STATUT_COMMANDE[o.statut] || escapeHtml(o.statut)}${o.prix ? ' · ' + Math.round(o.prix) + ' F' : ''}</span></div>`).join('') : '<div class="empty">Aucune commande.</div>';
+    html += '</div>';
+
+    html += `<div class="card"><h2>🆘 Tickets et signalements</h2>`;
+    html += (data.tickets || []).length ? data.tickets.map(t => `
+      <div class="row"><div><div class="t">${t.urgent ? '🆘 ' : ''}${escapeHtml(t.categorie || 'Ticket')}</div><div class="s">${fmtDT(t.date)}${t.commande ? ' · <a href="admin-support.html?ref=' + escapeHtml(String(t.commande).slice(0, 8)) + '" style="color:var(--teal);">commande</a>' : ''}</div></div>
+      <span class="pill">${escapeHtml(t.statut || '—')}</span></div>`).join('') : '<div class="empty">Aucun ticket.</div>';
+    html += '</div>';
+
+    if ((data.risques || []).length) {
+      html += `<div class="card"><h2>⚠️ Signaux de risque</h2>${data.risques.map(r => `<div class="row"><div><div class="t">${escapeHtml(r.type)}</div><div class="s">${fmtDT(r.date)} · ${escapeHtml(JSON.stringify(r.details || {}))}</div></div></div>`).join('')}</div>`;
+    }
+
+    $('fiche').innerHTML = html;
+    $('fiche').querySelectorAll('[data-doc]').forEach(b => b.addEventListener('click', () => signedOpen('kyc-documents', b.dataset.doc, id, 'DOCUMENT')));
+    $('fiche').querySelectorAll('[data-photo]').forEach(b => b.addEventListener('click', () => signedOpen('vehicle-photos', b.dataset.photo, id, 'PHOTO_VEHICULE')));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  init();
+</script>
+</body>
+</html>

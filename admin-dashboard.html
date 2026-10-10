@@ -116,6 +116,12 @@
       </a>
     </div>
     <div class="alert-grid">
+      <a href="admin-photos.html" class="alert-card" id="photosAlert" style="grid-column:1 / -1;">
+        <span class="t">📷 Photos de profil à valider</span>
+        <span class="n" id="photosCount">—</span>
+      </a>
+    </div>
+    <div class="alert-grid">
       <a href="admin-risques.html" class="alert-card" id="risqueAlert" style="grid-column:1 / -1;">
         <span class="t">⚠️ Anomalies GPS (24h)</span>
         <span class="n" id="risqueCount">—</span>
@@ -160,6 +166,7 @@
     <div class="card">
       <h2>Accès rapide</h2>
       <div class="quick-links">
+        <a href="admin-fiche.html" class="quick-link">👤 Fiches utilisateurs</a>
         <a href="admin-support.html" class="quick-link">Support & urgences</a>
         <a href="admin-cargo-restrictions.html" class="quick-link">Marchandises autorisées</a>
         <a href="admin-zones.html" class="quick-link">Zones communautaires</a>
@@ -167,6 +174,7 @@
         <a href="admin-verification-telephone.html" class="quick-link">Vérification téléphone</a>
         <a href="admin-commissions.html" class="quick-link">Commissions</a>
         <a href="admin-risques.html" class="quick-link">Anomalies GPS</a>
+        <a href="admin-photos.html" class="quick-link">Photos de profil</a>
       </div>
     </div>
 
@@ -245,6 +253,9 @@
     const { count: ticketsCount } = await sb.from('disputes').select('*', { count: 'exact', head: true }).in('status', ['OUVERT','EN_COURS','EN_ATTENTE']);
     const { count: zonesCount } = await sb.from('zone_suggestions').select('*', { count: 'exact', head: true }).eq('statut', 'EN_ATTENTE');
     const { count: phoneVerifCount } = await sb.from('profiles').select('*', { count: 'exact', head: true }).eq('telephone_verifie', false).not('code_verification', 'is', null);
+    const { count: photosCount } = await sb.from('profiles').select('*', { count: 'exact', head: true }).eq('avatar_statut', 'PENDING').not('avatar_path', 'is', null);
+    document.getElementById('photosCount').textContent = photosCount ?? 0;
+    document.getElementById('photosAlert').classList.toggle('zero', !photosCount);
     const { count: risqueCount } = await sb.from('risk_events').select('*', { count: 'exact', head: true }).gte('created_at', new Date(Date.now() - 24*60*60*1000).toISOString());
 
     document.getElementById('kycCount').textContent = kycCount ?? 0;

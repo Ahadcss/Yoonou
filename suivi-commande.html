@@ -85,6 +85,35 @@
   .card-msg{font-size:13px; margin-top:10px; padding:10px; border-radius:6px; display:none;}
   .card-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
   .card-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+
+  /* Profil du chauffeur (fenêtre) + mentions */
+  .driver-row.tappable{cursor:pointer;}
+  .driver-more{font-size:12px; color:var(--teal); font-weight:600; margin-top:3px;}
+  .tag-chips{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 4px;}
+  .tag-chip{border:1.5px solid rgba(22,33,62,0.18); background:#fff; border-radius:100px; padding:8px 13px; font-size:13px; cursor:pointer; font-family:inherit; color:var(--ink);}
+  .tag-chip.on{background:var(--teal); border-color:var(--teal); color:#fff;}
+  .tag-title{font-size:12.5px; color:var(--muted); margin-top:12px;}
+  .prof-bg{position:fixed; inset:0; background:rgba(22,33,62,.55); z-index:80; display:none; align-items:flex-end; justify-content:center;}
+  .prof-bg.open{display:flex;}
+  .prof-sheet{background:#fff; width:100%; max-width:560px; border-radius:22px 22px 0 0; max-height:92vh; overflow-y:auto; padding-bottom:calc(14px + env(safe-area-inset-bottom));}
+  .prof-photo{width:150px; height:150px; border-radius:50%; margin:26px auto 12px; overflow:hidden; background:var(--sand); display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk'; font-weight:700; font-size:52px; color:var(--indigo-deep);}
+  .prof-photo img{width:100%; height:100%; object-fit:cover;}
+  .prof-name{font-family:'Space Grotesk'; font-weight:700; font-size:30px; text-align:center; margin-bottom:18px;}
+  .prof-stats{display:flex; justify-content:space-around; text-align:center; padding:6px 10px 18px;}
+  .prof-stats .n{font-family:'Space Grotesk'; font-weight:600; font-size:24px;}
+  .prof-stats .l{font-size:13px; color:var(--muted); margin-top:2px;}
+  .prof-band{background:#f5f3ee; padding:10px 20px; font-size:14px; color:var(--muted); font-weight:600;}
+  .achv{display:flex; gap:6px; overflow-x:auto; padding:16px 12px;}
+  .achv-item{flex:none; width:104px; text-align:center; position:relative;}
+  .achv-item .em{font-size:44px; line-height:1.1;}
+  .achv-item .cnt{position:absolute; top:-4px; right:8px; background:#eee; border-radius:100px; font-size:12px; font-weight:700; padding:2px 8px; color:#666;}
+  .achv-item .lb{font-size:13px; margin-top:6px; line-height:1.25;}
+  .prof-empty{padding:16px 20px; font-size:13.5px; color:var(--muted);}
+  .prof-row{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 20px; border-top:1px solid rgba(0,0,0,.08);}
+  .prof-row .k{font-size:13px; color:var(--muted);}
+  .prof-row .v{font-size:17px;}
+  .copy-btn{background:none; border:none; font-size:22px; cursor:pointer; padding:6px; color:var(--ink);}
+  .prof-close{display:block; width:calc(100% - 20px); margin:12px 10px 0; padding:17px; border:none; border-radius:16px; background:#eee; font-family:'Space Grotesk'; font-weight:600; font-size:17px; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -120,13 +149,14 @@
 
     <div class="card hidden" id="driverCard">
       <h2>Ton transporteur</h2>
-      <div class="driver-row">
+      <div class="driver-row tappable" id="driverRow">
         <div class="driver-avatar" id="driverAvatar">🚚</div>
         <div>
           <div class="driver-name" id="driverName">—</div>
           <div class="driver-vehicle" id="driverRating" style="display:none; color:var(--gold); font-weight:700;"></div>
           <div class="driver-vehicle" id="driverVehicle">—</div>
           <div class="driver-vehicle" id="driverPlaque" style="font-family:'JetBrains Mono'; font-weight:600;"></div>
+          <div class="driver-more" id="driverMore" style="display:none;">Voir le profil ›</div>
         </div>
       </div>
       <div style="display:flex; gap:10px;">
@@ -150,6 +180,7 @@
           <div style="font-size:11.5px; color:var(--muted); margin-top:4px;">À donner au destinataire</div>
         </div>
       </div>
+      <button type="button" id="sendDeliveryCodeBtn" style="margin-top:12px; width:100%; padding:13px; border:none; border-radius:10px; background:#25D366; color:#fff; font-family:'Space Grotesk'; font-weight:700; font-size:14.5px; cursor:pointer;">💬 Envoyer le code de livraison au destinataire</button>
     </div>
 
     <div class="card hidden" id="waitingCard">
@@ -166,6 +197,14 @@
       <div class="stars" id="starsInput">
         <span data-val="1">★</span><span data-val="2">★</span><span data-val="3">★</span><span data-val="4">★</span><span data-val="5">★</span>
       </div>
+      <div class="tag-title">Qu'a-t-il bien fait ? (optionnel)</div>
+      <div class="tag-chips" id="tagChips">
+        <button type="button" class="tag-chip" data-tag="poli">😊 Poli et respectueux</button>
+        <button type="button" class="tag-chip" data-tag="ponctuel">⏱️ Ponctuel</button>
+        <button type="button" class="tag-chip" data-tag="marchandise_protegee">📦 Marchandise bien protégée</button>
+        <button type="button" class="tag-chip" data-tag="communication">💬 Bonne communication</button>
+        <button type="button" class="tag-chip" data-tag="rapide">⚡ Livraison rapide</button>
+      </div>
       <textarea id="ratingComment" placeholder="Un commentaire ? (optionnel)" rows="2"></textarea>
       <button class="contact-btn" id="submitRating" style="background:var(--teal); color:#fff; border:none; margin-top:10px;">Envoyer ma note</button>
       <div class="card-msg" id="ratingMsg"></div>
@@ -181,6 +220,10 @@
       <div class="cargo-photos" id="cargoPhotos"></div>
     </div>
   </div>
+</div>
+
+<div class="prof-bg" id="profBg">
+  <div class="prof-sheet" id="profSheet"></div>
 </div>
 
 <script>
@@ -257,12 +300,12 @@
     renderTimeline(stepKey);
     renderCargo(order);
     initOrUpdateMap(order);
-    renderPinCard(order);
+    await renderPinCard(order);
 
     if (order.transporteur_id) {
       document.getElementById('waitingCard').classList.add('hidden');
       document.getElementById('driverCard').classList.remove('hidden');
-      await loadDriverInfo(order.transporteur_id);
+      await loadDriverInfo(order.transporteur_id, order.id);
       await loadDriverPosition(order);
     } else {
       document.getElementById('waitingCard').classList.remove('hidden');
@@ -281,6 +324,10 @@
   }
 
   let selectedStars = 0;
+
+  document.querySelectorAll('#tagChips .tag-chip').forEach(chip => {
+    chip.addEventListener('click', () => chip.classList.toggle('on'));
+  });
 
   document.querySelectorAll('#starsInput span').forEach(star => {
     star.addEventListener('click', () => {
@@ -308,7 +355,8 @@
       const { data, error } = await sb.rpc('noter_commande', {
         p_order_id: orderId,
         p_note: selectedStars,
-        p_commentaire: comment
+        p_commentaire: comment,
+        p_tags: Array.from(document.querySelectorAll('#tagChips .tag-chip.on')).map(c => c.dataset.tag)
       });
       if (error) throw error;
       if (!data.success) throw new Error(data.error);
@@ -333,15 +381,37 @@
     }
   }
 
-  function renderPinCard(order){
+  let pinsCache = null;
+
+  async function getOrderPins(order){
+    if (order.pin_pickup || order.pin_livraison) {
+      return { pin_pickup: order.pin_pickup, pin_livraison: order.pin_livraison };
+    }
+    if (pinsCache && pinsCache.orderId === order.id) return pinsCache.pins;
+    try {
+      const { data, error } = await sb.from('order_pins').select('pin_pickup, pin_livraison').eq('order_id', order.id).maybeSingle();
+      if (error) throw error;
+      const pins = data || {};
+      if (pins.pin_pickup || pins.pin_livraison) pinsCache = { orderId: order.id, pins };
+      return pins;
+    } catch (err) {
+      console.warn('PIN indisponibles :', err.message);
+      return {};
+    }
+  }
+
+  async function renderPinCard(order){
     const card = document.getElementById('pinCard');
-    if (['COMPLETED', 'CANCELLED'].includes(order.statut) || (!order.pin_pickup && !order.pin_livraison)) {
+    const pins = await getOrderPins(order);
+    if (['COMPLETED', 'CANCELLED'].includes(order.statut) || (!pins.pin_pickup && !pins.pin_livraison)) {
       card.classList.add('hidden');
       return;
     }
     card.classList.remove('hidden');
-    document.getElementById('pinPickupValue').textContent = order.pin_pickup || '—';
-    document.getElementById('pinLivraisonValue').textContent = order.pin_livraison || '—';
+    document.getElementById('pinPickupValue').textContent = pins.pin_pickup || '—';
+    document.getElementById('pinLivraisonValue').textContent = pins.pin_livraison || '—';
+    window.__currentPins = pins;
+    document.getElementById('sendDeliveryCodeBtn').style.display = pins.pin_livraison ? 'block' : 'none';
 
     const pickupDone = !['REQUESTED','DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP'].includes(order.statut);
     document.getElementById('pinPickupWrap').style.opacity = pickupDone ? '0.4' : '1';
@@ -390,9 +460,21 @@
     photosEl.innerHTML = signedUrls.filter(Boolean).map(url => `<img src="${url}" alt="photo marchandise">`).join('');
   }
 
-  async function loadDriverInfo(transporteurId){
-    const { data: driver } = await sb.from('profiles').select('prenom, nom, whatsapp').eq('id', transporteurId).single();
-    const { data: vehicle } = await sb.from('vehicles').select('*, vehicle_types(label)').eq('transporteur_id', transporteurId).eq('statut', 'actif').limit(1).maybeSingle();
+  async function loadDriverInfo(transporteurId, orderIdForInfo){
+    let driver = null, vehicle = null;
+    try {
+      const { data: info, error: infoErr } = await sb.rpc('get_driver_info_for_order', { p_order_id: orderIdForInfo });
+      if (infoErr) throw infoErr;
+      if (info) {
+        driver = info.driver || null;
+        vehicle = info.vehicle ? { ...info.vehicle, vehicle_types: { label: info.vehicle.type_label } } : null;
+      }
+    } catch (err) {
+      console.warn('Infos chauffeur via fonction indisponibles, lecture directe :', err.message);
+      const { data: d } = await sb.from('profiles').select('prenom, nom, whatsapp').eq('id', transporteurId).single();
+      const { data: v } = await sb.from('vehicles').select('*, vehicle_types(label)').eq('transporteur_id', transporteurId).eq('statut', 'actif').limit(1).maybeSingle();
+      driver = d; vehicle = v;
+    }
     const { data: rating } = await sb.from('user_rating_summary').select('*').eq('user_id', transporteurId).maybeSingle();
 
     if (rating) {
@@ -400,6 +482,12 @@
       ratingEl.style.display = 'block';
       ratingEl.textContent = `⭐ ${rating.note_moyenne} (${rating.nombre_notes} avis)`;
     }
+
+    const prof = await ensureDriverProfile(orderIdForInfo);
+    if (prof) document.getElementById('driverMore').style.display = 'block';
+    if (driverAvatarUrl) document.getElementById('driverAvatar').innerHTML = `<img src="${driverAvatarUrl}" alt="">`;
+
+    if (driver && driver.whatsapp) driverWhatsapp = driver.whatsapp;
 
     if (driver) {
       document.getElementById('driverName').textContent = `${driver.prenom || ''} ${driver.nom || ''}`.trim() || 'Transporteur Yoonou';
@@ -416,10 +504,128 @@
 
       if (vehicle.photo_urls && vehicle.photo_urls.length > 0) {
         const signedUrl = await getSignedPhotoUrl('vehicle-photos', vehicle.photo_urls[0]);
-        if (signedUrl) document.getElementById('driverAvatar').innerHTML = `<img src="${signedUrl}" alt="véhicule">`;
+        if (signedUrl && !driverAvatarUrl) document.getElementById('driverAvatar').innerHTML = `<img src="${signedUrl}" alt="véhicule">`;
       }
     }
   }
+
+
+  function escapeHtml(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+
+  // ---- Envoyer le code de livraison au destinataire (WhatsApp) ----
+  function waNumber(raw){
+    let d = String(raw || '').replace(/[^0-9]/g, '');
+    if (d.startsWith('00')) d = d.slice(2);
+    if (d.length === 9) d = '221' + d;
+    return d;
+  }
+  document.getElementById('sendDeliveryCodeBtn').addEventListener('click', () => {
+    const o = currentOrderData, pins = window.__currentPins || {};
+    if (!o || !pins.pin_livraison) return;
+    const shareUrl = `${window.location.origin}/suivi-partage.html?t=${o.share_token}`;
+    const text = `Bonjour${o.destinataire_nom ? ' ' + o.destinataire_nom : ''}, une livraison Yoonou arrive pour vous. Suivez-la en direct ici : ${shareUrl}\n\nQuand le chauffeur arrive, donnez-lui ce code de livraison : ${pins.pin_livraison}\n(à ne donner qu'en main propre, au moment où vous recevez la marchandise).`;
+    window.open(`https://wa.me/${waNumber(o.destinataire_telephone)}?text=${encodeURIComponent(text)}`, '_blank');
+  });
+
+  // ---- PROFIL DU CHAUFFEUR (fenêtre) ----
+  const ACHIEVEMENTS = {
+    poli: ['😊', 'Poli et respectueux'],
+    ponctuel: ['⏱️', 'Ponctuel'],
+    marchandise_protegee: ['📦', 'Marchandise bien protégée'],
+    communication: ['💬', 'Bonne communication'],
+    rapide: ['⚡', 'Livraison rapide']
+  };
+  let driverProfile = null, driverProfileLoaded = false, driverAvatarUrl = null, driverWhatsapp = null;
+
+  function formatPhone(raw){
+    const d = String(raw || '').replace(/[^0-9]/g, '');
+    if (!d) return '';
+    if (d.startsWith('221') && d.length === 12) return `+221 ${d.slice(3, 5)} ${d.slice(5, 8)} ${d.slice(8, 10)} ${d.slice(10, 12)}`;
+    return '+' + d;
+  }
+
+  function formatSince(iso){
+    if (!iso) return '—';
+    const days = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+    if (days < 30) return `${Math.max(1, days)} j`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} mois`;
+    const years = Math.floor(months / 12);
+    return `${years} an${years > 1 ? 's' : ''}`;
+  }
+
+  async function ensureDriverProfile(orderIdForProfile){
+    if (driverProfileLoaded) return driverProfile;
+    driverProfileLoaded = true;
+    try {
+      const { data, error } = await sb.rpc('get_driver_profile_for_order', { p_order_id: orderIdForProfile });
+      if (error) throw error;
+      driverProfile = data || null;
+      if (driverProfile && driverProfile.avatar_path) {
+        const { data: signed } = await sb.storage.from('avatars').createSignedUrl(driverProfile.avatar_path, 3600);
+        if (signed) driverAvatarUrl = signed.signedUrl;
+      }
+    } catch (err) {
+      console.warn('Profil chauffeur indisponible :', err.message);
+      driverProfile = null;
+    }
+    return driverProfile;
+  }
+
+  async function copyText(text, btn){
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (e2) {} ta.remove();
+    }
+    if (btn) { const old = btn.textContent; btn.textContent = '✓'; setTimeout(() => { btn.textContent = old; }, 1200); }
+  }
+
+  function openDriverProfile(){
+    const p = driverProfile;
+    if (!p) return;
+    const initials = ((p.prenom || '?')[0] || '?').toUpperCase();
+    const v = p.vehicle;
+    const vehicleLine = v ? [[v.couleur, v.marque, v.modele].filter(Boolean).join(' '), v.plaque].filter(Boolean).join(', ') : '';
+    const vehicleKind = v ? (v.type_label || v.type || 'Véhicule') : 'Véhicule';
+    const achv = Object.entries(p.realisations || {})
+      .filter(([k, n]) => ACHIEVEMENTS[k] && n > 0)
+      .sort((a, b) => b[1] - a[1]);
+    const phoneDigits = String(driverWhatsapp || '').replace(/[^0-9]/g, '');
+    const note = (p.nombre_notes > 0 && p.note_moyenne != null) ? Number(p.note_moyenne).toFixed(2) : '—';
+
+    document.getElementById('profSheet').innerHTML = `
+      <div class="prof-photo">${driverAvatarUrl ? `<img src="${driverAvatarUrl}" alt="">` : escapeHtml(initials)}</div>
+      <div class="prof-name">${escapeHtml(p.prenom || 'Transporteur')}</div>
+      <div class="prof-stats">
+        <div><div class="n">${formatSince(p.membre_depuis)}</div><div class="l">sur Yoonou</div></div>
+        <div><div class="n">${p.courses || 0}</div><div class="l">livraisons</div></div>
+        <div><div class="n">${note}</div><div class="l">note</div></div>
+      </div>
+      <div class="prof-band">Réalisations</div>
+      ${achv.length
+        ? `<div class="achv">${achv.map(([k, n]) => `<div class="achv-item"><div class="em">${ACHIEVEMENTS[k][0]}</div><div class="cnt">${n}</div><div class="lb">${ACHIEVEMENTS[k][1]}</div></div>`).join('')}</div>`
+        : `<div class="prof-empty">Pas encore de réalisations. Elles apparaissent quand les clients notent ce chauffeur.</div>`}
+      <div class="prof-band" style="margin-top:6px;">&nbsp;</div>
+      <div class="prof-row"><div><div class="v">${escapeHtml(`${p.prenom || ''} ${p.nom || ''}`.trim())}</div></div><button class="copy-btn" data-copy="${escapeHtml(`${p.prenom || ''} ${p.nom || ''}`.trim())}" aria-label="Copier">⧉</button></div>
+      ${vehicleLine ? `<div class="prof-row"><div><div class="k">${escapeHtml(vehicleKind)}</div><div class="v">${escapeHtml(vehicleLine)}</div></div><button class="copy-btn" data-copy="${escapeHtml(vehicleLine)}" aria-label="Copier">⧉</button></div>` : ''}
+      ${phoneDigits ? `
+        <div class="prof-row"><div><div class="k">Téléphone</div><div class="v">${escapeHtml(formatPhone(driverWhatsapp))}</div></div><button class="copy-btn" data-copy="${escapeHtml(formatPhone(driverWhatsapp))}" aria-label="Copier">⧉</button></div>
+        <div style="display:flex; gap:10px; padding:4px 20px 8px;">
+          <a href="tel:+${phoneDigits}" class="contact-btn" style="flex:1; text-align:center;">📞 Appeler</a>
+          <a href="https://wa.me/${phoneDigits}" target="_blank" class="contact-btn" style="flex:1; text-align:center;">💬 WhatsApp</a>
+        </div>` : ''}
+      <button class="prof-close" id="profClose">Fermer</button>`;
+    document.querySelectorAll('#profSheet .copy-btn').forEach(b => b.addEventListener('click', () => copyText(b.dataset.copy, b)));
+    document.getElementById('profClose').addEventListener('click', closeDriverProfile);
+    document.getElementById('profBg').classList.add('open');
+  }
+  function closeDriverProfile(){ document.getElementById('profBg').classList.remove('open'); }
+  document.getElementById('profBg').addEventListener('click', (e) => { if (e.target.id === 'profBg') closeDriverProfile(); });
+  document.getElementById('driverRow').addEventListener('click', openDriverProfile);
 
   async function loadDriverPosition(order){
     const { data } = await sb
@@ -443,10 +649,34 @@
       driverMarker = new mapboxgl.Marker({ element: el }).setLngLat([data.longitude, data.latitude]).addTo(map);
     }
 
-    if (order.depart_lat && order.depart_lng) {
-      const distKm = haversine(data.latitude, data.longitude, order.depart_lat, order.depart_lng);
+    // Avant la collecte : distance jusqu'au point de départ. Après : jusqu'à la destination.
+    const afterPickup = ['PICKUP_CONFIRMED', 'LOADING', 'IN_TRANSIT', 'ARRIVED_DESTINATION'].includes(order.statut);
+    const tLat = afterPickup ? order.destination_lat : order.depart_lat;
+    const tLng = afterPickup ? order.destination_lng : order.depart_lng;
+    if (tLat && tLng) {
+      const distKm = haversine(data.latitude, data.longitude, tLat, tLng);
+      document.querySelector('#etaBox .label').textContent = afterPickup ? 'DISTANCE DE LA DESTINATION' : 'DISTANCE DU CHAUFFEUR';
       document.getElementById('etaBox').classList.remove('hidden');
       document.getElementById('etaValue').textContent = distKm < 1 ? `${Math.round(distKm * 1000)} m` : `${distKm.toFixed(1)} km`;
+    }
+
+    // Position trop ancienne (téléphone verrouillé, application en arrière-plan, réseau coupé) :
+    // on le dit au client au lieu de laisser croire que le camion est arrêté.
+    let ageEl = document.getElementById('posAge');
+    if (!ageEl) {
+      ageEl = document.createElement('div');
+      ageEl.id = 'posAge';
+      ageEl.style.cssText = 'font-size:11.5px; margin-top:4px; text-align:right;';
+      document.getElementById('etaBox').appendChild(ageEl);
+    }
+    const ageSec = Math.max(0, Math.round((Date.now() - new Date(data.created_at).getTime()) / 1000));
+    if (ageSec > 90) {
+      const min = Math.max(1, Math.round(ageSec / 60));
+      ageEl.textContent = `⚠️ Position non actualisée depuis ${min} min`;
+      ageEl.style.color = '#C1502E';
+    } else {
+      ageEl.textContent = '● En direct';
+      ageEl.style.color = '#2A7F76';
     }
   }
 
@@ -530,6 +760,11 @@
   });
 
   init();
+</script>
+<button id="sosFloatBtn" style="position:fixed; bottom:calc(24px + env(safe-area-inset-bottom)); right:24px; width:56px; height:56px; border-radius:50%; background:var(--cta-red); color:#fff; border:none; font-size:22px; box-shadow:0 8px 24px -6px rgba(214,54,42,0.5); cursor:pointer; z-index:90;">🆘</button>
+<script>
+  // Le bouton SOS ouvre la page d'aide (historique des courses + signalement)
+  document.getElementById('sosFloatBtn').addEventListener('click', () => { window.location.href = 'aide.html'; });
 </script>
 </body>
 </html>

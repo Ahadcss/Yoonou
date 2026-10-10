@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<title>Yoonou — Paramètres</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#16213E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom);}
+  h1,h2,h3{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:calc(16px + env(safe-area-inset-top)) 0 16px;}
+  nav .wrap{max-width:720px; margin:0 auto; padding:0 20px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand); text-decoration:none; font-family:'Space Grotesk'; font-weight:600; font-size:14px;}
+  .wrap{max-width:720px; margin:0 auto; padding:28px 20px 60px;}
+  .page-title{font-size:28px; margin-bottom:6px; line-height:1.15;}
+  .page-sub{color:var(--muted); font-size:14.5px; margin-bottom:22px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+  .card{background:#fff; border-radius:14px; padding:22px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+  .card h2{font-size:16px; margin-bottom:6px;}
+  .card p{color:var(--muted); font-size:13.5px; line-height:1.5;}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; font-family:'Space Grotesk'; font-weight:700; font-size:14.5px;
+    padding:13px 22px; border-radius:10px; border:none; cursor:pointer; text-decoration:none; background:var(--cta-red); color:#fff;}
+  .btn.secondary{background:none; border:1.5px solid var(--indigo-deep); color:var(--indigo-deep);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="lang.js"></script>
+<style>
+  .lang-switcher{display:flex; gap:8px; margin-top:14px;}
+  .yoonou-lang-btn{flex:1; padding:12px; border-radius:10px; border:1.5px solid rgba(22,33,62,0.2); background:#fff; color:var(--indigo-deep);
+    font-family:'Space Grotesk'; font-weight:700; font-size:14px; cursor:pointer;}
+  .yoonou-lang-btn.active{background:var(--indigo-deep); color:var(--sand); border-color:var(--indigo-deep);}
+  .lang-note{margin-top:12px; font-size:12.5px; color:var(--muted); display:none;}
+  a.item{display:flex; align-items:center; gap:16px; background:#fff; border-radius:14px; padding:18px 20px; margin-bottom:12px;
+    border:1px solid rgba(22,33,62,0.08); text-decoration:none; color:var(--ink);}
+  a.item .ico{width:46px; height:46px; border-radius:12px; background:var(--sand); display:flex; align-items:center; justify-content:center; font-size:22px; flex:none;}
+  a.item .txt{flex:1; min-width:0;}
+  a.item .t{font-family:'Space Grotesk'; font-weight:700; font-size:15.5px;}
+  a.item .d{color:var(--muted); font-size:13px; margin-top:2px;}
+  a.item .chev{color:#999; font-size:22px;}
+  .soon{font-family:'JetBrains Mono'; font-size:10.5px; background:rgba(232,169,58,.18); color:#a5760f; padding:3px 8px; border-radius:100px; margin-left:8px; font-weight:600;}
+  .section-label{font-family:'JetBrains Mono'; font-size:12px; letter-spacing:.06em; color:var(--muted); margin:22px 0 10px; text-transform:uppercase;}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+  <a href="espace.html" class="nav-link" data-i18n="settings_back">← Mon espace</a>
+</div></nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+  <div id="content" class="hidden">
+    <h1 class="page-title" data-i18n="settings_title">Paramètres</h1>
+    <p class="page-sub" data-i18n="settings_sub">Langue, lieux, aide et plus.</p>
+
+    <div class="card">
+      <h2 data-i18n="settings_language">🌍 Langue</h2>
+      <p data-i18n="settings_language_desc">Choisis la langue de l'application.</p>
+      <div class="lang-switcher" id="langSwitcher"></div>
+      <p class="lang-note" id="langNote" data-i18n="settings_language_note">Certaines pages ne sont pas encore traduites : elles restent en français.</p>
+    </div>
+
+    <div class="card hidden" id="avatarCard">
+      <h2>📷 Ma photo de profil</h2>
+      <p>Les clients voient cette photo quand tu livres leur marchandise. Choisis une photo de ton visage, bien éclairée, sans lunettes de soleil.</p>
+      <div style="display:flex; align-items:center; gap:16px; margin-top:14px;">
+        <div id="avatarPreview" style="width:84px; height:84px; border-radius:50%; background:var(--sand); overflow:hidden; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk'; font-weight:700; font-size:30px; color:var(--indigo-deep); flex:none;">?</div>
+        <div>
+          <input type="file" id="avatarInput" accept="image/*" style="display:none;">
+          <button class="btn secondary" id="avatarBtn" type="button">Choisir une photo</button>
+          <div id="avatarMsg" style="font-size:12.5px; margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label" data-i18n="settings_section_map">Carte</div>
+    <a class="item" href="ajouter-zone.html">
+      <div class="ico">📍</div>
+      <div class="txt"><div class="t" data-i18n="settings_add_place">Ajouter un lieu</div>
+        <div class="d" data-i18n="settings_add_place_desc">Un lieu manque ou est mal placé ? Ajoute-le sur la carte.</div></div>
+      <div class="chev">›</div>
+    </a>
+
+    <div class="section-label" data-i18n="settings_section_help">Aide</div>
+    <a class="item" href="aide.html">
+      <div class="ico">🆘</div>
+      <div class="txt"><div class="t" data-i18n="settings_help">Aide et historique</div>
+        <div class="d" data-i18n="settings_help_desc">Un problème avec une course ? Contacte l'équipe Yoonou.</div></div>
+      <div class="chev">›</div>
+    </a>
+
+    <div class="section-label" data-i18n="settings_section_business">Entreprise</div>
+    <a class="item" href="entreprise-bientot.html">
+      <div class="ico">🏢</div>
+      <div class="txt"><div class="t"><span data-i18n="settings_business">Créer un compte pour entreprise</span><span class="soon" data-i18n="settings_soon">BIENTÔT</span></div>
+        <div class="d" data-i18n="settings_business_desc">Livraisons régulières, plusieurs utilisateurs, factures.</div></div>
+      <div class="chev">›</div>
+    </a>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function updateNote(){ document.getElementById('langNote').style.display = (yoonouGetLang() === 'fr') ? 'none' : 'block'; }
+
+  let currentUserId = null;
+
+  async function resizeToJpeg(file, max){
+    const bmp = await createImageBitmap(file);
+    const ratio = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * ratio); c.height = Math.round(bmp.height * ratio);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
+  }
+
+  async function showAvatar(path, prenom){
+    const box = document.getElementById('avatarPreview');
+    box.textContent = ((prenom || '?')[0] || '?').toUpperCase();
+    if (!path) return;
+    const { data } = await sb.storage.from('avatars').createSignedUrl(path, 3600);
+    if (data) box.innerHTML = `<img src="${data.signedUrl}" alt="" style="width:100%;height:100%;object-fit:cover;">`;
+  }
+
+  function statutText(me){
+    if (!me.avatar_path || !me.avatar_statut) return ['', ''];
+    if (me.avatar_statut === 'APPROVED') return ['✅ Photo validée : tes clients la voient.', 'var(--teal)'];
+    if (me.avatar_statut === 'REJECTED') return ['❌ Photo refusée : choisis une autre photo (visage visible, de face, sans lunettes de soleil).', 'var(--laterite)'];
+    return ['⏳ En attente de validation par l\'équipe Yoonou. Tes clients verront tes initiales en attendant.', 'var(--muted)'];
+  }
+
+  function setupAvatar(me){
+    document.getElementById('avatarCard').classList.remove('hidden');
+    showAvatar(me.avatar_path, me.prenom);
+    { const [txt, col] = statutText(me); const m = document.getElementById('avatarMsg'); m.textContent = txt; m.style.color = col; }
+    const input = document.getElementById('avatarInput'), msg = document.getElementById('avatarMsg');
+    document.getElementById('avatarBtn').addEventListener('click', () => input.click());
+    input.addEventListener('change', async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      msg.style.color = 'var(--muted)'; msg.textContent = 'Envoi en cours…';
+      try {
+        const blob = await resizeToJpeg(file, 640);
+        const path = `${currentUserId}/${Date.now()}.jpg`;
+        const { error: upErr } = await sb.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg' });
+        if (upErr) throw upErr;
+        const { error: dbErr } = await sb.from('profiles').update({ avatar_path: path }).eq('id', currentUserId);
+        if (dbErr) throw dbErr;
+        // Supprime l'ancienne photo (si elle existe) pour ne pas accumuler les fichiers
+        if (me.avatar_path && me.avatar_path !== path) await sb.storage.from('avatars').remove([me.avatar_path]);
+        me.avatar_path = path;
+        await showAvatar(path, me.prenom);
+        msg.style.color = 'var(--muted)'; msg.textContent = '✅ Photo enregistrée. ⏳ Elle sera visible par tes clients après validation par l\'équipe Yoonou.';
+      } catch (err) {
+        msg.style.color = 'var(--laterite)';
+        msg.textContent = 'Erreur : ' + (err.message || 'réessaie.') + ' (si le message parle d\'un bucket introuvable, exécute migration_profil_chauffeur.sql dans Supabase)';
+      } finally { input.value = ''; }
+    });
+  }
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    currentUserId = session.user.id;
+    let { data: me, error: meErr } = await sb.from('profiles').select('role, prenom, avatar_path, avatar_statut').eq('id', session.user.id).single();
+    if (meErr) {   // la colonne avatar_statut n'existe pas encore : ancienne base
+      ({ data: me } = await sb.from('profiles').select('role, prenom, avatar_path').eq('id', session.user.id).single());
+    }
+    if (me && me.role === 'transporteur') setupAvatar(me);
+    yoonouInjectLangSwitcher('langSwitcher');
+    document.querySelectorAll('.yoonou-lang-btn').forEach(b => b.addEventListener('click', updateNote));
+    updateNote();
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+    yoonouApplyTranslations();
+  }
+  init();
+</script>
+</body>
+</html>

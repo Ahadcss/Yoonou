@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<title>Yoonou — Entreprise, bientôt</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#16213E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom);}
+  h1,h2,h3{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:calc(16px + env(safe-area-inset-top)) 0 16px;}
+  nav .wrap{max-width:720px; margin:0 auto; padding:0 20px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand); text-decoration:none; font-family:'Space Grotesk'; font-weight:600; font-size:14px;}
+  .wrap{max-width:720px; margin:0 auto; padding:28px 20px 60px;}
+  .page-title{font-size:28px; margin-bottom:6px; line-height:1.15;}
+  .page-sub{color:var(--muted); font-size:14.5px; margin-bottom:22px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+  .card{background:#fff; border-radius:14px; padding:22px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+  .card h2{font-size:16px; margin-bottom:6px;}
+  .card p{color:var(--muted); font-size:13.5px; line-height:1.5;}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; font-family:'Space Grotesk'; font-weight:700; font-size:14.5px;
+    padding:13px 22px; border-radius:10px; border:none; cursor:pointer; text-decoration:none; background:var(--cta-red); color:#fff;}
+  .btn.secondary{background:none; border:1.5px solid var(--indigo-deep); color:var(--indigo-deep);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+</style>
+
+<script src="lang.js"></script>
+<style>
+  body{display:flex; flex-direction:column; min-height:100vh;}
+  .center{flex:1; display:flex; align-items:center; justify-content:center; padding:30px 20px;}
+  .box{max-width:460px; text-align:center;}
+  .big{font-size:72px; margin-bottom:14px;}
+  .badge{display:inline-block; font-family:'JetBrains Mono'; font-size:12px; letter-spacing:.08em; padding:6px 14px; border-radius:100px;
+    background:rgba(232,169,58,.18); color:#a5760f; font-weight:600; margin-bottom:16px;}
+  .box h1{font-size:30px; line-height:1.15; margin-bottom:12px;}
+  .box p{color:var(--muted); font-size:15.5px; line-height:1.6; margin-bottom:26px;}
+</style>
+</head>
+<body>
+<nav><div class="wrap"><a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a></div></nav>
+<div class="center"><div class="box">
+  <div class="big">🏢</div>
+  <div class="badge" data-i18n="biz_badge">BIENTÔT DISPONIBLE</div>
+  <h1 data-i18n="biz_title">Yoonou pour entreprise arrive bientôt</h1>
+  <p data-i18n="biz_text">Nous préparons un espace pensé pour les entreprises : livraisons régulières, plusieurs utilisateurs sur un même compte et suivi simplifié. Merci de ta patience !</p>
+  <button class="btn" id="backBtn" data-i18n="biz_back">← Retour</button>
+</div></div>
+<script>
+  document.getElementById('backBtn').addEventListener('click', () => {
+    if (document.referrer && history.length > 1) history.back();
+    else window.location.href = 'parametres.html';
+  });
+</script>
+</body>
+</html>

@@ -83,6 +83,7 @@
             <div class="zone-meta">Proposée par ${escapeHtml(z.profiles?.prenom || '')} ${escapeHtml(z.profiles?.nom || '')} (${z.profiles?.role || '—'}) · ${new Date(z.created_at).toLocaleDateString('fr-FR')}</div>
           </div>
         </div>
+        ${(z.type_lieu || z.adresse) ? `<div class="zone-desc"><strong>${escapeHtml(z.type_lieu || '')}</strong>${z.type_lieu && z.adresse ? ' · ' : ''}${escapeHtml(z.adresse || '')}</div>` : ''}
         ${z.description ? `<div class="zone-desc">${escapeHtml(z.description)}</div>` : ''}
         <div class="mini-map" id="map-${z.id}"></div>
         <div class="action-row">

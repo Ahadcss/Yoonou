@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Yoonou — Admin · Photos de profil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{--indigo-deep:#16213E; --laterite:#C1502E; --sand:#F3E9D2; --sand-dim:#E6D9BB; --teal:#2A7F76; --gold:#E8A93A; --ink:#1A1712; --muted:#4a4438; --cta-red:#D6362A;}
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom);}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
+  nav .wrap{max-width:800px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); text-decoration:none;}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:800px; margin:0 auto; padding:40px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+  h1{font-size:26px; margin-bottom:6px;}
+  .subtitle{color:var(--muted); font-size:14px; margin-bottom:24px;}
+  .empty-note{color:var(--muted); font-size:14px; padding:24px; background:#fff; border-radius:12px; border:1px solid rgba(22,33,62,0.08); text-align:center;}
+  .item{background:#fff; border-radius:12px; padding:20px; border:1px solid rgba(22,33,62,0.08); margin-bottom:14px; display:flex; gap:18px; align-items:flex-start;}
+  .photo{width:130px; height:130px; border-radius:12px; background:var(--sand); overflow:hidden; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--muted);}
+  .photo img{width:100%; height:100%; object-fit:cover;}
+  .info{flex:1; min-width:0;}
+  .name{font-family:'Space Grotesk'; font-weight:700; font-size:16px;}
+  .meta{font-size:13px; color:var(--muted); margin-top:3px;}
+  .rules{font-size:12.5px; color:var(--muted); margin:10px 0; line-height:1.5;}
+  .action-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .btn-approve{font-family:'Space Grotesk'; font-weight:700; font-size:13px; padding:9px 16px; border-radius:6px; border:none; background:var(--teal); color:#fff; cursor:pointer;}
+  .btn-reject{font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:9px 16px; border-radius:6px; border:1.5px solid var(--laterite); background:none; color:var(--laterite); cursor:pointer;}
+  button:disabled{opacity:0.5;}
+  .item-msg{font-size:12.5px; margin-top:8px;}
+  @media (max-width:520px){ .item{flex-direction:column;} .photo{width:100%; height:240px;} }
+</style>
+</head>
+<body>
+<nav><div class="wrap"><a href="espace.html" class="logo">Yoonou</a><a href="admin-dashboard.html" class="nav-link">← Vue d'ensemble</a></div></nav>
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+  <div id="content" class="hidden">
+    <h1>Photos de profil à valider</h1>
+    <p class="subtitle">Les clients ne voient la photo d'un chauffeur qu'après ta validation.</p>
+    <div id="list"></div>
+  </div>
+</div>
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+    if (!profile || profile.role !== 'admin') { window.location.href = 'espace.html'; return; }
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+    await loadList();
+  }
+
+  async function loadList(){
+    const list = document.getElementById('list');
+    const { data, error } = await sb.from('profiles')
+      .select('id, prenom, nom, whatsapp, ville, avatar_path')
+      .eq('avatar_statut', 'PENDING').not('avatar_path', 'is', null)
+      .order('created_at', { ascending: true });
+    if (error) {
+      list.innerHTML = `<div class="empty-note">Erreur : ${escapeHtml(error.message)}<br>Si le message parle d'une colonne introuvable, exécute migration_validation_photos.sql dans Supabase.</div>`;
+      return;
+    }
+    if (!data || data.length === 0) { list.innerHTML = '<div class="empty-note">Aucune photo en attente. 🎉</div>'; return; }
+
+    list.innerHTML = data.map(p => `
+      <div class="item" id="item-${p.id}">
+        <div class="photo" id="photo-${p.id}">Chargement…</div>
+        <div class="info">
+          <div class="name">${escapeHtml(p.prenom || '')} ${escapeHtml(p.nom || '')}</div>
+          <div class="meta">${escapeHtml(p.whatsapp || '—')} · ${escapeHtml(p.ville || '')}</div>
+          <div class="rules">À valider : visage bien visible, de face, photo nette, sans lunettes de soleil, casque ni masque, et une seule personne.</div>
+          <div class="action-row">
+            <button class="btn-approve" data-id="${p.id}" data-d="APPROVED">✓ Valider</button>
+            <button class="btn-reject" data-id="${p.id}" data-d="REJECTED">✕ Refuser</button>
+          </div>
+          <div class="item-msg" id="msg-${p.id}"></div>
+        </div>
+      </div>`).join('');
+
+    for (const p of data) {
+      const box = document.getElementById('photo-' + p.id);
+      const { data: signed, error: e } = await sb.storage.from('avatars').createSignedUrl(p.avatar_path, 3600);
+      box.innerHTML = (signed && !e) ? `<img src="${signed.signedUrl}" alt="">` : 'Photo illisible';
+    }
+    list.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', () => decide(b.dataset.id, b.dataset.d)));
+  }
+
+  async function decide(userId, decision){
+    const msg = document.getElementById('msg-' + userId);
+    document.querySelectorAll(`#item-${userId} button`).forEach(b => b.disabled = true);
+    try {
+      const { data, error } = await sb.rpc('valider_photo_profil', { p_user_id: userId, p_decision: decision });
+      if (error) throw error;
+      msg.style.color = 'var(--teal)';
+      msg.textContent = data ? (decision === 'APPROVED' ? '✅ Photo validée.' : '❌ Photo refusée, le chauffeur est prévenu.') : 'Photo introuvable.';
+      setTimeout(loadList, 1000);
+    } catch (err) {
+      msg.style.color = 'var(--cta-red)';
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      document.querySelectorAll(`#item-${userId} button`).forEach(b => b.disabled = false);
+    }
+  }
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<title>Yoonou — Aide</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#16213E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --indigo-deep:#16213E; --indigo-panel:#1F2E52;
+    --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB;
+    --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438;
+    --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom);}
+  h1,h2,h3{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:calc(16px + env(safe-area-inset-top)) 0 16px;}
+  nav .wrap{max-width:720px; margin:0 auto; padding:0 20px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand); text-decoration:none; font-family:'Space Grotesk'; font-weight:600; font-size:14px;}
+  .wrap{max-width:720px; margin:0 auto; padding:28px 20px 60px;}
+  .page-title{font-size:28px; margin-bottom:6px; line-height:1.15;}
+  .page-sub{color:var(--muted); font-size:14.5px; margin-bottom:22px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+  .card{background:#fff; border-radius:14px; padding:22px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
+  .card h2{font-size:16px; margin-bottom:6px;}
+  .card p{color:var(--muted); font-size:13.5px; line-height:1.5;}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; font-family:'Space Grotesk'; font-weight:700; font-size:14.5px;
+    padding:13px 22px; border-radius:10px; border:none; cursor:pointer; text-decoration:none; background:var(--cta-red); color:#fff;}
+  .btn.secondary{background:none; border:1.5px solid var(--indigo-deep); color:var(--indigo-deep);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="lang.js"></script>
+<style>
+  .section-label{font-family:'JetBrains Mono'; font-size:12px; letter-spacing:.06em; color:var(--muted); margin:24px 0 10px; text-transform:uppercase;}
+  .urgent-card{display:flex; align-items:center; gap:14px; width:100%; text-align:left; background:#fff; border:2px solid var(--cta-red); border-radius:14px; padding:16px 18px; cursor:pointer; margin-bottom:6px;}
+  .urgent-card .ico{font-size:28px;}
+  .urgent-card .t{font-family:'Space Grotesk'; font-weight:700; font-size:15.5px; color:var(--cta-red);}
+  .urgent-card .d{font-size:13px; color:var(--muted); margin-top:2px;}
+  .order{display:flex; align-items:center; gap:14px; background:#fff; border-radius:14px; padding:14px 14px 14px 16px; margin-bottom:10px; border:1px solid rgba(22,33,62,0.08);}
+  .order .em{font-size:26px; flex:none;}
+  .order .main{flex:1; min-width:0;}
+  .order .top{font-family:'Space Grotesk'; font-weight:700; font-size:15px;}
+  .order .route{font-size:13px; color:var(--muted); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .order .who{font-size:12.5px; color:var(--muted); margin-top:2px;}
+  .st{display:inline-block; font-size:12px; font-weight:600; margin-top:4px;}
+  .st.bad{color:var(--cta-red);} .st.ok{color:var(--teal);} .st.run{color:#a5760f;}
+  .chat-btn{flex:none; width:46px; height:46px; border-radius:50%; border:none; background:var(--sand); font-size:20px; cursor:pointer;}
+  .empty{color:var(--muted); font-size:14px; padding:14px 4px;}
+  .more{display:block; width:100%; text-align:center; margin-top:4px;}
+
+  .overlay{position:fixed; inset:0; background:rgba(22,33,62,.55); z-index:50; display:none; align-items:flex-end; justify-content:center;}
+  .overlay.open{display:flex;}
+  .sheet{background:#fff; width:100%; max-width:560px; border-radius:20px 20px 0 0; padding:22px 20px calc(20px + env(safe-area-inset-bottom)); max-height:88vh; overflow-y:auto;}
+  .sheet h3{font-size:18px; margin-bottom:4px;}
+  .sheet .sub{color:var(--muted); font-size:13px; margin-bottom:14px;}
+  .opt{display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:1px solid rgba(0,0,0,.07); font-size:14.5px; cursor:pointer;}
+  .opt input{width:18px; height:18px; accent-color:var(--cta-red);}
+  .sheet textarea{width:100%; margin-top:12px; padding:12px; border-radius:10px; border:1.5px solid rgba(22,33,62,.15); font-family:inherit; font-size:14px; resize:vertical;}
+  .sheet .actions{display:flex; flex-direction:column; gap:10px; margin-top:14px;}
+  .btn.wa{background:#25D366; color:#fff;}
+  .msg{margin-top:12px; padding:11px 13px; border-radius:10px; font-size:13.5px; display:none;}
+  .msg.err{display:block; background:rgba(193,80,46,.1); color:var(--laterite);}
+  .msg.ok{display:block; background:rgba(42,127,118,.1); color:var(--teal);}
+  .close-link{display:block; margin:14px auto 0; background:none; border:none; color:var(--muted); font-size:13.5px; cursor:pointer;}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+  <a href="#" class="nav-link" id="backLink" data-i18n="help_back">← Retour</a>
+</div></nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+  <div id="content" class="hidden">
+    <h1 class="page-title" data-i18n="help_title">Sur quel sujet as-tu besoin d'aide ?</h1>
+    <p class="page-sub" id="pageSub"></p>
+
+    <button class="urgent-card" id="urgentBtn">
+      <div class="ico">🆘</div>
+      <div><div class="t" data-i18n="help_urgent">Urgence / sécurité</div>
+        <div class="d" data-i18n="help_urgent_desc">Danger, accident, agression : l'équipe est alertée tout de suite avec ta position.</div></div>
+    </button>
+
+    <div class="section-label" id="historyLabel" data-i18n="help_history_client">Mes courses et commandes</div>
+    <div id="orders"></div>
+    <button class="btn secondary more hidden" id="moreBtn" data-i18n="help_more">Voir plus</button>
+
+    <div class="section-label" data-i18n="help_other">Autres</div>
+    <div class="order" style="cursor:pointer;" id="otherBtn">
+      <div class="em">💬</div>
+      <div class="main"><div class="top" data-i18n="help_other_title">Un autre problème</div>
+        <div class="route" data-i18n="help_other_desc">Compte, application, paiement de commission…</div></div>
+      <div style="color:#999; font-size:22px;">›</div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h3 id="sheetTitle"></h3>
+    <div class="sub" id="sheetSub"></div>
+    <div id="sheetOptions"></div>
+    <textarea id="sheetText" rows="3" placeholder="Explique en quelques mots (optionnel)" data-i18n-placeholder="help_details_ph"></textarea>
+    <div class="msg" id="sheetMsg"></div>
+    <div class="actions">
+      <button class="btn wa" id="waBtn">💬 <span data-i18n="help_send_wa">Envoyer sur WhatsApp</span></button>
+      <button class="btn" id="ticketBtn">📨 <span data-i18n="help_send_app">Envoyer à l'équipe dans l'app</span></button>
+    </div>
+    <button class="close-link" id="closeSheet" data-i18n="help_close">Fermer</button>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const YOONOU_SUPPORT_WHATSAPP = '+221774203400';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const $ = id => document.getElementById(id);
+
+  const PROBLEMS = {
+    client: ["Le chauffeur n'est pas venu", "Problème avec la marchandise (abîmée, manquante)", "Prix ou paiement", "Comportement / sécurité", "Autre"],
+    transporteur: ["Le client ne répond pas / est absent", "Adresse ou lieu incorrect", "Problème de paiement", "Comportement / sécurité", "Autre"]
+  };
+  const STATUS = {
+    COMPLETED: ['Terminée', 'ok'], CANCELLED: ['Annulée', 'bad'], REQUESTED: ['En attente de chauffeur', 'run']
+  };
+
+  let profile = null, user = null, orders = [], shown = 8, sheetCtx = null;
+
+  function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+  function t(key, fb){ try { const d = YOONOU_TRANSLATIONS[yoonouGetLang()] || {}; return d[key] || fb; } catch(e){ return fb; } }
+  function fmtDate(iso){
+    const d = new Date(iso);
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+  function fmtPrice(p){ return p ? Math.round(p).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' FCFA' : ''; }
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    user = session.user;
+    const { data: p } = await sb.from('profiles').select('prenom, nom, role, whatsapp').eq('id', user.id).single();
+    profile = p || { role: 'client', prenom: '', nom: '' };
+
+    const isDriver = profile.role === 'transporteur';
+    $('pageSub').textContent = isDriver ? "Choisis une livraison pour la signaler à l'équipe Yoonou." : "Choisis une commande pour la signaler à l'équipe Yoonou.";
+    $('historyLabel').textContent = isDriver ? t('help_history_driver', 'Mes livraisons') : t('help_history_client', 'Mes courses et commandes');
+
+    $('backLink').addEventListener('click', (e) => { e.preventDefault(); if (document.referrer && history.length > 1) history.back(); else window.location.href = 'espace.html'; });
+    $('urgentBtn').addEventListener('click', () => openSheet({ urgent: true }));
+    $('otherBtn').addEventListener('click', () => openSheet({ other: true }));
+    $('moreBtn').addEventListener('click', () => { shown += 10; renderOrders(); });
+    $('closeSheet').addEventListener('click', closeSheet);
+    $('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) closeSheet(); });
+    $('waBtn').addEventListener('click', sendWhatsApp);
+    $('ticketBtn').addEventListener('click', sendTicket);
+
+    await loadOrders();
+    $('loadingState').classList.add('hidden');
+    $('content').classList.remove('hidden');
+    yoonouApplyTranslations();
+  }
+
+  async function loadOrders(){
+    let list = null;
+    try {
+      const { data, error } = await sb.rpc('get_my_order_history', { p_limit: 60 });
+      if (error) throw error;
+      list = data || [];
+    } catch (err) {
+      console.warn('Historique via fonction indisponible, lecture directe :', err.message);
+      const { data } = await sb.from('orders')
+        .select('id, created_at, statut, depart, destination, prix, client_id, transporteur_id')
+        .or(`client_id.eq.${user.id},transporteur_id.eq.${user.id}`)
+        .order('created_at', { ascending: false }).limit(60);
+      list = (data || []).map(o => ({ ...o, reference: o.id.slice(0, 8).toUpperCase(), autre_partie: null }));
+    }
+    // L'historique d'un chauffeur ne contient que les courses où il a été assigné
+    orders = list;
+    renderOrders();
+  }
+
+  function renderOrders(){
+    const box = $('orders');
+    if (!orders.length) {
+      box.innerHTML = `<div class="empty">${profile.role === 'transporteur' ? "Aucune livraison pour l'instant." : "Aucune commande pour l'instant."}</div>`;
+      $('moreBtn').classList.add('hidden');
+      return;
+    }
+    const isDriver = profile.role === 'transporteur';
+    box.innerHTML = orders.slice(0, shown).map((o, i) => {
+      const [label, cls] = STATUS[o.statut] || ['En cours', 'run'];
+      const other = o.autre_partie ? `${escapeHtml(o.autre_partie.prenom || '')} ${escapeHtml(o.autre_partie.nom || '')}`.trim() : '';
+      return `
+        <div class="order">
+          <div class="em">${isDriver ? '🚚' : '📦'}</div>
+          <div class="main">
+            <div class="top">${fmtDate(o.created_at)} · #${escapeHtml(o.reference)}</div>
+            <div class="route">${fmtPrice(o.prix)}${o.prix ? ' · ' : ''}${escapeHtml(o.depart)} → ${escapeHtml(o.destination)}</div>
+            ${other ? `<div class="who">${isDriver ? 'Client' : 'Chauffeur'} : ${other}</div>` : ''}
+            <div class="st ${cls}">${label}</div>
+          </div>
+          <button class="chat-btn" data-i="${i}" aria-label="Signaler">💬</button>
+        </div>`;
+    }).join('');
+    box.querySelectorAll('.chat-btn').forEach(b => b.addEventListener('click', () => openSheet({ order: orders[parseInt(b.dataset.i)] })));
+    $('moreBtn').classList.toggle('hidden', orders.length <= shown);
+  }
+
+  // ---- Fenêtre de signalement ----
+  function openSheet(ctx){
+    sheetCtx = ctx;
+    const isDriver = profile.role === 'transporteur';
+    const opts = PROBLEMS[isDriver ? 'transporteur' : 'client'];
+    $('sheetMsg').className = 'msg';
+    $('sheetText').value = '';
+    if (ctx.urgent) {
+      $('sheetTitle').textContent = '🆘 Urgence / sécurité';
+      $('sheetSub').textContent = "Décris la situation. Ta position GPS sera envoyée à l'équipe.";
+      $('sheetOptions').innerHTML = '';
+      $('ticketBtn').querySelector('span').textContent = "Envoyer l'alerte maintenant";
+    } else if (ctx.other) {
+      $('sheetTitle').textContent = 'Un autre problème';
+      $('sheetSub').textContent = "Dis-nous ce qui ne va pas, on te répond rapidement.";
+      $('sheetOptions').innerHTML = '';
+      $('ticketBtn').querySelector('span').textContent = t('help_send_app', "Envoyer à l'équipe dans l'app");
+    } else {
+      const o = ctx.order;
+      $('sheetTitle').textContent = `Commande #${o.reference}`;
+      $('sheetSub').textContent = `${fmtDate(o.created_at)} · ${o.depart} → ${o.destination}`;
+      $('sheetOptions').innerHTML = opts.map((p, i) =>
+        `<label class="opt"><input type="radio" name="pb" value="${escapeHtml(p)}" ${i === 0 ? 'checked' : ''}><span>${escapeHtml(p)}</span></label>`).join('');
+      $('ticketBtn').querySelector('span').textContent = t('help_send_app', "Envoyer à l'équipe dans l'app");
+    }
+    $('overlay').classList.add('open');
+  }
+  function closeSheet(){ $('overlay').classList.remove('open'); }
+
+  function currentProblem(){
+    const c = sheetCtx || {};
+    if (c.urgent) return 'Sécurité / urgence';
+    if (c.other) return 'Autre problème';
+    const r = document.querySelector('input[name="pb"]:checked');
+    return r ? r.value : 'Autre';
+  }
+
+  function buildWaMessage(){
+    const c = sheetCtx || {}, details = $('sheetText').value.trim();
+    const who = `${profile.role === 'transporteur' ? 'Chauffeur' : 'Client'} : ${profile.prenom || ''} ${profile.nom || ''}`.trim();
+    if (c.order) {
+      const o = c.order;
+      return `Bonjour Yoonou, j'ai un problème avec la commande #${o.reference} du ${fmtDate(o.created_at)} (${o.depart} → ${o.destination}).\nProblème : ${currentProblem()}${details ? '\nDétails : ' + details : ''}\n${who}`;
+    }
+    if (c.urgent) return `🆘 URGENCE Yoonou. ${details || 'J\'ai besoin d\'aide immédiatement.'}\n${who}`;
+    return `Bonjour Yoonou, j'ai un problème : ${details || '(je préciserai ici)'}\n${who}`;
+  }
+
+  function sendWhatsApp(){
+    const url = `https://wa.me/${YOONOU_SUPPORT_WHATSAPP.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(buildWaMessage())}`;
+    window.open(url, '_blank');
+  }
+
+  async function sendTicket(){
+    const btn = $('ticketBtn'), msg = $('sheetMsg'), c = sheetCtx || {};
+    const details = $('sheetText').value.trim();
+    if ((c.urgent || c.other) && !details) { msg.textContent = "Décris un peu la situation avant d'envoyer."; msg.className = 'msg err'; return; }
+    btn.disabled = true;
+    let lat = null, lng = null;
+    if (c.urgent && navigator.geolocation) {
+      try {
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000 }));
+        lat = pos.coords.latitude; lng = pos.coords.longitude;
+      } catch (e) { /* pas grave */ }
+    }
+    const category = currentProblem();
+    const description = details || category;
+    try {
+      let error = null;
+      const r = await sb.rpc('signaler_commande', {
+        p_order_id: c.order ? c.order.id : null, p_categorie: category, p_description: description,
+        p_urgent: !!c.urgent, p_lat: lat, p_lng: lng
+      });
+      error = r.error;
+      if (error && /signaler_commande|function|schema cache/i.test(error.message || '')) {
+        // La fonction n'existe pas encore : même méthode que l'ancien bouton SOS
+        const ins = await sb.from('disputes').insert([{
+          user_id: user.id, order_id: c.order ? c.order.id : null, reason: category, category, description,
+          raised_by_role: profile.role === 'transporteur' ? 'transporteur' : 'client', is_urgent: !!c.urgent, gps_lat: lat, gps_lng: lng
+        }]);
+        error = ins.error;
+      }
+      if (error) throw error;
+      msg.textContent = c.urgent ? "🆘 Alerte envoyée. L'équipe Yoonou a été prévenue immédiatement." : "✅ Envoyé. L'équipe Yoonou te répond rapidement.";
+      msg.className = 'msg ok';
+      $('sheetText').value = '';
+    } catch (err) {
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+      msg.className = 'msg err';
+    } finally { btn.disabled = false; }
+  }
+
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Yoonou — Partager ma position</title>
+<meta name="theme-color" content="#16213E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="lang.js"></script>
+<script src="lieux.js"></script>
+<style>
+  :root{--indigo-deep:#16213E; --laterite:#C1502E; --sand:#F3E9D2; --teal:#2A7F76; --ink:#1A1712; --muted:#6b6455; --cta-red:#D6362A; --pin:#EF5B3C;}
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{font-family:'Work Sans', sans-serif; color:var(--ink); background:#fff; overflow:hidden;}
+  #app{display:flex; flex-direction:column; height:100dvh;}
+  #mapWrap{position:relative; flex:1; min-height:200px;}
+  #map{position:absolute; inset:0;}
+  #centerPin{position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); pointer-events:none; z-index:5; display:flex; flex-direction:column; align-items:center; transition:transform .15s ease;}
+  #centerPin.moving{transform:translate(-50%,calc(-100% - 10px));}
+  #centerPin .head{width:46px; height:46px; border-radius:12px; background:var(--pin); color:#fff; font-size:26px; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(0,0,0,.28);}
+  #centerPin .stem{width:3px; height:26px; background:#111; border-radius:2px;}
+  #centerPin .dot{width:8px; height:8px; border-radius:50%; background:#111; opacity:.55; margin-top:-3px;}
+  #brand{position:absolute; top:calc(12px + env(safe-area-inset-top)); left:12px; z-index:6; background:var(--indigo-deep); color:var(--sand); font-family:'Space Grotesk'; font-weight:700; font-size:15px; padding:8px 14px; border-radius:100px; display:flex; align-items:center; gap:8px;}
+  #brand .dot2{width:8px; height:8px; border-radius:50%; background:#E0623C;}
+  .round-btn{position:absolute; width:48px; height:48px; border-radius:50%; background:#fff; border:none; z-index:7; box-shadow:0 3px 12px rgba(0,0,0,.22); font-size:21px; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  #locateBtn{bottom:34px; right:12px;}
+  #searchToggle{top:calc(10px + env(safe-area-inset-top)); right:12px;}
+  #searchWrap{position:absolute; top:calc(66px + env(safe-area-inset-top)); left:12px; right:12px; z-index:8; display:none;}
+  #searchWrap.open{display:block;}
+  #searchInput{width:100%; padding:14px 16px; border-radius:12px; border:none; font-size:15px; box-shadow:0 4px 16px rgba(0,0,0,.2);}
+  #searchResults{background:#fff; border-radius:12px; margin-top:6px; box-shadow:0 4px 16px rgba(0,0,0,.2); max-height:40vh; overflow-y:auto;}
+  .sr-item{padding:13px 16px; font-size:14px; border-bottom:1px solid rgba(0,0,0,.06); cursor:pointer;}
+  .sr-empty{padding:14px 16px; font-size:13.5px; color:var(--muted);}
+  #sheet{flex:none; background:#fff; border-radius:22px 22px 0 0; margin-top:-22px; position:relative; z-index:9; padding:20px 20px calc(18px + env(safe-area-inset-bottom)); max-height:60dvh; overflow-y:auto; box-shadow:0 -6px 24px rgba(0,0,0,.12);}
+  #sheet h1{font-family:'Space Grotesk'; font-weight:700; font-size:22px; line-height:1.2; margin-bottom:4px;}
+  #sheet .sub{color:var(--muted); font-size:14.5px; margin-bottom:12px; line-height:1.4;}
+  .row{display:flex; align-items:center; gap:14px; padding:13px 0; border-top:1px solid rgba(0,0,0,.08);}
+  .row .ico{width:26px; text-align:center; font-size:20px; flex:none;}
+  .row .body{flex:1; min-width:0;}
+  .row input{width:100%; border:none; outline:none; font-size:16px; font-family:inherit; background:transparent;}
+  #addrText{font-size:15.5px; line-height:1.3;}
+  .skeleton{height:18px; border-radius:9px; background:linear-gradient(90deg,#eee,#f7f7f7,#eee); background-size:200% 100%; animation:sk 1.2s infinite;}
+  @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .btn{width:100%; margin-top:14px; padding:17px; border:none; border-radius:30px; font-family:'Space Grotesk'; font-weight:700; font-size:17px; cursor:pointer; background:var(--pin); color:#fff;}
+  .btn:disabled{background:#f1a99b; cursor:not-allowed;}
+  .msg{margin-top:12px; padding:11px 13px; border-radius:10px; font-size:13.5px; display:none;}
+  .msg.err{display:block; background:rgba(193,80,46,.1); color:var(--laterite);}
+  .center-box{text-align:center; padding:14px 0 6px;}
+  .center-box .big{font-size:54px;}
+  .hidden{display:none !important;}
+  .gps-note{font-size:12.5px; color:var(--muted); margin-top:8px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div id="centerPin" class="hidden"><div class="head">📍</div><div class="stem"></div><div class="dot"></div></div>
+    <div id="brand"><span class="dot2"></span>Yoonou</div>
+    <button class="round-btn hidden" id="searchToggle" aria-label="Rechercher">🔍</button>
+    <button class="round-btn hidden" id="locateBtn" aria-label="Ma position">➤</button>
+    <div id="searchWrap">
+      <input id="searchInput" type="text" placeholder="Rechercher un lieu ou une adresse" autocomplete="off" data-i18n-placeholder="pos_search_ph">
+      <div id="searchResults"></div>
+    </div>
+  </div>
+
+  <div id="sheet">
+    <div id="stLoading"><div class="sub">Chargement…</div></div>
+
+    <div id="stOk" class="hidden">
+      <h1 id="okTitle"></h1>
+      <div class="sub" id="okSub" data-i18n="pos_sub">Place l'épingle exactement à l'endroit où tu veux être livré(e), puis envoie.</div>
+      <div class="row"><div class="ico">📍</div><div class="body"><div id="addrText"><div class="skeleton"></div></div></div></div>
+      <div class="row"><div class="ico">🧭</div><div class="body"><input id="repere" type="text" maxlength="160" placeholder="Repère utile (optionnel) — ex : portail bleu, en face de la pharmacie" data-i18n-placeholder="pos_landmark_ph" autocomplete="off"></div></div>
+      <div class="msg" id="msg"></div>
+      <button class="btn" id="sendBtn" data-i18n="pos_send">Envoyer ma position</button>
+      <div class="gps-note" id="gpsNote"></div>
+    </div>
+
+    <div id="stDone" class="hidden"><div class="center-box"><div class="big">✅</div><h1 data-i18n="pos_done_title">Merci !</h1><div class="sub" id="doneSub" data-i18n="pos_done_sub">Ta position a bien été envoyée. Tu peux fermer cette page.</div></div></div>
+
+    <div id="stBad" class="hidden"><div class="center-box"><div class="big" id="badIcon">⚠️</div><h1 id="badTitle"></h1><div class="sub" id="badSub"></div></div></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  const $ = id => document.getElementById(id);
+  const token = new URLSearchParams(location.search).get('t');
+  function t(key, fb){ try { const d = (YOONOU_TRANSLATIONS && YOONOU_TRANSLATIONS[yoonouGetLang()]) || {}; return d[key] || fb; } catch (e) { return fb; } }
+  function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+  function show(id){ ['stLoading','stOk','stDone','stBad'].forEach(x => $(x).classList.toggle('hidden', x !== id)); }
+
+  let map = null, center = { lat: 14.7167, lng: -17.4677 }, currentAddress = '', reqCounter = 0, moveTimer = null;
+  let gpsAccuracy = null, movedManually = false, purpose = 'livraison';
+
+  function bad(icon, title, sub){ $('badIcon').textContent = icon; $('badTitle').textContent = title; $('badSub').textContent = sub; show('stBad'); $('centerPin').classList.add('hidden'); }
+
+  async function init(){
+    if (!token || !/^[0-9a-f-]{36}$/i.test(token)) { bad('⚠️', 'Lien incorrect', "Ce lien n'est pas valide. Demande à la personne de t'en renvoyer un."); return; }
+
+    const { data, error } = await sb.rpc('get_demande_position', { p_token: token });
+    if (error || !data) { bad('⚠️', 'Oups', "Impossible de vérifier ce lien pour l'instant. Réessaie dans un moment."); return; }
+    if (data.etat === 'deja_envoyee') { bad('✅', t('pos_done_title', 'Merci !'), 'Ta position a déjà été envoyée. Tu peux fermer cette page.'); return; }
+    if (data.etat === 'expiree') { bad('⏳', 'Lien expiré', "Ce lien n'est plus valable. Demande à la personne de t'en envoyer un nouveau."); return; }
+    if (data.etat !== 'ok') { bad('⚠️', 'Lien introuvable', "Ce lien n'existe pas ou a déjà été utilisé."); return; }
+
+    purpose = data.objet || 'livraison';
+    const who = data.demandeur ? escapeHtml(data.demandeur) : 'Une personne';
+    $('okTitle').innerHTML = purpose === 'collecte'
+      ? `${who} te demande où récupérer le colis`
+      : `${who} te demande ta position pour te livrer`;
+    if (purpose === 'collecte') $('okSub').textContent = "Place l'épingle exactement à l'endroit où le chauffeur doit venir chercher le colis, puis envoie.";
+    $('doneSub').textContent = purpose === 'collecte' ? 'Le point de collecte a bien été envoyé. Tu peux fermer cette page.' : t('pos_done_sub', 'Ta position a bien été envoyée. Tu peux fermer cette page.');
+
+    show('stOk');
+    ['centerPin', 'searchToggle', 'locateBtn'].forEach(id => $(id).classList.remove('hidden'));
+
+    map = new mapboxgl.Map({ container: 'map', style: 'mapbox://styles/mapbox/streets-v12', center: [center.lng, center.lat], zoom: 14.5, attributionControl: false });
+    map.on('movestart', (e) => { $('centerPin').classList.add('moving'); $('addrText').innerHTML = '<div class="skeleton"></div>'; if (e.originalEvent) movedManually = true; });
+    map.on('moveend', () => { $('centerPin').classList.remove('moving'); clearTimeout(moveTimer); moveTimer = setTimeout(onSettled, 250); });
+    map.on('load', () => { onSettled(); locate(false); });
+
+    $('locateBtn').addEventListener('click', () => locate(true));
+    $('searchToggle').addEventListener('click', () => { $('searchWrap').classList.toggle('open'); if ($('searchWrap').classList.contains('open')) $('searchInput').focus(); });
+    setupSearch();
+    $('sendBtn').addEventListener('click', send);
+  }
+
+  function locate(showError){
+    if (!navigator.geolocation) { if (showError) alert("Ce téléphone ne permet pas la localisation. Déplace la carte jusqu'à ton adresse."); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        gpsAccuracy = pos.coords.accuracy; movedManually = false;
+        map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 17.5, duration: 900 });
+        $('gpsNote').textContent = gpsAccuracy && gpsAccuracy > 60 ? "Le signal GPS est approximatif : vérifie que l'épingle est bien sur ta porte." : '';
+      },
+      () => { $('gpsNote').textContent = "Localisation non autorisée : déplace la carte (ou utilise 🔍) jusqu'à ton adresse."; if (showError) alert("Autorise la localisation dans les réglages du navigateur, ou déplace la carte jusqu'à ton adresse."); },
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  }
+
+  async function onSettled(){
+    const c = map.getCenter(); center = { lat: c.lat, lng: c.lng };
+    const my = ++reqCounter;
+    let label = '';
+    try {
+      const poi = yoonouPoiAtPoint(map, map.project(c), 26);
+      const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${center.lng},${center.lat}.json?access_token=${MAPBOX_TOKEN}&language=fr&types=address,poi,neighborhood,locality,place&limit=1`);
+      const d = await res.json();
+      const addr = (d.features && d.features[0]) ? d.features[0].place_name : '';
+      label = poi ? (addr ? `${poi}, ${addr}` : poi) : addr;
+    } catch (e) { /* hors ligne */ }
+    if (my !== reqCounter) return;
+    currentAddress = label || `${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}`;
+    $('addrText').textContent = currentAddress;
+  }
+
+  function setupSearch(){
+    let timer = null;
+    $('searchInput').addEventListener('input', () => {
+      clearTimeout(timer);
+      const q = $('searchInput').value.trim(), box = $('searchResults');
+      if (q.length < 3) { box.innerHTML = ''; return; }
+      timer = setTimeout(async () => {
+        box.innerHTML = '<div class="sr-empty">Recherche…</div>';
+        const results = await yoonouSearchPlaces(q, null, MAPBOX_TOKEN, { map, proximity: center });
+        if (!results.length) { box.innerHTML = '<div class="sr-empty">Aucun résultat. Déplace la carte jusqu\'à ton adresse.</div>'; return; }
+        box.innerHTML = results.map((r, i) => `<div class="sr-item" data-i="${i}">${escapeHtml(r.label)}</div>`).join('');
+        box.querySelectorAll('.sr-item').forEach(el => el.addEventListener('click', () => {
+          const r = results[parseInt(el.dataset.i)];
+          movedManually = true;
+          map.flyTo({ center: [r.lng, r.lat], zoom: 17.5, duration: 900 });
+          $('searchWrap').classList.remove('open'); box.innerHTML = ''; $('searchInput').value = '';
+        }));
+      }, 350);
+    });
+  }
+
+  async function send(){
+    const btn = $('sendBtn'), msg = $('msg');
+    msg.className = 'msg'; btn.disabled = true; btn.textContent = '…';
+    try {
+      const { data, error } = await sb.rpc('envoyer_position', {
+        p_token: token, p_lat: center.lat, p_lng: center.lng,
+        p_adresse: currentAddress, p_repere: $('repere').value.trim() || null,
+        p_precision: movedManually ? null : gpsAccuracy
+      });
+      if (error) throw error;
+      if (!data) throw new Error("Ce lien n'est plus valable (déjà utilisé ou expiré).");
+      show('stDone'); $('centerPin').classList.add('hidden'); ['searchToggle', 'locateBtn'].forEach(id => $(id).classList.add('hidden'));
+    } catch (err) {
+      msg.textContent = err.message || 'Erreur, réessaie.'; msg.className = 'msg err';
+    } finally { btn.disabled = false; btn.textContent = t('pos_send', 'Envoyer ma position'); }
+  }
+
+  init();
+</script>
+</body>
+</html>

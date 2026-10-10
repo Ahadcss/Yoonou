@@ -73,6 +73,26 @@
     display:inline-flex; align-items:center; gap:5px; font-family:'Space Grotesk'; font-weight:600; font-size:12.5px;
     color:var(--teal); text-decoration:none; margin-top:8px;
   }
+
+  .search-bar{display:flex; gap:8px; margin-bottom:18px;}
+  .search-bar input{flex:1; padding:11px 13px; border-radius:8px; border:1.5px solid rgba(22,33,62,0.15); font-size:14px; font-family:'JetBrains Mono'; text-transform:uppercase;}
+  .search-bar button, .dossier-btn{
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:10px 16px; border-radius:8px;
+    border:1.5px solid var(--indigo-deep); background:none; color:var(--indigo-deep); cursor:pointer;
+  }
+  .dossier-btn{margin-top:8px; margin-right:10px;}
+  .modal-bg{position:fixed; inset:0; background:rgba(22,33,62,.55); z-index:50; display:none; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;}
+  .modal-bg.open{display:flex;}
+  .modal-box{background:#fff; border-radius:14px; padding:24px; max-width:640px; width:100%; margin:20px 0;}
+  .modal-box h3{font-family:'Space Grotesk'; font-size:19px; margin-bottom:4px;}
+  .sec{margin-top:18px; padding-top:14px; border-top:1px solid rgba(22,33,62,.08);}
+  .sec h4{font-family:'JetBrains Mono'; font-size:11.5px; letter-spacing:.07em; color:var(--muted); text-transform:uppercase; margin-bottom:8px;}
+  .kv{display:flex; justify-content:space-between; gap:14px; padding:6px 0; font-size:13.5px;}
+  .kv .k{color:var(--muted); flex:none;} .kv .v{font-weight:600; text-align:right; word-break:break-word;}
+  .person{background:var(--sand); border-radius:10px; padding:12px 14px; margin-bottom:8px;}
+  .person .n{font-family:'Space Grotesk'; font-weight:700; font-size:15px;}
+  .hist{font-size:12.5px; color:var(--muted); font-family:'JetBrains Mono'; line-height:1.7;}
+  .close-modal{display:block; margin:18px auto 0; background:none; border:none; color:var(--muted); font-size:13.5px; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -91,6 +111,11 @@
     <h1>Support & urgences</h1>
     <p class="subtitle">Les urgences apparaissent toujours en premier.</p>
 
+    <div class="search-bar">
+      <input id="refInput" type="text" placeholder="Référence de commande (ex. A1B2C3D4)" maxlength="40">
+      <button id="refBtn">🔎 Voir le dossier</button>
+    </div>
+
     <div class="filter-tabs">
       <button class="filter-tab active" data-filter="ACTIVE">Actifs</button>
       <button class="filter-tab" data-filter="OUVERT">Ouverts</button>
@@ -102,6 +127,8 @@
     <div id="ticketsList"></div>
   </div>
 </div>
+
+<div class="modal-bg" id="dossierModal"><div class="modal-box" id="dossierBox"></div></div>
 
 <script>
   const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
@@ -162,6 +189,8 @@
 
     list.innerHTML = filtered.map(t => renderTicket(t)).join('');
 
+    list.querySelectorAll('.dossier-btn').forEach(b => b.addEventListener('click', () => openDossier(b.dataset.order)));
+
     filtered.forEach(t => {
       document.getElementById('status-' + t.id).addEventListener('change', (e) => updateStatus(t.id, e.target.value, e.target));
       document.getElementById('save-note-' + t.id).addEventListener('click', () => saveNote(t.id));
@@ -194,6 +223,8 @@
         <div class="ticket-meta">${new Date(t.created_at).toLocaleString('fr-FR')}${t.order_id ? ' · Commande #' + t.order_id.slice(0,8) : ''}</div>
         <div class="ticket-desc">${escapeHtml(t.description || '')}</div>
 
+        ${t.order_id ? `<button class="dossier-btn" data-order="${t.order_id}">📋 Dossier de la commande</button>` : ''}
+        ${t.user_id ? `<a class="dossier-btn" href="admin-fiche.html?id=${t.user_id}" style="text-decoration:none; display:inline-block;">👤 Fiche de la personne</a>` : ''}
         ${gpsLink ? `<a href="${gpsLink}" target="_blank" class="gps-link">📍 Voir la position GPS au moment du signalement</a><br>` : ''}
         ${waLink ? `<a href="${waLink}" target="_blank" class="contact-wa">💬 Contacter sur WhatsApp</a>` : ''}
 
@@ -229,6 +260,104 @@
     div.textContent = str;
     return div.innerHTML;
   }
+
+  // ---------- Dossier complet d'une commande ----------
+  function waLink(phone, text){
+    const n = String(phone || '').replace(/[^0-9]/g, '');
+    return n ? `https://wa.me/${n}${text ? '?text=' + encodeURIComponent(text) : ''}` : null;
+  }
+  const fmt = v => (v === null || v === undefined || v === '') ? '—' : escapeHtml(String(v));
+  const fmtDT = v => v ? new Date(v).toLocaleString('fr-FR') : '—';
+  const mapsLink = (lat, lng) => (lat && lng) ? `https://www.google.com/maps?q=${lat},${lng}` : null;
+
+  function personBlock(title, p, userId){
+    if (!p) return `<div class="person"><div class="n">${title} : —</div></div>`;
+    const wa = waLink(p.whatsapp);
+    return `<div class="person">
+      <div class="n">${title} : ${escapeHtml(p.prenom || '')} ${escapeHtml(p.nom || '')}</div>
+      <div class="kv"><span class="k">WhatsApp</span><span class="v">${fmt(p.whatsapp)}</span></div>
+      <div class="kv"><span class="k">Ville</span><span class="v">${fmt(p.ville)}</span></div>
+      ${wa ? `<a class="contact-wa" href="${wa}" target="_blank">💬 Contacter sur WhatsApp</a>` : ''}
+      ${userId ? `<a class="contact-wa" href="admin-fiche.html?id=${userId}" style="margin-left:10px;">👤 Fiche complète (pièces, véhicule, historique)</a>` : ''}
+    </div>`;
+  }
+
+  function proofBlock(title, pr){
+    if (!pr) return '';
+    const g = mapsLink(pr.latitude, pr.longitude);
+    return `<div class="sec"><h4>${title}</h4>
+      <div class="kv"><span class="k">Quantité confirmée</span><span class="v">${fmt(pr.quantite_confirmee)}</span></div>
+      ${pr.destinataire_nom_confirme ? `<div class="kv"><span class="k">Reçu par</span><span class="v">${fmt(pr.destinataire_nom_confirme)}</span></div>` : ''}
+      <div class="kv"><span class="k">PIN vérifié</span><span class="v">${pr.pin_verifie ? 'Oui' : 'Non'}</span></div>
+      ${pr.note ? `<div class="kv"><span class="k">Note</span><span class="v">${fmt(pr.note)}</span></div>` : ''}
+      <div class="kv"><span class="k">Date</span><span class="v">${fmtDT(pr.created_at)}</span></div>
+      ${g ? `<a class="gps-link" href="${g}" target="_blank">📍 Position au moment de la confirmation</a>` : ''}
+    </div>`;
+  }
+
+  async function openDossier(ref){
+    const modal = document.getElementById('dossierModal'), box = document.getElementById('dossierBox');
+    modal.classList.add('open');
+    box.innerHTML = '<div class="loading">Chargement...</div>';
+    const { data, error } = await sb.rpc('get_order_details_for_support', { p_ref: String(ref || '').trim() });
+    if (error) { box.innerHTML = `<div class="empty-note">Erreur : ${escapeHtml(error.message)}<br><br>Si le message parle d'une fonction introuvable, exécute d'abord migration_parametres_aide.sql dans Supabase.</div><button class="close-modal" id="closeDossier">Fermer</button>`; document.getElementById('closeDossier').onclick = closeDossier; return; }
+    if (!data || !data.found) { box.innerHTML = `<div class="empty-note">Aucune commande trouvée pour « ${escapeHtml(ref)} ».</div><button class="close-modal" id="closeDossier">Fermer</button>`; document.getElementById('closeDossier').onclick = closeDossier; return; }
+
+    const o = data.order || {};
+    const dep = mapsLink(o.depart_lat, o.depart_lng), dest = mapsLink(o.destination_lat, o.destination_lng);
+    const v = data.vehicle;
+    box.innerHTML = `
+      <h3>Commande #${escapeHtml(data.reference)}</h3>
+      <div class="ticket-meta">${fmtDT(o.created_at)} · Statut : <strong>${fmt(o.statut)}</strong></div>
+
+      <div class="sec"><h4>Trajet et marchandise</h4>
+        <div class="kv"><span class="k">Départ</span><span class="v">${fmt(o.depart)}${dep ? ` <a class="gps-link" href="${dep}" target="_blank">📍</a>` : ''}</span></div>
+        <div class="kv"><span class="k">Destination</span><span class="v">${fmt(o.destination)}${dest ? ` <a class="gps-link" href="${dest}" target="_blank">📍</a>` : ''}</span></div>
+        <div class="kv"><span class="k">Distance</span><span class="v">${o.distance_km ? Number(o.distance_km).toFixed(1) + ' km' : '—'}</span></div>
+        <div class="kv"><span class="k">Marchandise</span><span class="v">${fmt(o.cargo_categorie)} × ${fmt(o.cargo_quantite)}</span></div>
+        <div class="kv"><span class="k">Description</span><span class="v">${fmt(o.description)}</span></div>
+        <div class="kv"><span class="k">Poids / valeur déclarée</span><span class="v">${fmt(o.poids_kg)} kg / ${fmt(o.cargo_valeur_declaree)}</span></div>
+        <div class="kv"><span class="k">Véhicule demandé</span><span class="v">${fmt(o.type_vehicule)}</span></div>
+        <div class="kv"><span class="k">Prix / commission</span><span class="v">${fmt(o.prix)} / ${fmt(o.commission)} FCFA</span></div>
+        <div class="kv"><span class="k">Paiement</span><span class="v">${fmt(o.moyen_paiement)} · ${fmt(o.statut_paiement)}</span></div>
+        ${o.cancellation_reason ? `<div class="kv"><span class="k">Annulation</span><span class="v">${fmt(o.cancellation_reason)}${o.cancellation_note ? ' — ' + escapeHtml(o.cancellation_note) : ''}</span></div>` : ''}
+      </div>
+
+      <div class="sec"><h4>Personnes</h4>
+        ${personBlock('Client (a envoyé le colis)', data.client, o.client_id)}
+        ${personBlock('Chauffeur', data.driver, o.transporteur_id)}
+        ${v ? `<div class="kv"><span class="k">Véhicule du chauffeur</span><span class="v">${fmt(v.label || v.type)} ${fmt(v.marque)} ${fmt(v.modele)} ${v.couleur ? '· ' + escapeHtml(v.couleur) : ''} · Plaque ${fmt(v.plaque)}</span></div>` : ''}
+        <div class="person"><div class="n">Contact au départ</div>
+          <div class="kv"><span class="k">Téléphone</span><span class="v">${fmt(o.pickup_telephone)}</span></div>
+          <div class="kv"><span class="k">Instructions</span><span class="v">${fmt(o.pickup_instructions)}</span></div></div>
+        <div class="person"><div class="n">Destinataire (a reçu le colis)</div>
+          <div class="kv"><span class="k">Nom</span><span class="v">${fmt(o.destinataire_nom)}</span></div>
+          <div class="kv"><span class="k">Téléphone</span><span class="v">${fmt(o.destinataire_telephone)}</span></div>
+          <div class="kv"><span class="k">Instructions</span><span class="v">${fmt(o.destination_instructions)}</span></div>
+          ${waLink(o.destinataire_telephone) ? `<a class="contact-wa" href="${waLink(o.destinataire_telephone)}" target="_blank">💬 Contacter le destinataire</a>` : ''}</div>
+      </div>
+
+      ${proofBlock('Preuve de collecte', data.pickup_proof)}
+      ${proofBlock('Preuve de livraison', data.delivery_proof)}
+
+      <div class="sec"><h4>Historique des statuts</h4>
+        <div class="hist">${(data.history || []).map(h => `${fmtDT(h.created_at || h.changed_at)} — ${escapeHtml(h.statut || '')}`).join('<br>') || '—'}</div></div>
+
+      ${(data.tickets || []).length ? `<div class="sec"><h4>Tickets liés</h4><div class="hist">${data.tickets.map(t => `${fmtDT(t.created_at)} — ${escapeHtml(t.category || '')} (${escapeHtml(t.status || '')})`).join('<br>')}</div></div>` : ''}
+
+      <button class="close-modal" id="closeDossier">Fermer</button>`;
+    document.getElementById('closeDossier').onclick = closeDossier;
+  }
+  function closeDossier(){ document.getElementById('dossierModal').classList.remove('open'); }
+  document.getElementById('dossierModal').addEventListener('click', (e) => { if (e.target.id === 'dossierModal') closeDossier(); });
+  document.getElementById('refBtn').addEventListener('click', () => openDossier(document.getElementById('refInput').value));
+  document.getElementById('refInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') openDossier(e.target.value); });
+
+  // Ouverture directe d'un dossier de commande : admin-support.html?ref=A1B2C3D4
+  (function(){
+    const ref = new URLSearchParams(location.search).get('ref');
+    if (ref) setTimeout(() => openDossier(ref), 600);
+  })();
 
   init();
 </script>
