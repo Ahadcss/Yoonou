@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Yoonou — Admin · Mots de passe oubliés</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --sand-dim:#E6D9BB; --teal:#2A7F76; --gold:#E8A93A;
+    --ink:#1A1712; --muted:#4a4438; --cta-red:#D6362A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
+  nav .wrap{max-width:900px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); display:flex; align-items:center; gap:8px; text-decoration:none;}
+  .logo .dot{width:9px; height:9px; border-radius:50%; background:var(--laterite-bright);}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:900px; margin:0 auto; padding:44px 24px;}
+  .loading{text-align:center; padding:80px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+  h1{font-size:26px; margin-bottom:6px;}
+  .count-pill{font-family:'JetBrains Mono'; font-size:12px; background:rgba(22,33,62,0.08); color:var(--muted); padding:3px 10px; border-radius:100px; margin-left:8px;}
+  .subtitle{color:var(--muted); font-size:14.5px; margin-bottom:24px; line-height:1.5;}
+  .warn{background:rgba(232,169,58,.18); color:#7a5a0b; border-radius:10px; padding:12px 14px; font-size:13.5px; margin-bottom:22px; line-height:1.5;}
+  .empty-note{color:var(--muted); font-size:14.5px; padding:24px; background:#fff; border-radius:12px; border:1px solid rgba(22,33,62,0.08); text-align:center;}
+  .item{background:#fff; border-radius:12px; padding:22px; border:1px solid rgba(22,33,62,0.08); margin-bottom:14px;}
+  .item.done{opacity:.6;}
+  .item-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px;}
+  .user-name{font-family:'Space Grotesk'; font-weight:700; font-size:16px;}
+  .user-phone{color:var(--muted); font-size:13.5px; font-family:'JetBrains Mono';}
+  .badge{font-family:'JetBrains Mono'; font-size:11px; padding:4px 11px; border-radius:100px; font-weight:600; background:rgba(22,33,62,0.08); color:var(--indigo-deep); white-space:nowrap;}
+  .badge.wait{background:rgba(232,169,58,.22); color:#8a5f08;}
+  .badge.sent{background:rgba(42,127,118,.15); color:var(--teal);}
+  .meta{font-size:12.5px; color:var(--muted); margin-bottom:12px;}
+  .action-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .btn{font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; padding:11px 18px; border-radius:6px; border:none; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px;}
+  .btn-gen{background:var(--teal); color:#fff;}
+  .btn-wa{background:none; border:1.5px solid #25D366; color:#1EBE5A;}
+  .btn-send{background:#25D366; color:#fff;}
+  .btn-cancel{background:none; border:1.5px solid var(--laterite); color:var(--laterite);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .code-box{background:var(--sand); border-radius:10px; padding:14px; margin:12px 0; text-align:center;}
+  .code-box .code{font-family:'JetBrains Mono'; font-size:30px; font-weight:700; letter-spacing:.2em; color:var(--indigo-deep);}
+  .code-box .hint{font-size:12.5px; color:var(--muted); margin-top:6px; line-height:1.45;}
+  .item-msg{font-size:13px; margin-top:10px; padding:9px; border-radius:6px; display:none;}
+  .item-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .item-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a href="espace.html" class="logo"><span class="dot"></span>Yoonou</a>
+  <a href="admin-dashboard.html" class="nav-link">← Vue d'ensemble</a>
+</div></nav>
+
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+  <div id="content" class="hidden">
+    <h1>Mots de passe oubliés<span class="count-pill" id="countPill">0</span></h1>
+    <p class="subtitle">Une personne qui a oublié son mot de passe t'écrit sur WhatsApp. Vérifie que le message vient bien <b>du même numéro que son compte</b>, puis génère un code et envoie-le lui. Le code est valable 24 h et ne sert qu'une fois.</p>
+    <div class="warn">⚠️ Ne génère un code que si le message WhatsApp vient bien du numéro affiché ci-dessous. Le code n'est affiché qu'une seule fois : si tu quittes la page, génère-en un nouveau.</div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const roleLabels = { client: 'Client', transporteur: 'Transporteur', admin: 'Admin' };
+  const shownCodes = {};   // codes générés pendant cette visite (jamais stockés en clair côté base)
+
+  function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+  const fmt = d => new Date(d).toLocaleString('fr-FR');
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+    if (!profile || profile.role !== 'admin') { window.location.href = 'espace.html'; return; }
+    await loadList();
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('content').classList.remove('hidden');
+  }
+
+  function statutBadge(s){
+    if (s === 'REQUESTED') return '<span class="badge wait">⏳ En attente de ton code</span>';
+    if (s === 'CODE_SENT') return '<span class="badge sent">📨 Code généré</span>';
+    if (s === 'EXPIRED') return '<span class="badge">⏰ Code expiré</span>';
+    if (s === 'USED') return '<span class="badge sent">✅ Mot de passe changé</span>';
+    return '<span class="badge">✕ Annulée</span>';
+  }
+
+  async function loadList(){
+    const list = document.getElementById('list');
+    const { data, error } = await sb.rpc('lister_demandes_mot_de_passe');
+    if (error) {
+      list.innerHTML = `<div class="empty-note">Erreur : ${escapeHtml(error.message)}<br>Si le message parle d'une fonction introuvable, exécute 24_migration_mot_de_passe_oublie.sql dans Supabase.</div>`;
+      return;
+    }
+    const items = data || [];
+    const actives = items.filter(i => i.statut === 'REQUESTED' || i.statut === 'CODE_SENT' || i.statut === 'EXPIRED');
+    document.getElementById('countPill').textContent = actives.length;
+    if (items.length === 0) { list.innerHTML = '<div class="empty-note">Aucune demande de mot de passe. 🎉</div>'; return; }
+
+    list.innerHTML = items.map(renderItem).join('');
+    items.forEach(i => {
+      const g = document.getElementById('gen-' + i.id); if (g) g.addEventListener('click', () => generer(i));
+      const c = document.getElementById('cancel-' + i.id); if (c) c.addEventListener('click', () => annuler(i));
+    });
+  }
+
+  function renderItem(i){
+    const actif = i.statut === 'REQUESTED' || i.statut === 'CODE_SENT' || i.statut === 'EXPIRED';
+    const tel = (i.whatsapp || '').replace(/[^0-9]/g, '');
+    const code = shownCodes[i.id];
+    const waOpen = tel ? `<a class="btn btn-wa" href="https://wa.me/${tel}" target="_blank" rel="noopener">💬 Ouvrir la conversation WhatsApp</a>` : '';
+    let codeBox = '';
+    if (code) {
+      const texte = `Bonjour ${i.prenom || ''}, voici ton code Yoonou pour choisir un nouveau mot de passe : ${code.code}. Il est valable 24 h. Ne le partage avec personne.`;
+      codeBox = `<div class="code-box"><div class="code">${escapeHtml(code.code)}</div>
+        <div class="hint">Valable jusqu'au ${escapeHtml(fmt(code.expire_at))}. Affiché une seule fois.</div></div>
+        <a class="btn btn-send" href="https://wa.me/${tel}?text=${encodeURIComponent(texte)}" target="_blank" rel="noopener">📲 Envoyer le code sur WhatsApp</a>`;
+    }
+    return `
+      <div class="item ${actif ? '' : 'done'}" id="item-${i.id}">
+        <div class="item-top">
+          <div>
+            <div class="user-name">${escapeHtml(i.prenom || '')} ${escapeHtml(i.nom || '')}</div>
+            <div class="user-phone">${escapeHtml(i.whatsapp || '—')}</div>
+          </div>
+          <div style="text-align:right;"><span class="badge">${escapeHtml(roleLabels[i.role] || i.role)}</span><div style="margin-top:6px;">${statutBadge(i.statut)}</div></div>
+        </div>
+        <div class="meta">Demandé le ${escapeHtml(fmt(i.created_at))}${i.code_expire_at ? ' · code jusqu\'au ' + escapeHtml(fmt(i.code_expire_at)) : ''}${i.tentatives ? ' · ' + i.tentatives + ' essai(s) faux' : ''}</div>
+        ${actif ? `<div class="action-row">${waOpen}
+          <button class="btn btn-gen" id="gen-${i.id}">🔑 ${i.statut === 'REQUESTED' ? 'Générer un code' : 'Générer un nouveau code'}</button>
+          <button class="btn btn-cancel" id="cancel-${i.id}">✕ Annuler</button></div>${codeBox}` : ''}
+        <div class="item-msg" id="msg-${i.id}"></div>
+      </div>`;
+  }
+
+  async function generer(i){
+    const ok = confirm(`As-tu vérifié que le message WhatsApp vient bien du numéro ${i.whatsapp || ''} (le numéro du compte de ${i.prenom || 'la personne'}) ?\n\nUn nouveau code annule l'ancien.`);
+    if (!ok) return;
+    const msg = document.getElementById('msg-' + i.id), btn = document.getElementById('gen-' + i.id);
+    btn.disabled = true; msg.className = 'item-msg';
+    try {
+      const { data, error } = await sb.rpc('generer_code_reinitialisation', { p_reset_id: i.id });
+      if (error) throw error;
+      if (!data || !data.found) throw new Error('Demande introuvable.');
+      shownCodes[i.id] = { code: data.code, expire_at: data.expire_at };
+      await loadList();
+    } catch (err) {
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.'); msg.className = 'item-msg error';
+      btn.disabled = false;
+    }
+  }
+
+  async function annuler(i){
+    if (!confirm('Annuler cette demande ? Le code éventuel ne marchera plus.')) return;
+    const msg = document.getElementById('msg-' + i.id);
+    try {
+      const { error } = await sb.rpc('annuler_reinitialisation', { p_reset_id: i.id });
+      if (error) throw error;
+      delete shownCodes[i.id];
+      await loadList();
+    } catch (err) {
+      msg.textContent = 'Erreur : ' + (err.message || 'réessaie.'); msg.className = 'item-msg error';
+    }
+  }
+  init();
+</script>
+</body>
+</html>

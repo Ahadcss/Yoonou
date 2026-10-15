@@ -154,6 +154,10 @@
   <div id="loadingState" class="loading">Chargement de ton espace...</div>
 
   <div id="content" class="hidden">
+    <div class="phone-verify-banner hidden" id="pushBanner">
+      <span id="pushBannerText">🔔 Active les notifications pour être prévenu(e) sur ton téléphone.</span>
+      <a href="#" id="enablePushBtn">Activer →</a>
+    </div>
     <div class="phone-verify-banner hidden" id="phoneVerifyBanner">
       <span>📱 Ton numéro n'est pas encore vérifié.</span>
       <a href="verification-telephone.html">Vérifier maintenant →</a>
@@ -410,6 +414,7 @@
       case 'NEW_ZONE': return 'admin-zones.html';
       case 'AVATAR_PENDING': return 'admin-photos.html';
       case 'PHONE_TO_VERIFY': return 'admin-verification-telephone.html';
+      case 'PASSWORD_RESET_REQUEST': return 'admin-mots-de-passe.html';
       case 'DRIVER_BLOCKED_COMMISSION': return 'admin-commissions.html';
       // Autres alertes
       case 'AVATAR_APPROVED': return 'parametres.html';
@@ -494,6 +499,32 @@
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
   }
 
+  function isIOS(){
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  function showPushBanner(registration){
+    const banner = document.getElementById('pushBanner');
+    const btn = document.getElementById('enablePushBtn');
+    const txt = document.getElementById('pushBannerText');
+    banner.classList.remove('hidden');
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        const perm = await Notification.requestPermission();   // appelé directement par l'appui : accepté par iOS
+        if (perm === 'granted') {
+          await ensureSubscribed(registration);
+          banner.classList.add('hidden');
+        } else {
+          txt.textContent = "Notifications refusées. Pour les activer : Réglages > Notifications > Yoonou.";
+          btn.classList.add('hidden');
+        }
+      } catch (err) {
+        txt.textContent = "Impossible d'activer les notifications : " + (err.message || 'réessaie.');
+      }
+    });
+  }
+
   async function setupPushNotifications(){
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     try {
@@ -501,8 +532,14 @@
       if (Notification.permission === 'granted') {
         await ensureSubscribed(registration);
       } else if (Notification.permission === 'default') {
-        const perm = await Notification.requestPermission();
-        if (perm === 'granted') await ensureSubscribed(registration);
+        if (isIOS()) {
+          // iPhone / iPad : la demande d'autorisation n'est acceptée que si elle vient d'un appui
+          // de la personne (sinon elle est ignorée en silence) : on affiche un bouton.
+          showPushBanner(registration);
+        } else {
+          const perm = await Notification.requestPermission();
+          if (perm === 'granted') await ensureSubscribed(registration);
+        }
       }
     } catch (err) {
       console.warn('Notifications push indisponibles :', err.message);

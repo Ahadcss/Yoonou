@@ -72,9 +72,14 @@ async function yoonouGeocoding(query, token, prox){
   const base = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&country=sn&language=fr&limit=6&proximity=${prox.lng},${prox.lat}`;
   let data = await yoonouFetchJson(base + '&types=poi,address,neighborhood,locality,place');
   if (!data || !data.features || data.features.length === 0) data = await yoonouFetchJson(base);
-  return ((data && data.features) || []).map(f => ({
-    label: f.place_name, lat: f.center[1], lng: f.center[0], source: 'geocoding'
-  }));
+  return ((data && data.features) || []).map(f => {
+    // Titre = nom du lieu ; détail = quartier / commune / région (le reste de l'adresse, sans « Sénégal »)
+    const title = f.text_fr || f.text || f.place_name;
+    const parts = String(f.place_name || '').split(',').map(x => x.trim()).filter(Boolean);
+    if (parts.length && yoonouNormalize(parts[0]) === yoonouNormalize(title)) parts.shift();
+    const subtitle = parts.filter(x => !/^s[eé]n[eé]gal$/i.test(x)).join(', ');
+    return { label: f.place_name, title, subtitle, lat: f.center[1], lng: f.center[0], source: 'geocoding' };
+  });
 }
 
 // --- Lieux écrits sur la carte (si une carte Mapbox est affichée) ---
@@ -95,7 +100,7 @@ function yoonouMapLabelsSearch(map, query){
     const key = nName + '|' + f.geometry.coordinates.map(c => c.toFixed(4)).join(',');
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ label: name + ' (sur la carte)', lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], source: 'carte' });
+    out.push({ label: name + ' (sur la carte)', title: name, subtitle: 'Lieu écrit sur la carte', lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], source: 'carte' });
     if (out.length >= 4) break;
   }
   return out;
@@ -125,16 +130,22 @@ async function yoonouSearchPlaces(query, sb, token, options){
   try {
     const words = yoonouNormalize(query).split(' ').filter(w => w.length >= 3).map(yoonouSingular);
     if (sb && words.length) {
-      const { data } = await sb.from('zone_suggestions')
-        .select('nom_zone, description, latitude, longitude')
-        .eq('statut', 'APPROUVEE')
-        .ilike('nom_zone', `%${words[words.length - 1]}%`)
-        .limit(20);
+      const colonnes = ['nom_zone, description, type_lieu, adresse, latitude, longitude', 'nom_zone, description, latitude, longitude'];
+      let data = null;
+      for (const cols of colonnes) {      // 2e essai sans type_lieu / adresse si ces colonnes n'existent pas encore
+        const rep = await sb.from('zone_suggestions').select(cols)
+          .eq('statut', 'APPROUVEE')
+          .ilike('nom_zone', `%${words[words.length - 1]}%`)
+          .limit(20);
+        if (!rep.error) { data = rep.data; break; }
+      }
       (data || [])
         .filter(z => { const n = yoonouNormalize(z.nom_zone + ' ' + (z.description || '')); return words.every(w => n.includes(w)); })
         .slice(0, 3)
         .forEach(z => results.push({
           label: z.nom_zone + (z.description ? ' — ' + z.description : ''),
+          title: z.nom_zone,
+          subtitle: [z.type_lieu, z.adresse || z.description].filter(Boolean).join(' · '),
           lat: z.latitude, lng: z.longitude, yoonou: true
         }));
     }
@@ -155,7 +166,10 @@ async function yoonouSearchPlaces(query, sb, token, options){
   for (const r of results) {
     if (!unique.some(u => yoonouDistanceM(u, r) < 60 && yoonouNormalize(u.label).slice(0, 8) === yoonouNormalize(r.label).slice(0, 8))) unique.push(r);
   }
-  unique.sort((x, y) => (y.yoonou ? 1 : 0) - (x.yoonou ? 1 : 0));
+  // Distance depuis la personne (si sa position est connue) : affichée à droite, comme dans les applis de transport
+  const from = options.from;
+  if (from && isFinite(from.lat) && isFinite(from.lng)) unique.forEach(r => { r.distanceM = yoonouDistanceM(from, r); });
+  unique.sort((x, y) => ((y.yoonou ? 1 : 0) - (x.yoonou ? 1 : 0)) || ((x.distanceM != null && y.distanceM != null) ? x.distanceM - y.distanceM : 0));
   return unique.slice(0, 8);
 }
 

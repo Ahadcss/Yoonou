@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex, nofollow">
+<title>Yoonou — Mot de passe oublié</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --indigo-deep:#16213E; --laterite:#C1502E; --laterite-bright:#E0623C;
+    --sand:#F3E9D2; --teal:#2A7F76; --ink:#1A1712; --muted:#4a4438; --cta-red:#D6362A; --cta-red-dark:#B62C21;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Work Sans', sans-serif; background:var(--indigo-deep); color:var(--sand);
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+    padding-top:calc(24px + env(safe-area-inset-top)); padding-bottom:calc(24px + env(safe-area-inset-bottom));
+    padding-left:calc(24px + env(safe-area-inset-left)); padding-right:calc(24px + env(safe-area-inset-right));
+  }
+  h1,h2{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  .card{background:var(--sand); color:var(--ink); border-radius:16px; max-width:460px; width:100%; padding:36px 30px; box-shadow:0 30px 80px -20px rgba(0,0,0,0.5);}
+  .logo{display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:22px;}
+  .logo .dot{width:10px; height:10px; border-radius:50%; background:var(--laterite-bright);}
+  .logo span{font-family:'Space Grotesk'; font-weight:700; font-size:22px; color:var(--indigo-deep);}
+  h1{font-size:22px; margin-bottom:8px; text-align:center;}
+  .lead{font-size:14px; color:var(--muted); text-align:center; line-height:1.5; margin-bottom:22px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:6px;}
+  .field input{width:100%; padding:12px 14px; border-radius:6px; border:1.5px solid rgba(22,33,62,0.15); font-size:14.5px; font-family:inherit; background:#fff;}
+  .field input:focus{outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(42,127,118,0.14);}
+  .code-input{font-family:'JetBrains Mono', monospace; font-size:22px !important; letter-spacing:.35em; text-align:center;}
+  .pw-wrap{position:relative;}
+  .pw-wrap input{padding-right:50px;}
+  .pw-toggle{position:absolute; right:4px; top:50%; transform:translateY(-50%); width:44px; height:42px; border:none; background:none; font-size:20px; line-height:1; cursor:pointer;}
+  .submit-btn{width:100%; padding:14px; border:none; border-radius:8px; background:var(--cta-red); color:#fff; font-family:'Space Grotesk'; font-weight:700; font-size:15px; cursor:pointer;}
+  .submit-btn:hover{background:var(--cta-red-dark);}
+  .submit-btn:disabled{opacity:.55; cursor:not-allowed;}
+  .wa-btn{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px; border-radius:8px; background:#25D366; color:#fff; font-family:'Space Grotesk'; font-weight:700; font-size:15px; text-decoration:none; margin-top:14px;}
+  .msg{font-size:13.5px; margin-top:14px; padding:12px; border-radius:6px; display:none; line-height:1.45;}
+  .msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
+  .msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
+  .steps{background:#fff; border-radius:10px; padding:14px 16px; margin-top:16px; font-size:13.5px; line-height:1.55; color:var(--ink);}
+  .steps b{font-family:'Space Grotesk';}
+  .switch-link{display:block; text-align:center; margin-top:18px; font-size:13.5px;}
+  .switch-link a, .back-link a{color:var(--teal); font-weight:600; cursor:pointer; text-decoration:none;}
+  .back-link{display:block; text-align:center; margin-top:14px; font-size:13px; color:var(--muted);}
+  .hidden{display:none !important;}
+  .big{font-size:46px; text-align:center; margin-bottom:6px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo"><span class="dot"></span><span>Yoonou</span></div>
+
+  <!-- ÉTAPE 1 : demander un code -->
+  <section id="step1">
+    <h1>Mot de passe oublié</h1>
+    <p class="lead">Entre ton numéro. L'équipe Yoonou te donnera un code sur WhatsApp pour choisir un nouveau mot de passe.</p>
+    <form id="form1">
+      <div class="field">
+        <label>Numéro de téléphone</label>
+        <input type="tel" inputmode="numeric" id="phone1" placeholder="77 000 00 00" autocomplete="tel-national" required>
+      </div>
+      <button type="submit" class="submit-btn" id="btn1">Demander un code</button>
+      <div class="msg" id="msg1"></div>
+    </form>
+
+    <div id="afterRequest" class="hidden">
+      <div class="steps">
+        <b>Dernière étape :</b> écris maintenant à l'équipe Yoonou <b>depuis ce numéro WhatsApp</b> pour recevoir ton code. Le code est valable <b>24 h</b>.
+      </div>
+      <a class="wa-btn" id="waBtn" href="#" target="_blank" rel="noopener">💬 Écrire à Yoonou sur WhatsApp</a>
+    </div>
+    <span class="switch-link">J'ai déjà un code → <a id="goStep2">changer mon mot de passe</a></span>
+  </section>
+
+  <!-- ÉTAPE 2 : code + nouveau mot de passe -->
+  <section id="step2" class="hidden">
+    <h1>Nouveau mot de passe</h1>
+    <p class="lead">Entre ton numéro, le code reçu sur WhatsApp et ton nouveau mot de passe.</p>
+    <form id="form2">
+      <div class="field">
+        <label>Numéro de téléphone</label>
+        <input type="tel" inputmode="numeric" id="phone2" placeholder="77 000 00 00" autocomplete="tel-national" required>
+      </div>
+      <div class="field">
+        <label>Code reçu (6 chiffres)</label>
+        <input type="text" inputmode="numeric" id="code" class="code-input" maxlength="6" pattern="[0-9]{6}" placeholder="••••••" autocomplete="one-time-code" required>
+      </div>
+      <div class="field">
+        <label>Nouveau mot de passe (6 caractères min.)</label>
+        <div class="pw-wrap"><input type="password" id="pw1" minlength="6" autocomplete="new-password" required><button type="button" class="pw-toggle" data-target="pw1" aria-label="Afficher le mot de passe" title="Afficher le mot de passe">👁️</button></div>
+      </div>
+      <div class="field">
+        <label>Confirmer le nouveau mot de passe</label>
+        <div class="pw-wrap"><input type="password" id="pw2" minlength="6" autocomplete="new-password" required><button type="button" class="pw-toggle" data-target="pw2" aria-label="Afficher le mot de passe" title="Afficher le mot de passe">👁️</button></div>
+      </div>
+      <div class="msg error" id="pwMismatch" style="display:none;">Les deux mots de passe ne correspondent pas.</div>
+      <button type="submit" class="submit-btn" id="btn2">Changer mon mot de passe</button>
+      <div class="msg" id="msg2"></div>
+    </form>
+    <span class="switch-link">Pas de code ? <a id="goStep1">demander un code</a></span>
+  </section>
+
+  <!-- SUCCÈS -->
+  <section id="done" class="hidden">
+    <div class="big">✅</div>
+    <h1>Mot de passe changé</h1>
+    <p class="lead">Tu peux maintenant te connecter avec ton nouveau mot de passe.</p>
+    <a class="submit-btn" href="auth.html" style="display:block; text-align:center; text-decoration:none;">Se connecter</a>
+  </section>
+
+  <div class="back-link" id="backLink"><a href="auth.html">← Retour à la connexion</a></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const SUPPORT_WHATSAPP = '221774203400';   // même numéro que la page Aide
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const $ = id => document.getElementById(id);
+
+  function normalizePhone(v){
+    let digits = (v || '').replace(/[^0-9]/g, '');
+    if (digits.startsWith('221')) return digits;
+    if (digits.length === 9) return '221' + digits;
+    return digits;
+  }
+  function isPhoneValid(v){ return /^221[37][0-9]{8}$/.test(normalizePhone(v)); }
+  function show(id){ ['step1', 'step2', 'done'].forEach(x => $(x).classList.toggle('hidden', x !== id)); $('backLink').classList.toggle('hidden', id === 'done'); }
+  function showMsg(el, text, kind){ el.textContent = text; el.className = 'msg ' + kind; el.style.display = ''; }
+
+  $('goStep2').addEventListener('click', () => { $('phone2').value = $('phone1').value; show('step2'); });
+  $('goStep1').addEventListener('click', () => { $('phone1').value = $('phone2').value; show('step1'); });
+
+  // ---- Étape 1 : demande ----
+  $('form1').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = $('msg1'), btn = $('btn1');
+    msg.className = 'msg';
+    if (!isPhoneValid($('phone1').value)) { showMsg(msg, "Numéro invalide. Exemple : 77 123 45 67.", 'error'); return; }
+    btn.disabled = true; btn.textContent = 'Envoi…';
+    const tel = normalizePhone($('phone1').value);
+    try {
+      const { error } = await sb.rpc('demander_reinitialisation_mdp', { p_whatsapp: tel });
+      if (error) throw error;
+      const texte = `Bonjour, j'ai oublié mon mot de passe Yoonou. Mon numéro : +${tel}`;
+      $('waBtn').href = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(texte)}`;
+      $('afterRequest').classList.remove('hidden');
+      showMsg(msg, "Demande envoyée. Si ce numéro a un compte, l'équipe Yoonou est prévenue.", 'success');
+      btn.textContent = 'Demande envoyée';
+    } catch (err) {
+      showMsg(msg, "Impossible d'envoyer la demande pour l'instant. Réessaie dans un moment.", 'error');
+      btn.disabled = false; btn.textContent = 'Demander un code';
+    }
+  });
+
+  // ---- Afficher / masquer, concordance, pas de collage dans la confirmation ----
+  document.querySelectorAll('.pw-toggle').forEach(b => b.addEventListener('click', () => {
+    const input = $(b.dataset.target), shown = input.type === 'password';
+    input.type = shown ? 'text' : 'password';
+    b.textContent = shown ? '🙈' : '👁️';
+    const label = shown ? 'Masquer le mot de passe' : 'Afficher le mot de passe';
+    b.setAttribute('aria-label', label); b.title = label;
+  }));
+  function checkMatch(){ $('pwMismatch').style.display = ($('pw1').value && $('pw2').value && $('pw1').value !== $('pw2').value) ? 'block' : 'none'; }
+  $('pw1').addEventListener('input', checkMatch);
+  $('pw2').addEventListener('input', checkMatch);
+  $('pw2').addEventListener('paste', (e) => e.preventDefault());
+
+  // ---- Étape 2 : changement du mot de passe (fonction Supabase reset-password) ----
+  $('form2').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = $('msg2'), btn = $('btn2');
+    msg.className = 'msg';
+    if (!isPhoneValid($('phone2').value)) { showMsg(msg, "Numéro invalide. Exemple : 77 123 45 67.", 'error'); return; }
+    if (!/^[0-9]{6}$/.test($('code').value.trim())) { showMsg(msg, "Le code contient 6 chiffres.", 'error'); return; }
+    if ($('pw1').value.length < 6) { showMsg(msg, "Le mot de passe doit contenir au moins 6 caractères.", 'error'); return; }
+    if ($('pw1').value !== $('pw2').value) { showMsg(msg, "Les deux mots de passe ne correspondent pas.", 'error'); return; }
+
+    btn.disabled = true; btn.textContent = 'Changement en cours…';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+        body: JSON.stringify({ whatsapp: normalizePhone($('phone2').value), code: $('code').value.trim(), password: $('pw1').value })
+      });
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+      if (!res.ok || !data.ok) throw new Error(data.error || "Impossible de changer le mot de passe pour l'instant.");
+      show('done');
+    } catch (err) {
+      showMsg(msg, err.message || "Erreur, réessaie.", 'error');
+      btn.disabled = false; btn.textContent = 'Changer mon mot de passe';
+    }
+  });
+</script>
+</body>
+</html>
