@@ -164,6 +164,9 @@
     background:var(--indigo-deep); color:var(--sand); font-family:'Space Grotesk'; font-weight:700; font-size:15px; cursor:pointer;}
   .keepalive{border-radius:10px; padding:11px 14px; font-size:13px; line-height:1.45; margin-bottom:14px; background:rgba(42,127,118,.1); color:var(--teal);}
   .keepalive.warn{background:#fff3cd; color:#7a5200; border:1px solid var(--gold);}
+  .gps-blocked{background:#fdecea; border:2px solid #c0392b; color:#7b1e14; border-radius:12px; padding:14px 16px; margin-bottom:16px; font-size:13.5px; line-height:1.5;}
+  .gps-blocked .gb-title{font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:14.5px; margin-bottom:4px;}
+  .gps-blocked .gb-btn{display:inline-block; margin-top:10px; padding:9px 16px; border-radius:8px; border:1.5px solid #c0392b; background:none; color:#c0392b; font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:13px; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -190,6 +193,10 @@
       <button class="refresh-btn" id="refreshBtn">↻ Actualiser</button>
     </div>
 
+    <div class="gps-blocked hidden" id="gpsBlockedBanner">
+      <div class="gb-title">📍 Localisation bloquée</div>
+      <div id="gpsBlockedText"></div>
+    </div>
     <div id="keepAliveBanner" class="keepalive hidden"></div>
 
     <h2 class="section-title">Courses en cours<span class="count-pill" id="ongoingCount">0</span></h2>
@@ -342,11 +349,31 @@
 
   let gpsDureeActuelle = null;
 
+  // ---------- Localisation bloquée ou indisponible : bandeau visible pour le chauffeur ----------
+  let gpsFailCount = 0;
+  function showGpsProblem(err){
+    gpsFailCount++;
+    const denied = err && err.code === 1;
+    if (!denied && gpsFailCount < 2) return; // coupure ponctuelle : on attend un second échec
+    const el = document.getElementById('gpsBlockedBanner');
+    if (!el || !currentProfile || currentProfile.disponibilite !== 'ONLINE') return;
+    document.getElementById('gpsBlockedText').textContent = denied
+      ? "Yoonou n'a pas le droit d'utiliser ta position. Tant que c'est bloqué, tu es invisible et tu ne reçois pas de courses. Autorise la localisation pour Yoonou (ou pour Chrome / Safari) dans les réglages du téléphone, puis reviens ici."
+      : "Ta position n'est pas disponible (GPS éteint ou signal trop faible). Active la localisation du téléphone et vérifie que tu as du réseau.";
+    el.classList.remove('hidden');
+  }
+  function hideGpsProblem(){
+    gpsFailCount = 0;
+    const el = document.getElementById('gpsBlockedBanner');
+    if (el) el.classList.add('hidden');
+  }
+
   function sendCurrentLocation(){
     if (!navigator.geolocation) return;
     if (currentProfile.disponibilite !== 'ONLINE') { stopSendingLocation(); return; }
 
     navigator.geolocation.getCurrentPosition(async (position) => {
+      hideGpsProblem();
       const { latitude, longitude } = position.coords;
       const activeOrderId = await getActiveOrderId();
       await sb.from('driver_locations').insert([{
@@ -366,6 +393,7 @@
       }
     }, (err) => {
       console.error('Erreur de géolocalisation:', err);
+      showGpsProblem(err);
     });
   }
 
@@ -377,6 +405,7 @@
   }
 
   function stopSendingLocation(){
+    hideGpsProblem();
     if (gpsInterval) { clearInterval(gpsInterval); gpsInterval = null; }
     gpsDureeActuelle = null;
   }
@@ -952,7 +981,7 @@
     return `
       <div class="verify-form" id="verify-form-${orderId}">
         <div class="field">
-          <label>${isPickup ? 'PIN donné par le client' : 'PIN donné par le destinataire'}</label>
+          <label>${isPickup ? 'Code de collecte : donné par la personne qui te remet le colis' : 'Code de livraison : donné par la personne qui reçoit le colis'}</label>
           <input type="text" id="pin-${orderId}" placeholder="Code à 4 chiffres (obligatoire)" inputmode="numeric" maxlength="8" autocomplete="off">
         </div>
         <div class="field">

@@ -85,6 +85,18 @@
   .btn-primary-sm:disabled{background:rgba(22,33,62,0.15); cursor:not-allowed;}
   .form-msg{font-size:13px; margin-top:10px; padding:10px; border-radius:6px; display:none;}
   .hint{font-size:12px; color:var(--muted); margin-top:5px;}
+  .keep-banner{background:#fff; border:2px solid var(--teal); border-radius:12px; padding:14px 16px; margin-bottom:16px; font-size:13.5px; line-height:1.5;}
+  .keep-banner .kb-title{font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:14.5px; margin-bottom:4px;}
+  .keep-banner .kb-status{margin-top:6px; font-weight:600;}
+  .kb-btn{display:inline-block; margin-top:10px; padding:9px 16px; border-radius:8px; border:1.5px solid var(--teal); background:none; color:var(--teal); font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:13px; cursor:pointer;}
+  .guide-bg{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:300; display:flex; align-items:flex-end; justify-content:center;}
+  .guide-sheet{background:#fff; border-radius:20px 20px 0 0; max-width:560px; width:100%; max-height:88vh; overflow:auto; padding:24px 22px calc(24px + env(safe-area-inset-bottom)); color:var(--ink);}
+  .guide-sheet h3{font-family:'Space Grotesk', sans-serif; font-size:19px; margin-bottom:8px;}
+  .guide-sheet p{font-size:13.5px; line-height:1.55; color:var(--muted); margin-bottom:10px;}
+  .guide-sheet ol{margin:8px 0 12px 20px; font-size:14px; line-height:1.6;}
+  .guide-sheet li{margin-bottom:8px;}
+  .guide-sheet .os-switch{font-size:12.5px; color:var(--teal); font-weight:600; cursor:pointer; text-decoration:underline;}
+  .side-label{font-weight:600; font-size:12.5px !important; color:var(--muted); margin:10px 0 4px !important; font-family:'Work Sans', sans-serif !important;}
   .form-msg.error{display:block; background:rgba(193,80,46,0.1); color:var(--laterite);}
   .form-msg.success{display:block; background:rgba(42,127,118,0.1); color:var(--teal);}
   .empty-note{color:var(--muted); font-size:14px; padding:10px 0;}
@@ -133,6 +145,9 @@
   @media (max-width:640px){
     .notif-dropdown{position:fixed; top:calc(70px + env(safe-area-inset-top)); left:12px; right:12px; width:auto; max-height:70vh;}
   }
+  .gps-blocked{background:#fdecea; border:2px solid #c0392b; color:#7b1e14; border-radius:12px; padding:14px 16px; margin-bottom:16px; font-size:13.5px; line-height:1.5;}
+  .gps-blocked .gb-title{font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:14.5px; margin-bottom:4px;}
+  .gps-blocked .gb-btn{display:inline-block; margin-top:10px; padding:9px 16px; border-radius:8px; border:1.5px solid #c0392b; background:none; color:#c0392b; font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:13px; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -157,6 +172,26 @@
     <div class="phone-verify-banner hidden" id="pushBanner">
       <span id="pushBannerText">🔔 Active les notifications pour être prévenu(e) sur ton téléphone.</span>
       <a href="#" id="enablePushBtn">Activer →</a>
+    </div>
+    <div class="gps-blocked hidden" id="gpsBlockedBanner">
+      <div class="gb-title">📍 Localisation bloquée</div>
+      <div id="gpsBlockedText"></div>
+      <button class="gb-btn" type="button" id="gpsBlockedBtn">Voir comment l'autoriser</button>
+    </div>
+    <div class="keep-banner hidden" id="keepAliveBanner">
+      <div class="kb-title">📱 Garde ton téléphone allumé</div>
+      <div>Tant que tu es « En ligne », laisse Yoonou ouvert et l'écran allumé : ta position n'est envoyée que dans ce cas. Sinon, les clients ne te voient plus et tu ne reçois plus de courses proches.</div>
+      <div class="kb-status" id="keepAliveStatus"></div>
+      <button class="kb-btn" type="button" id="keepGuideBtn">Réglages à faire sur mon téléphone</button>
+    </div>
+    <div class="guide-bg hidden" id="keepGuide">
+      <div class="guide-sheet">
+        <h3>Garder ta position active</h3>
+        <p>Yoonou est un site : il envoie ta position seulement quand <b>l'écran est allumé et que Yoonou est ouvert</b>. Voici les réglages qui t'aident. Yoonou ne peut pas les ouvrir à ta place : il faut les faire dans les paramètres de ton téléphone (les noms changent selon la marque).</p>
+        <div id="keepGuideBody"></div>
+        <p style="margin-top:6px;"><span class="os-switch" id="keepGuideSwitch"></span></p>
+        <button class="btn" type="button" id="keepGuideClose" style="width:100%; margin-top:10px;">J'ai compris</button>
+      </div>
     </div>
     <div class="phone-verify-banner hidden" id="phoneVerifyBanner">
       <span>📱 Ton numéro n'est pas encore vérifié.</span>
@@ -221,7 +256,7 @@
           </div>
           <div class="field">
             <label>Photos du véhicule</label>
-            <input type="file" id="vPhotos" accept="image/*" capture="environment" multiple>
+            <input type="file" id="vPhotos" accept="image/*" multiple>
           </div>
         </div>
         <button class="btn-primary-sm" id="submitVehicle">Enregistrer le véhicule</button>
@@ -245,7 +280,7 @@
       <div class="field-row">
         <div class="field">
           <label>Photo de ton visage (selfie)</label>
-          <input type="file" id="docSelfie" accept="image/*" capture="user">
+          <input type="file" id="docSelfie" accept="image/*">
           <div class="hint">Bien visible, sans lunettes de soleil ni casque.</div>
         </div>
         <div class="field">
@@ -261,24 +296,34 @@
       <div class="field-row">
         <div class="field">
           <label id="pieceIdentiteLabel">Photo de la pièce d'identité</label>
-          <input type="file" id="docPieceIdentite" accept="image/*,.pdf" capture="environment">
+          <label class="side-label" id="pieceRectoLabel">Recto (face avec la photo)</label>
+          <input type="file" id="docPieceIdentite" accept="image/*,.pdf">
+          <div id="pieceVersoWrap">
+            <label class="side-label">Verso</label>
+            <input type="file" id="docPieceIdentiteVerso" accept="image/*,.pdf">
+          </div>
+          <div class="hint" id="pieceVersoHint">Recto et verso obligatoires.</div>
         </div>
         <div class="field" id="permisWrap">
           <label id="permisLabel">Permis de conduire</label>
-          <input type="file" id="docPermis" accept="image/*,.pdf" capture="environment">
+          <label class="side-label">Recto</label>
+          <input type="file" id="docPermis" accept="image/*,.pdf">
+          <label class="side-label">Verso</label>
+          <input type="file" id="docPermisVerso" accept="image/*,.pdf">
+          <div class="hint">Recto et verso obligatoires.</div>
           <div class="hint" id="permisHint"></div>
         </div>
       </div>
       <div class="field-row" id="documentsMotorisesRow">
         <div class="field" id="carteGriseWrap">
           <label>Carte grise du véhicule</label>
-          <input type="file" id="docCarteGrise" accept="image/*,.pdf" capture="environment">
-          <div class="hint">Requis uniquement pour les véhicules motorisés.</div>
+          <input type="file" id="docCarteGrise" accept="image/*,.pdf">
+          <div class="hint">Une seule photo. Requis uniquement pour les véhicules motorisés.</div>
         </div>
         <div class="field" id="assuranceWrap">
-          <label>Assurance du véhicule</label>
-          <input type="file" id="docAssurance" accept="image/*,.pdf" capture="environment">
-          <div class="hint">Requis uniquement pour les véhicules motorisés.</div>
+          <label>Assurance du véhicule (facultatif)</label>
+          <input type="file" id="docAssurance" accept="image/*,.pdf">
+          <div class="hint">Une seule photo (facultatif pour l'instant). Pour les véhicules motorisés.</div>
         </div>
       </div>
       <button class="btn-primary-sm" id="submitDocuments">Envoyer mes documents</button>
@@ -555,21 +600,108 @@
       });
     }
     const json = subscription.toJSON();
-    await sb.from('push_subscriptions').upsert([{
-      user_id: currentUser.id,
-      endpoint: json.endpoint,
-      p256dh: json.keys.p256dh,
-      auth: json.keys.auth
-    }], { onConflict: 'endpoint' });
+    // Rattache cet appareil au compte connecté (même si un autre compte l'utilisait avant)
+    const { error: rpcErr } = await sb.rpc('enregistrer_appareil_push', { p_endpoint: json.endpoint, p_p256dh: json.keys.p256dh, p_auth: json.keys.auth });
+    if (rpcErr) {
+      console.warn('enregistrer_appareil_push indisponible, repli :', rpcErr.message);
+      const { error: upErr } = await sb.from('push_subscriptions').upsert([{
+        user_id: currentUser.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth
+      }], { onConflict: 'endpoint' });
+      if (upErr) console.warn('Enregistrement du téléphone refusé :', upErr.message);
+    }
   }
 
+  // ---------- Garder le téléphone actif (chauffeurs « En ligne » seulement) ----------
+  let wantAwake = false, wakeLock = null, guideOS = null;
+
+  async function acquireWakeLock(){
+    if (!wantAwake || !('wakeLock' in navigator)) return false;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; updateKeepBanner(); });
+      return true;
+    } catch (e) { wakeLock = null; return false; }
+  }
+  function startKeepAwake(){ wantAwake = true; updateKeepBanner(); acquireWakeLock().then(updateKeepBanner); }
+  function stopKeepAwake(){
+    wantAwake = false;
+    if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+    updateKeepBanner();
+  }
+  function updateKeepBanner(){
+    const banner = document.getElementById('keepAliveBanner');
+    const visible = wantAwake && currentProfile && currentProfile.role === 'transporteur' && currentProfile.disponibilite === 'ONLINE';
+    banner.classList.toggle('hidden', !visible);
+    if (!visible) return;
+    const st = document.getElementById('keepAliveStatus');
+    if (wakeLock) st.textContent = "✅ Écran maintenu allumé tant que Yoonou reste ouvert à l'écran.";
+    else if ('wakeLock' in navigator) st.textContent = "⏳ Activation… Si ça reste ainsi, règle la mise en veille dans les paramètres.";
+    else st.textContent = "⚠️ Ce téléphone ne peut pas garder l'écran allumé tout seul : règle la mise en veille dans les paramètres.";
+  }
+
+  function renderKeepGuide(){
+    const ios = guideOS === 'ios';
+    const steps = ios ? [
+      "Garde Yoonou ouvert, lancé depuis l'icône de l'écran d'accueil, pendant que tu es « En ligne ».",
+      "<b>Réglages › Affichage et luminosité › Verrouillage automatique</b> : choisis « Jamais » (ou la durée la plus longue).",
+      "<b>Réglages › Batterie</b> : désactive le « Mode économie d'énergie ».",
+      "<b>Réglages › Confidentialité et sécurité › Service de localisation</b> : vérifie que la localisation est activée pour Safari / les sites web, avec « Position précise »."
+    ] : [
+      "Garde Yoonou ouvert, au premier plan, pendant que tu es « En ligne » (ne passe pas sur une autre application).",
+      "<b>Réglages › Affichage › Délai de mise en veille</b> : choisis la durée la plus longue.",
+      "<b>Réglages › Applications › Chrome (ou Yoonou) › Batterie</b> : choisis « Sans restriction ». Désactive aussi l'économie d'énergie.",
+      "<b>Réglages › Applications › Chrome › Autorisations › Position</b> : « Autoriser » avec « Utiliser la position précise »."
+    ];
+    document.getElementById('keepGuideBody').innerHTML = '<ol>' + steps.map(x => '<li>' + x + '</li>').join('') + '</ol>';
+    document.getElementById('keepGuideSwitch').textContent = ios ? 'Voir les réglages pour Android' : 'Voir les réglages pour iPhone';
+  }
+  function openKeepGuide(){
+    if (!guideOS) guideOS = isIOS() ? 'ios' : 'android';
+    renderKeepGuide();
+    document.getElementById('keepGuide').classList.remove('hidden');
+  }
+  document.getElementById('keepGuideBtn').addEventListener('click', openKeepGuide);
+  document.getElementById('keepGuideSwitch').addEventListener('click', () => { guideOS = guideOS === 'ios' ? 'android' : 'ios'; renderKeepGuide(); });
+  document.getElementById('keepGuideClose').addEventListener('click', () => {
+    document.getElementById('keepGuide').classList.add('hidden');
+    try { localStorage.setItem('yoonou_keep_guide_seen', '1'); } catch (e) {}
+  });
+
+  // Retour sur Yoonou (écran rallumé, autre application quittée) : on reprend aussitôt l'écran allumé et l'envoi de la position
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && wantAwake) {
+      acquireWakeLock().then(updateKeepBanner);
+      sendCurrentLocation();
+    }
+  });
+
   let locationInterval = null;
+
+  // ---------- Localisation bloquée ou indisponible : bandeau visible pour le chauffeur ----------
+  let gpsFailCount = 0;
+  function showGpsProblem(err){
+    gpsFailCount++;
+    const denied = err && err.code === 1;
+    if (!denied && gpsFailCount < 2) return; // coupure ponctuelle : on attend un second échec
+    const el = document.getElementById('gpsBlockedBanner');
+    if (!el || !currentProfile || currentProfile.disponibilite !== 'ONLINE') return;
+    document.getElementById('gpsBlockedText').textContent = denied
+      ? "Yoonou n'a pas le droit d'utiliser ta position. Tant que c'est bloqué, tu es invisible et tu ne reçois pas de courses. Autorise la localisation pour Yoonou (ou pour Chrome / Safari) dans les réglages du téléphone, puis reviens ici."
+      : "Ta position n'est pas disponible (GPS éteint ou signal trop faible). Active la localisation du téléphone et vérifie que tu as du réseau.";
+    el.classList.remove('hidden');
+  }
+  function hideGpsProblem(){
+    gpsFailCount = 0;
+    const el = document.getElementById('gpsBlockedBanner');
+    if (el) el.classList.add('hidden');
+  }
+  document.getElementById('gpsBlockedBtn').addEventListener('click', openKeepGuide);
 
   function setupDispoToggle(dispo){
     const btn = document.getElementById('dispoToggle');
     btn.classList.remove('hidden');
     renderDispoBtn(dispo);
-    if (dispo === 'ONLINE') startSendingLocation();
+    if (dispo === 'ONLINE') { startSendingLocation(); startKeepAwake(); }
 
     btn.addEventListener('click', async () => {
       const newDispo = currentProfile.disponibilite === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
@@ -580,9 +712,13 @@
         renderDispoBtn(newDispo);
         if (newDispo === 'ONLINE') {
           startSendingLocation();
+          startKeepAwake();
+          let vu = false; try { vu = localStorage.getItem('yoonou_keep_guide_seen') === '1'; } catch (e) {}
+          if (!vu) openKeepGuide();   // la première fois, on explique les réglages
           await sb.rpc('demarrer_ou_reprendre_periode', { id_transporteur: currentUser.id });
         } else {
           stopSendingLocation();
+          stopKeepAwake();
           await sb.rpc('mettre_en_pause_periode', { id_transporteur: currentUser.id });
         }
       }
@@ -604,6 +740,7 @@
   function sendCurrentLocation(){
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(async (position) => {
+      hideGpsProblem();
       const { latitude, longitude } = position.coords;
       const activeOrderId = await getActiveOrderId();
       await sb.from('driver_locations').insert([{
@@ -623,6 +760,7 @@
       }
     }, (err) => {
       console.error('Erreur de géolocalisation:', err);
+      showGpsProblem(err);
     });
   }
 
@@ -636,6 +774,7 @@
   }
 
   function stopSendingLocation(){
+    hideGpsProblem();
     if (locationInterval) {
       clearInterval(locationInterval);
       locationInterval = null;
@@ -692,6 +831,10 @@
   }
 
   const NON_MOTORIZED_TYPES = ['velo', 'charrette'];
+  // Documents dont le verso est obligatoire (même liste que la base de données : migration 26)
+  const VERSO_REQUIRED = ['cni', 'permis'];
+  const DOC_NAMES = { cni: "la carte d'identité", extrait_naissance: "l'extrait de naissance", carte_scolaire: "la carte d'élève/étudiant",
+    autre_piece: "la pièce d'identité", permis: 'le permis de conduire', carte_grise: 'la carte grise', assurance: "l'assurance" };
   let myVehicleTypesList = [];
 
   async function loadVehicles(){
@@ -750,6 +893,10 @@
       autre_piece: "Photo de la pièce d'identité"
     };
     document.getElementById('pieceIdentiteLabel').textContent = labels[e.target.value] || "Photo de la pièce d'identité";
+    const avecVerso = VERSO_REQUIRED.includes(e.target.value);   // seule la CNI a un recto et un verso
+    document.getElementById('pieceVersoWrap').style.display = avecVerso ? '' : 'none';
+    document.getElementById('pieceRectoLabel').style.display = avecVerso ? '' : 'none';
+    document.getElementById('pieceVersoHint').textContent = avecVerso ? 'Recto et verso obligatoires.' : 'Une seule photo suffit.';
   });
 
   document.getElementById('showAddVehicle').addEventListener('click', () => {
@@ -828,7 +975,7 @@
     };
     list.innerHTML = data.map(d => `
       <div class="vehicle-item">
-        <span>${labels[d.type_document] || d.type_document}</span>
+        <span>${labels[d.type_document] || d.type_document}${d.url_fichier_verso ? ' (recto + verso)' : ''}</span>
         <span class="vehicle-status ${d.statut}">${d.statut}</span>
       </div>
     `).join('');
@@ -857,25 +1004,34 @@
 
       const rows = [];
 
+      // Recto + verso : le verso est obligatoire pour la plupart des documents (voir VERSO_REQUIRED)
+      const paires = [
+        { type: idType, recto: pieceInput, verso: document.getElementById('docPieceIdentiteVerso') },
+        { type: 'permis', recto: permisInput, verso: document.getElementById('docPermisVerso') },
+        { type: 'carte_grise', recto: carteGriseInput, verso: null },
+        { type: 'assurance', recto: assuranceInput, verso: null }
+      ];
+      for (const p of paires) {
+        if (p.type === idType && !VERSO_REQUIRED.includes(idType)) p.verso = null;   // pièce sans verso
+        if (p.recto.files[0] && !(p.verso && p.verso.files[0]) && VERSO_REQUIRED.includes(p.type)) {
+          throw new Error('Ajoute aussi le verso de ' + DOC_NAMES[p.type] + '.');
+        }
+        if (!p.recto.files[0] && p.verso && p.verso.files[0]) {
+          throw new Error('Ajoute aussi le recto de ' + DOC_NAMES[p.type] + '.');
+        }
+      }
+
       if (selfieInput.files[0]) {
         const [url] = await uploadFiles('kyc-documents', currentUser.id, selfieInput.files);
         if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'selfie', url_fichier: url });
       }
-      if (pieceInput.files[0]) {
-        const [url] = await uploadFiles('kyc-documents', currentUser.id, pieceInput.files);
-        if (url) rows.push({ transporteur_id: currentUser.id, type_document: idType, url_fichier: url });
-      }
-      if (permisInput.files[0]) {
-        const [url] = await uploadFiles('kyc-documents', currentUser.id, permisInput.files);
-        if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'permis', url_fichier: url });
-      }
-      if (carteGriseInput.files[0]) {
-        const [url] = await uploadFiles('kyc-documents', currentUser.id, carteGriseInput.files);
-        if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'carte_grise', url_fichier: url });
-      }
-      if (assuranceInput.files[0]) {
-        const [url] = await uploadFiles('kyc-documents', currentUser.id, assuranceInput.files);
-        if (url) rows.push({ transporteur_id: currentUser.id, type_document: 'assurance', url_fichier: url });
+      for (const p of paires) {
+        if (!p.recto.files[0]) continue;
+        const [url] = await uploadFiles('kyc-documents', currentUser.id, p.recto.files);
+        let urlVerso = null;
+        if (p.verso && p.verso.files[0]) [urlVerso] = await uploadFiles('kyc-documents', currentUser.id, p.verso.files);
+        if (VERSO_REQUIRED.includes(p.type) && !urlVerso) throw new Error("L'envoi du verso a échoué. Réessaie.");
+        if (url) rows.push({ transporteur_id: currentUser.id, type_document: p.type, url_fichier: url, url_fichier_verso: urlVerso });
       }
 
       if (rows.length === 0) {
@@ -890,8 +1046,8 @@
       msg.textContent = '✅ Documents envoyés, en attente de vérification.';
       msg.className = 'form-msg success';
       selfieInput.value = '';
-      pieceInput.value = '';
-      permisInput.value = '';
+      paires.forEach(p => { p.recto.value = ''; if (p.verso) p.verso.value = ''; });
+      document.getElementById('docPieceIdentiteVerso').value = '';
       await loadDocuments();
     } catch (err) {
       console.error(err);
@@ -903,6 +1059,12 @@
   });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
+    // Détache ce téléphone du compte avant de se déconnecter (sinon il recevrait encore ses alertes)
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg && await reg.pushManager.getSubscription();
+      if (sub) await sb.rpc('retirer_appareil_push', { p_endpoint: sub.endpoint });
+    } catch (e) { /* sans effet sur la déconnexion */ }
     await sb.auth.signOut();
     window.location.href = 'auth.html';
   });

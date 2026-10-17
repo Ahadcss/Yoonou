@@ -80,6 +80,17 @@
       <p class="lang-note" id="langNote" data-i18n="settings_language_note">Certaines pages ne sont pas encore traduites : elles restent en français.</p>
     </div>
 
+    <div class="card" id="notifCard">
+      <h2>🔔 Notifications</h2>
+      <p>Reçois les alertes (course acceptée, message de l'équipe…) directement sur l'écran de ton téléphone, même quand Yoonou est fermé.</p>
+      <p id="notifStatus" style="margin-top:12px; font-size:13.5px; color:var(--ink);">Vérification…</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+        <button class="btn hidden" id="notifEnableBtn" type="button">Activer les notifications</button>
+        <button class="btn secondary hidden" id="notifRepairBtn" type="button">Réenregistrer cet appareil</button>
+      </div>
+      <p id="notifMsg" style="margin-top:10px; font-size:12.5px;"></p>
+    </div>
+
     <div class="card hidden" id="avatarCard">
       <h2>📷 Ma photo de profil</h2>
       <p>Les clients voient cette photo quand tu livres leur marchandise. Choisis une photo de ton visage, bien éclairée, sans lunettes de soleil.</p>
@@ -123,6 +134,75 @@
   const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---------- Notifications sur l'écran du téléphone ----------
+  const VAPID_PUBLIC_KEY = 'BEuGEVvkQe-cJ6dA5u5UnPiG4QHawlLFn6a9KMHsqzYOlDZAX5ix_fCggOPv11Dgqj5UBNdyo3PvjFQolODVmz8';
+  function urlBase64ToUint8Array(b64){
+    const padding = '='.repeat((4 - b64.length % 4) % 4);
+    const base64 = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64); const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function isIOS(){ return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+
+  async function saveSubscription(sub){
+    const json = sub.toJSON();
+    let { error } = await sb.rpc('enregistrer_appareil_push', { p_endpoint: json.endpoint, p_p256dh: json.keys.p256dh, p_auth: json.keys.auth });
+    if (error) {   // repli si la migration 27 n'est pas encore exécutée
+      ({ error } = await sb.from('push_subscriptions').upsert([{ user_id: currentUserId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth }], { onConflict: 'endpoint' }));
+    }
+    if (error) throw error;
+  }
+  async function subscribeNow(reg){
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    await saveSubscription(sub);
+    return sub;
+  }
+
+  async function refreshNotifStatus(){
+    const st = document.getElementById('notifStatus'), enable = document.getElementById('notifEnableBtn'), repair = document.getElementById('notifRepairBtn');
+    enable.classList.add('hidden'); repair.classList.add('hidden');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      st.textContent = isIOS()
+        ? "Sur iPhone, ouvre Yoonou depuis l'icône de l'écran d'accueil (pas depuis Safari) pour recevoir les notifications."
+        : "Ce navigateur ne permet pas les notifications.";
+      return;
+    }
+    const perm = Notification.permission;
+    if (perm === 'denied') { st.textContent = "❌ Bloquées. Autorise-les dans Réglages > Notifications > Yoonou (iPhone), ou dans les réglages du site (Android)."; return; }
+    if (perm === 'default') { st.textContent = "Non activées sur cet appareil."; enable.classList.remove('hidden'); return; }
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await subscribeNow(reg); else await saveSubscription(sub);
+      st.textContent = "✅ Activées sur cet appareil.";
+      repair.classList.remove('hidden');
+    } catch (err) {
+      st.textContent = "⚠️ Autorisées, mais l'appareil n'a pas pu être enregistré : " + (err.message || 'réessaie.');
+      repair.classList.remove('hidden');
+    }
+  }
+
+  document.getElementById('notifEnableBtn').addEventListener('click', async () => {
+    const msg = document.getElementById('notifMsg'); msg.textContent = '';
+    try { await Notification.requestPermission(); } catch (e) {}   // appelé directement par l'appui : accepté par iOS
+    await refreshNotifStatus();
+  });
+
+  document.getElementById('notifRepairBtn').addEventListener('click', async () => {
+    const msg = document.getElementById('notifMsg'); msg.style.color = 'var(--muted)'; msg.textContent = 'Réenregistrement…';
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const old = await reg.pushManager.getSubscription();
+      if (old) { const ep = old.endpoint; await old.unsubscribe(); await sb.rpc('retirer_appareil_push', { p_endpoint: ep }); }
+      await subscribeNow(reg);
+      msg.style.color = 'var(--teal)'; msg.textContent = '✅ Appareil réenregistré. Tu peux fermer l\'application et attendre une alerte.';
+    } catch (err) {
+      msg.style.color = 'var(--laterite)'; msg.textContent = 'Erreur : ' + (err.message || 'réessaie.');
+    }
+    await refreshNotifStatus();
+  });
 
   function updateNote(){ document.getElementById('langNote').style.display = (yoonouGetLang() === 'fr') ? 'none' : 'block'; }
 
@@ -196,6 +276,7 @@
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('content').classList.remove('hidden');
     yoonouApplyTranslations();
+    refreshNotifStatus();
   }
   init();
 </script>

@@ -187,6 +187,21 @@
       width:auto; max-height:70vh;
     }
   }
+  /* ---- Choix du type de demande (3 cartes) ---- */
+  .mode-grid{display:grid; gap:14px; margin-bottom:28px;}
+  .mode-card{display:flex; align-items:center; gap:16px; text-align:left; width:100%; padding:24px 22px; border-radius:18px; border:1.5px solid rgba(22,33,62,0.08); background:#fff; cursor:pointer; font-family:inherit; color:var(--ink);}
+  .mode-card .mc-ico{font-size:38px; line-height:1; flex:0 0 auto;}
+  .mode-card .mc-txt{flex:1 1 auto;}
+  .mode-card h3{font-family:'Space Grotesk', sans-serif; font-size:19px; margin-bottom:4px;}
+  .mode-card p{font-size:13.5px; line-height:1.4; color:var(--muted);}
+  .mode-card .mc-go{flex:0 0 auto; width:38px; height:38px; border-radius:50%; background:rgba(42,127,118,0.12); color:var(--teal); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700;}
+  .mode-card.m-envoie{background:var(--teal); color:#fff; border-color:var(--teal);}
+  .mode-card.m-envoie p{color:rgba(255,255,255,0.85);}
+  .mode-card.m-envoie .mc-go{background:rgba(255,255,255,0.22); color:#fff;}
+  .mode-card.m-livrer{background:#FBF1D4; border-color:#F0DFA8;}
+  .mode-bar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px;}
+  .mode-bar .mb-label{font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:15px;}
+  .mode-bar button{background:none; border:1.5px solid var(--teal); color:var(--teal); border-radius:8px; padding:8px 14px; font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:13px; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -212,9 +227,32 @@
 
   <div id="content" class="hidden">
     <h1 class="page-title">📦 Nouvelle demande de transport</h1>
-    <p class="page-sub">Décrivez votre marchandise, on s'occupe du reste.</p>
+    <p class="page-sub" id="pageSub">Que souhaites-tu faire ?</p>
 
-    <div class="card" id="nearbyCard">
+    <div class="mode-grid" id="modeScreen">
+      <button type="button" class="mode-card m-envoie" data-mode="envoie">
+        <span class="mc-ico">📤</span>
+        <span class="mc-txt"><h3>J'envoie un colis</h3><p>Le livreur le récupère auprès de moi</p></span>
+        <span class="mc-go">›</span>
+      </button>
+      <button type="button" class="mode-card m-recoit" data-mode="recoit">
+        <span class="mc-ico">📥</span>
+        <span class="mc-txt"><h3>Je reçois un colis</h3><p>Le livreur le récupère ailleurs et me l'apporte</p></span>
+        <span class="mc-go">›</span>
+      </button>
+      <button type="button" class="mode-card m-livrer" data-mode="livrer">
+        <span class="mc-ico">🛵</span>
+        <span class="mc-txt"><h3>Je fais livrer</h3><p>Le livreur va d'une adresse à une autre</p></span>
+        <span class="mc-go">›</span>
+      </button>
+    </div>
+
+    <div class="mode-bar hidden" id="modeBar">
+      <span class="mb-label" id="modeLabel"></span>
+      <button type="button" id="changeModeBtn">← Changer</button>
+    </div>
+
+    <div class="card hidden" id="nearbyCard">
       <div id="nearbyPrompt">
         <h2>🚗 Véhicules disponibles</h2>
         <p style="color:var(--muted); font-size:13.5px; margin-bottom:14px;">Découvre combien de transporteurs sont actuellement en ligne près de toi.</p>
@@ -229,7 +267,7 @@
       </div>
     </div>
 
-    <form id="orderForm">
+    <form id="orderForm" class="hidden">
       <div class="card">
         <h2>📦 Votre marchandise</h2>
         <div class="field">
@@ -264,8 +302,8 @@
         </div>
         <div class="field">
           <label>Photos de la marchandise (optionnel)</label>
-          <input type="file" id="cargoPhotos" accept="image/*" capture="environment" multiple>
-          <div class="hint">Aide le transporteur à savoir exactement ce qu'il va transporter.</div>
+          <input type="file" id="cargoPhotos" accept="image/*" multiple>
+          <div class="hint">Prends une photo ou choisis-en dans ta galerie. Ça aide le transporteur à savoir exactement ce qu'il va transporter.</div>
         </div>
       </div>
 
@@ -289,6 +327,7 @@
           <label>Destination</label>
           <div class="addr-line">
             <input type="text" id="destination" placeholder="Ex : Almadies, Dakar" autocomplete="off" required>
+            <button type="button" id="useMyLocationDestBtn" class="map-action-btn hidden">📍 Ma position</button>
             <button type="button" id="pickDestBtn" class="map-action-btn">📌 Sur la carte</button>
             <button type="button" id="saveDestBtn" class="map-action-btn" title="Enregistrer cette adresse">💾</button>
           </div>
@@ -311,22 +350,27 @@
         <div id="vehicleOptions"></div>
       </div>
 
-      <div class="card">
-        <h2>👤 Destinataire</h2>
-        <div class="field-row">
+      <div class="card" id="contactsCard">
+        <h2 id="contactsTitle">👤 Destinataire</h2>
+        <div id="blockExpediteur" class="hidden">
           <div class="field">
-            <label>Nom</label>
-            <input type="text" id="destinataireNom" placeholder="Nom de la personne qui reçoit">
+            <label>Téléphone de l'expéditeur <span style="color:var(--cta-red);">*</span></label>
+            <input type="tel" id="pickupTel" placeholder="ex. 77 123 45 67">
           </div>
-          <div class="field">
-            <label>Téléphone <span style="color:var(--cta-red);">*</span></label>
-            <input type="tel" id="destinataireTel" required placeholder="ex. 77 123 45 67">
-          </div>
+          <div style="font-size:12.5px; color:var(--muted); margin:-4px 0 10px;">Obligatoire : le chauffeur pourra l'appeler, et c'est à ce numéro qu'on demande sa position et qu'on envoie le code de collecte.</div>
         </div>
-        <div style="font-size:12.5px; color:var(--muted); margin:-4px 0 10px;">Obligatoire : le chauffeur pourra l'appeler, et c'est à ce numéro qu'on envoie le code de livraison.</div>
-        <div class="field">
-          <label>Téléphone au point de départ (optionnel)</label>
-          <input type="tel" id="pickupTel" placeholder="Laisse vide si c'est toi qui seras présent">
+        <div id="blockDestinataire">
+          <div class="field-row">
+            <div class="field">
+              <label>Nom</label>
+              <input type="text" id="destinataireNom" placeholder="Nom de la personne qui reçoit">
+            </div>
+            <div class="field">
+              <label>Téléphone <span style="color:var(--cta-red);">*</span></label>
+              <input type="tel" id="destinataireTel" required placeholder="ex. 77 123 45 67">
+            </div>
+          </div>
+          <div style="font-size:12.5px; color:var(--muted); margin:-4px 0 10px;">Obligatoire : le chauffeur pourra l'appeler, et c'est à ce numéro qu'on envoie le code de livraison.</div>
         </div>
       </div>
 
@@ -362,8 +406,13 @@
   let dureeEstimeeMin = null;
 
   let currentUser = null;
+  let clientProfile = null;
+  let orderMode = null; // 'envoie' | 'recoit' | 'livrer'
   let vehicleTypes = [];
   let pricingRules = [];
+
+  // Arrondi à la centaine la plus proche (735 -> 700, 750 -> 800). Doit rester identique à la fonction SQL calculer_prix_commande.
+  function arrondirPrix(montant){ return Math.round(montant / 100) * 100; }
 
   const statusLabels = {
     REQUESTED: 'En recherche de transporteur', DRIVER_ASSIGNED: 'Transporteur assigné',
@@ -432,7 +481,8 @@
     if (!session) { window.location.href = 'auth.html'; return; }
     currentUser = session.user;
 
-    const { data: profile } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
+    const { data: profile } = await sb.from('profiles').select('role, prenom, nom, whatsapp').eq('id', currentUser.id).single();
+    clientProfile = profile || null;
     if (!profile || profile.role !== 'client') {
       alert("Cette page est réservée aux comptes client.");
       window.location.href = 'espace.html';
@@ -921,6 +971,85 @@
     });
   });
 
+
+  // ---- LES 3 TYPES DE DEMANDE ----
+  const MODES = {
+    envoie: { label: "📤 J'envoie un colis", departMyPos: true,  departTools: false, destMyPos: false, destTools: true,  needSender: false, needRecipient: true,  title: '👤 Destinataire' },
+    recoit: { label: '📥 Je reçois un colis', departMyPos: false, departTools: true,  destMyPos: true,  destTools: false, needSender: true,  needRecipient: false, title: '👤 Expéditeur' },
+    livrer: { label: '🛵 Je fais livrer',     departMyPos: false, departTools: true,  destMyPos: false, destTools: true,  needSender: true,  needRecipient: true,  title: '👤 Expéditeur et destinataire' }
+  };
+
+  function applyMode(mode){
+    const m = MODES[mode];
+    if (!m) return;
+    orderMode = mode;
+    const show = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !on); };
+
+    // Départ
+    show('useMyLocationBtn', m.departMyPos);
+    show('pickDepartBtn', m.departTools);
+    show('saveDepartBtn', m.departTools);
+    show('posTools_depart', m.departTools);
+    // Destination
+    show('useMyLocationDestBtn', m.destMyPos);
+    show('pickDestBtn', m.destTools);
+    show('saveDestBtn', m.destTools);
+    show('posTools_destination', m.destTools);
+
+    // Contacts : numéro obligatoire de l'expéditeur et/ou du destinataire
+    show('blockExpediteur', m.needSender);
+    show('blockDestinataire', m.needRecipient);
+    document.getElementById('pickupTel').required = m.needSender;
+    document.getElementById('destinataireTel').required = m.needRecipient;
+    document.getElementById('contactsTitle').textContent = m.title;
+
+    // Écrans
+    show('modeScreen', false);
+    show('modeBar', true);
+    show('nearbyCard', true);
+    show('orderForm', true);
+    document.getElementById('modeLabel').textContent = m.label;
+    document.getElementById('pageSub').textContent = "Décrivez votre marchandise, on s'occupe du reste.";
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showModeScreen(){
+    const show = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !on); };
+    show('modeScreen', true);
+    show('modeBar', false);
+    show('nearbyCard', false);
+    show('orderForm', false);
+    document.getElementById('pageSub').textContent = 'Que souhaites-tu faire ?';
+  }
+
+  document.querySelectorAll('.mode-card').forEach(btn => btn.addEventListener('click', () => applyMode(btn.dataset.mode)));
+  document.getElementById('changeModeBtn').addEventListener('click', showModeScreen);
+
+  // ---- MA POSITION pour la destination (mode « Je reçois un colis ») ----
+  document.getElementById('useMyLocationDestBtn').addEventListener('click', () => {
+    const btn = document.getElementById('useMyLocationDestBtn');
+    if (!navigator.geolocation) {
+      alert("La géolocalisation n'est pas disponible sur ce navigateur.");
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '📍 Recherche...';
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords; lastUserPos = { lat: latitude, lng: longitude };
+      const label = await reverseGeocode(latitude, longitude);
+      document.getElementById('destination').value = label;
+      destCoords = { lat: latitude, lng: longitude };
+      updateRoute();
+      btn.disabled = false;
+      btn.textContent = '📍 Ma position';
+    }, (err) => {
+      console.error(err);
+      alert("Impossible d'accéder à ta position. Vérifie que tu as autorisé la localisation.");
+      btn.disabled = false;
+      btn.textContent = '📍 Ma position';
+    });
+  });
+
   let selectedVehicleType = null;
 
   function getCompatibleVehicles(poidsKg, categorie){
@@ -968,7 +1097,7 @@
       const regle = pricingRules.find(r => r.vehicle_type === v.type);
       let priceHtml = '<span class="price-na">Renseigne le trajet</span>';
       if (regle && distance > 0) {
-        const prix = Math.round(regle.prix_base + distance * regle.prix_par_km + poids * (regle.supplement_poids_par_kg || 0));
+        const prix = arrondirPrix(regle.prix_base + distance * regle.prix_par_km + poids * (regle.supplement_poids_par_kg || 0));
         priceHtml = `<span class="price">${prix.toLocaleString('fr-FR')} FCFA</span>`;
       }
       const isSelected = selectedVehicleType === v.type;
@@ -1001,7 +1130,7 @@
     if (!selectedVehicleType || !distance || distance <= 0) { priceBox.classList.add('hidden'); return; }
     const regle = pricingRules.find(r => r.vehicle_type === selectedVehicleType);
     if (!regle) { priceBox.classList.add('hidden'); return; }
-    const prix = Math.round(regle.prix_base + distance * regle.prix_par_km + poids * (regle.supplement_poids_par_kg || 0));
+    const prix = arrondirPrix(regle.prix_base + distance * regle.prix_par_km + poids * (regle.supplement_poids_par_kg || 0));
     document.getElementById('priceAmount').textContent = prix.toLocaleString('fr-FR') + ' FCFA';
     document.getElementById('priceBreakdown').textContent =
       `Base ${regle.prix_base} FCFA + ${distance} km × ${regle.prix_par_km} FCFA/km — Estimation, confirmée à la validation`;
@@ -1035,11 +1164,35 @@
       return;
     }
 
+    if (!orderMode) {
+      msg.textContent = "Choisis d'abord ce que tu veux faire (envoyer, recevoir ou faire livrer).";
+      msg.className = 'form-msg error';
+      btn.disabled = false; btn.textContent = 'Confirmer la demande';
+      showModeScreen();
+      return;
+    }
+    const modeCfg = MODES[orderMode];
     const destTelDigits = document.getElementById('destinataireTel').value.replace(/[^0-9]/g, '');
-    if (destTelDigits.length < 8) {
+    const pickTelDigits = document.getElementById('pickupTel').value.replace(/[^0-9]/g, '');
+    if (modeCfg.needRecipient && destTelDigits.length < 8) {
       msg.textContent = "Ajoute le téléphone du destinataire (au moins 8 chiffres) : le chauffeur en a besoin et le code de livraison lui est envoyé.";
       msg.className = 'form-msg error';
       document.getElementById('destinataireTel').focus();
+      btn.disabled = false; btn.textContent = 'Confirmer la demande';
+      return;
+    }
+    if (modeCfg.needSender && pickTelDigits.length < 8) {
+      msg.textContent = "Ajoute le téléphone de l'expéditeur (au moins 8 chiffres) : le chauffeur en a besoin et le code de collecte lui est envoyé.";
+      msg.className = 'form-msg error';
+      document.getElementById('pickupTel').focus();
+      btn.disabled = false; btn.textContent = 'Confirmer la demande';
+      return;
+    }
+    const monTel = (clientProfile && clientProfile.whatsapp) ? String(clientProfile.whatsapp).trim() : '';
+    const monNom = clientProfile ? [clientProfile.prenom, clientProfile.nom].filter(Boolean).join(' ').trim() : '';
+    if (orderMode === 'recoit' && yoonouWaNumber(monTel).length < 8) {
+      msg.textContent = "Ton numéro n'est pas renseigné dans ton profil : ajoute-le dans Mon espace avant de commander.";
+      msg.className = 'form-msg error';
       btn.disabled = false; btn.textContent = 'Confirmer la demande';
       return;
     }
@@ -1061,14 +1214,15 @@
       destination_lng: destCoords.lng,
       description: document.getElementById('description').value.trim(),
       cargo_categorie: document.getElementById('cargoCategorie').value,
-      cargo_quantite: parseInt(document.getElementById('quantite').value),
+      cargo_quantite: parseInt(document.getElementById('quantite').value) || 1,
       poids_kg: poids,
       distance_km: parseFloat(document.getElementById('distance').value),
       duree_estimee_min: dureeEstimeeMin ? Math.round(dureeEstimeeMin) : null,
       type_vehicule: selectedVehicleType,
-      destinataire_nom: document.getElementById('destinataireNom').value.trim() || null,
-      pickup_telephone: document.getElementById('pickupTel').value.trim() || null,
-      destinataire_telephone: document.getElementById('destinataireTel').value.trim() || null,
+      // Le chauffeur voit toujours les deux numéros : celui du client est pris dans son profil
+      destinataire_nom: orderMode === 'recoit' ? (monNom || null) : (document.getElementById('destinataireNom').value.trim() || null),
+      pickup_telephone: orderMode === 'envoie' ? (monTel || null) : (document.getElementById('pickupTel').value.trim() || null),
+      destinataire_telephone: orderMode === 'recoit' ? monTel : (document.getElementById('destinataireTel').value.trim() || null),
       statut: 'REQUESTED'
     };
 
@@ -1102,18 +1256,26 @@
         } catch (e) { console.warn('PIN non relus :', e.message); }
       }
 
-      // Message WhatsApp prêt à envoyer au destinataire (code de livraison + lien de suivi)
+      // Messages WhatsApp prêts à envoyer (le code de collecte va à l'expéditeur, le code de livraison au destinataire)
       const shareUrl = `${location.origin}/suivi-partage.html?t=${data.share_token}`;
       const dName = payload.destinataire_nom, dTel = payload.destinataire_telephone;
       const waText = `Bonjour${dName ? ' ' + dName : ''}, une livraison Yoonou arrive pour vous. Suivez-la en direct ici : ${shareUrl}\n\nQuand le chauffeur arrive, donnez-lui ce code de livraison : ${pinLivraison}\n(à ne donner qu'en main propre, au moment où vous recevez la marchandise).`;
       const waDeliveryUrl = `https://wa.me/${yoonouWaNumber(dTel)}?text=${encodeURIComponent(waText)}`;
+      const waPickupText = `Bonjour, un chauffeur Yoonou va venir récupérer un colis chez vous. Quand il arrive, donnez-lui ce code de collecte : ${pinPickup}\n(à ne donner qu'en main propre, au moment où vous lui remettez le colis).`;
+      const waPickupUrl = `https://wa.me/${yoonouWaNumber(payload.pickup_telephone)}?text=${encodeURIComponent(waPickupText)}`;
+      const waBtn = (url, label) => `<br><br><a href="${url}" target="_blank" style="display:inline-block; background:#25D366; color:#fff; padding:10px 16px; border-radius:8px; font-weight:700; text-decoration:none;">${label}</a>`;
+      const pickupWho = orderMode === 'envoie' ? "à donner au chauffeur" : "l'expéditeur le donne au chauffeur";
+      const deliveryWho = orderMode === 'recoit' ? "à donner au chauffeur quand tu reçois le colis" : "à donner au destinataire";
+      const showSenderBtn = (orderMode === 'recoit' || orderMode === 'livrer') && pinPickup;
+      const showRecipientBtn = (orderMode === 'envoie' || orderMode === 'livrer') && pinLivraison;
 
       msg.innerHTML = `
         🎉 Demande envoyée ! Prix confirmé : <b>${data.prix.toLocaleString('fr-FR')} FCFA</b>. Un transporteur va bientôt l'accepter.<br><br>
         📌 <b>Garde bien ces deux codes</b>, tu les retrouveras aussi dans le suivi de ta commande :<br>
-        Code de collecte (à donner au chauffeur) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${pinPickup || '—'}</b><br>
-        Code de livraison (à donner au destinataire) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${pinLivraison || '—'}</b>
-        ${pinLivraison ? `<br><br><a href="${waDeliveryUrl}" target="_blank" style="display:inline-block; background:#25D366; color:#fff; padding:10px 16px; border-radius:8px; font-weight:700; text-decoration:none;">💬 Envoyer le code de livraison au destinataire</a>` : ''}
+        Code de collecte (${pickupWho}) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${pinPickup || '—'}</b><br>
+        Code de livraison (${deliveryWho}) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${pinLivraison || '—'}</b>
+        ${showSenderBtn ? waBtn(waPickupUrl, "💬 Envoyer le code de collecte à l'expéditeur") : ''}
+        ${showRecipientBtn ? waBtn(waDeliveryUrl, '💬 Envoyer le code de livraison au destinataire') : ''}
       `;
       msg.className = 'form-msg success';
       if (window.__stopPositionPolls) window.__stopPositionPolls();
@@ -1186,6 +1348,7 @@
     const o = ordersCache[orderId];
     if (!o) return;
 
+    if (!orderMode) applyMode('livrer');
     document.getElementById('cargoCategorie').value = o.cargo_categorie || 'colis';
     document.getElementById('description').value = o.description || '';
     document.getElementById('poids').value = o.poids_kg || '';
@@ -1320,6 +1483,12 @@
 
     async function ask(target){
       const status = qs('.pos-status', target);
+      if (target === 'depart' && yoonouWaNumber(document.getElementById('pickupTel').value).length < 8) {
+        status.style.display = 'block'; status.style.color = 'var(--laterite)';
+        status.textContent = "Écris d'abord le téléphone de l'expéditeur plus bas : la discussion WhatsApp s'ouvrira directement avec lui.";
+        document.getElementById('pickupTel').focus();
+        return;
+      }
       if (target === 'destination' && yoonouWaNumber(document.getElementById('destinataireTel').value).length < 8) {
         status.style.display = 'block'; status.style.color = 'var(--laterite)';
         status.textContent = "Écris d'abord le téléphone du destinataire plus bas : la discussion WhatsApp s'ouvrira directement avec lui.";
@@ -1371,6 +1540,7 @@
       const field = document.getElementById(target).closest('.field');
       const box = document.createElement('div');
       box.className = 'field';
+      box.id = 'posTools_' + target;
       box.style.marginTop = '-6px';
       box.innerHTML = toolsHtml(target);
       field.insertAdjacentElement('afterend', box);

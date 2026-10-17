@@ -139,7 +139,7 @@
     list.innerHTML = data.map(d => renderItem(d)).join('');
 
     for (const d of data) {
-      loadSignedLink(d.id, d.url_fichier);
+      loadSignedLink(d.id, d.url_fichier, d.url_fichier_verso, d.type_document);
       document.getElementById('verify-' + d.id).addEventListener('click', () => traiterDocument(d.id, 'VERIFIED'));
       document.getElementById('reject-' + d.id).addEventListener('click', () => traiterDocument(d.id, 'REJECTED'));
       document.getElementById('ban-' + d.id).addEventListener('click', () => bannirCompte(d.transporteur_id, d.id));
@@ -239,20 +239,29 @@
     `;
   }
 
-  async function loadSignedLink(docId, urlFichier){
+  async function signedUrlFor(urlFichier){
+    // url_fichier stocke l'URL publique générée à l'upload ; on en extrait
+    // le chemin interne du fichier pour générer un lien signé temporaire.
+    const marker = '/object/public/kyc-documents/';
+    const idx = urlFichier.indexOf(marker);
+    if (idx === -1) throw new Error("Chemin de fichier introuvable dans l'URL enregistrée.");
+    const { data, error } = await sb.storage.from('kyc-documents').createSignedUrl(urlFichier.substring(idx + marker.length), 3600);
+    if (error) throw error;
+    return data.signedUrl;
+  }
+
+  async function loadSignedLink(docId, urlFichier, urlVerso, typeDocument){
     const wrap = document.getElementById('link-wrap-' + docId);
     try {
-      // url_fichier stocke l'URL publique générée à l'upload ; on en extrait
-      // le chemin interne du fichier pour générer un lien signé temporaire.
-      const marker = '/object/public/kyc-documents/';
-      const idx = urlFichier.indexOf(marker);
-      if (idx === -1) throw new Error("Chemin de fichier introuvable dans l'URL enregistrée.");
-      const filePath = urlFichier.substring(idx + marker.length);
-
-      const { data, error } = await sb.storage.from('kyc-documents').createSignedUrl(filePath, 3600);
-      if (error) throw error;
-
-      wrap.innerHTML = `<a href="${data.signedUrl}" target="_blank" rel="noopener" class="doc-preview-link">🔍 Ouvrir le document</a>`;
+      const rectoUrl = await signedUrlFor(urlFichier);
+      let html = `<a href="${rectoUrl}" target="_blank" rel="noopener" class="doc-preview-link">🔍 ${urlVerso ? 'Ouvrir le recto' : 'Ouvrir le document'}</a>`;
+      if (urlVerso) {
+        const versoUrl = await signedUrlFor(urlVerso);
+        html += ` <a href="${versoUrl}" target="_blank" rel="noopener" class="doc-preview-link">🔍 Ouvrir le verso</a>`;
+      } else if (['cni', 'permis'].includes(typeDocument)) {
+        html += `<div style="font-size:12.5px; color:var(--laterite); margin-bottom:12px;">⚠️ Verso non fourni (document envoyé avant l'obligation du verso).</div>`;
+      }
+      wrap.innerHTML = html;
     } catch (err) {
       console.error(err);
       wrap.innerHTML = `<span style="color:var(--laterite); font-size:13px;">Lien indisponible : ${escapeHtml(err.message)}</span>`;

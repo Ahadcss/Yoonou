@@ -185,7 +185,7 @@
       html += `<div class="card"><h2>📄 Pièces et documents (${(data.documents || []).length})</h2>`;
       html += (data.documents || []).length ? data.documents.map(d => `
         <div class="row"><div><div class="t">${DOC_LABELS[d.type] || escapeHtml(d.type)}</div><div class="s">${fmtDT(d.date)} · statut : ${escapeHtml(d.statut || '—')}</div></div>
-        <button class="open-btn" data-doc="${escapeHtml(d.fichier)}">Ouvrir</button></div>`).join('') : '<div class="empty">Aucun document envoyé.</div>';
+        <div style="display:flex; gap:6px; flex-wrap:wrap;"><button class="open-btn" data-doc="${escapeHtml(d.fichier)}">${d.fichier_verso ? 'Ouvrir le recto' : 'Ouvrir'}</button>${d.fichier_verso ? `<button class="open-btn" data-doc="${escapeHtml(d.fichier_verso)}">Ouvrir le verso</button>` : ''}</div></div>`).join('') : '<div class="empty">Aucun document envoyé.</div>';
       html += '</div>';
     }
     if (isDriver || (data.vehicles || []).length) {
