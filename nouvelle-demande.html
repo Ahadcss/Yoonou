@@ -292,8 +292,14 @@
         </div>
         <div class="field-row">
           <div class="field">
-            <label>Poids estimé (kg)</label>
-            <input type="number" id="poids" min="0.1" step="0.1" required>
+            <label>Poids estimé</label>
+            <div style="display:flex; gap:8px;">
+              <input type="number" id="poids" min="0.01" step="any" required inputmode="decimal" style="flex:1 1 0; min-width:0; width:auto;">
+              <select id="poidsUnite" style="flex:0 0 78px; width:78px;">
+                <option value="kg">kg</option>
+                <option value="g">g</option>
+              </select>
+            </div>
           </div>
           <div class="field">
             <label>Quantité</label>
@@ -353,24 +359,28 @@
       <div class="card" id="contactsCard">
         <h2 id="contactsTitle">👤 Destinataire</h2>
         <div id="blockExpediteur" class="hidden">
+          <h3 id="hExp" class="hidden" style="font-family:'Space Grotesk', sans-serif; font-size:15px; font-weight:700; margin:4px 0 12px;">📤 Expéditeur <span style="font-weight:400; color:var(--muted); font-size:13px;">(la personne qui remet le colis)</span></h3>
           <div class="field">
-            <label>Téléphone de l'expéditeur <span style="color:var(--cta-red);">*</span></label>
+            <label>Prénom et nom</label>
+            <input type="text" id="pickupNom" placeholder="Prénom et nom de l'expéditeur" autocomplete="off">
+          </div>
+          <div class="field">
+            <label>Numéro de téléphone <span style="color:var(--cta-red);">*</span></label>
             <input type="tel" id="pickupTel" placeholder="ex. 77 123 45 67">
           </div>
-          <div style="font-size:12.5px; color:var(--muted); margin:-4px 0 10px;">Obligatoire : le chauffeur pourra l'appeler, et c'est à ce numéro qu'on demande sa position et qu'on envoie le code de collecte.</div>
+          <div style="font-size:12.5px; color:var(--muted); margin:-4px 0 6px;">Obligatoire : le chauffeur pourra l'appeler, et c'est à ce numéro qu'on demande sa position et qu'on envoie le code de collecte.</div>
         </div>
         <div id="blockDestinataire">
-          <div class="field-row">
-            <div class="field">
-              <label>Nom</label>
-              <input type="text" id="destinataireNom" placeholder="Nom de la personne qui reçoit">
-            </div>
-            <div class="field">
-              <label>Téléphone <span style="color:var(--cta-red);">*</span></label>
-              <input type="tel" id="destinataireTel" required placeholder="ex. 77 123 45 67">
-            </div>
+          <h3 id="hDest" class="hidden" style="font-family:'Space Grotesk', sans-serif; font-size:15px; font-weight:700; margin:4px 0 12px;">📥 Destinataire <span style="font-weight:400; color:var(--muted); font-size:13px;">(la personne qui reçoit le colis)</span></h3>
+          <div class="field">
+            <label>Prénom et nom</label>
+            <input type="text" id="destinataireNom" placeholder="Prénom et nom du destinataire" autocomplete="off">
           </div>
-          <div style="font-size:12.5px; color:var(--muted); margin:-4px 0 10px;">Obligatoire : le chauffeur pourra l'appeler, et c'est à ce numéro qu'on envoie le code de livraison.</div>
+          <div class="field">
+            <label>Numéro de téléphone <span style="color:var(--cta-red);">*</span></label>
+            <input type="tel" id="destinataireTel" required placeholder="ex. 77 123 45 67">
+          </div>
+          <div style="font-size:12.5px; color:var(--muted); margin:-4px 0 6px;">Obligatoire : le chauffeur pourra l'appeler, et c'est à ce numéro qu'on envoie le code de livraison.</div>
         </div>
       </div>
 
@@ -1002,6 +1012,13 @@
     document.getElementById('pickupTel').required = m.needSender;
     document.getElementById('destinataireTel').required = m.needRecipient;
     document.getElementById('contactsTitle').textContent = m.title;
+    const both = m.needSender && m.needRecipient;
+    show('hExp', both);
+    show('hDest', both);
+    const bd = document.getElementById('blockDestinataire');
+    bd.style.borderTop = both ? '1px solid rgba(22,33,62,0.1)' : 'none';
+    bd.style.marginTop = both ? '18px' : '0';
+    bd.style.paddingTop = both ? '18px' : '0';
 
     // Écrans
     show('modeScreen', false);
@@ -1052,6 +1069,23 @@
 
   let selectedVehicleType = null;
 
+  // Poids saisi en kg ou en grammes -> toujours converti en kg pour le calcul et l'enregistrement
+  function getPoidsKg(){
+    const v = parseFloat(document.getElementById('poids').value);
+    if (!v || v <= 0) return NaN;
+    return document.getElementById('poidsUnite').value === 'g' ? Number((v / 1000).toFixed(3)) : v;
+  }
+  function formatPoids(kg){
+    if (!kg && kg !== 0) return '?';
+    return kg < 1 ? `${Math.round(kg * 1000)} g` : `${kg} kg`;
+  }
+  document.getElementById('poidsUnite').addEventListener('change', () => {
+    const g = document.getElementById('poidsUnite').value === 'g';
+    const inp = document.getElementById('poids');
+    inp.min = g ? '1' : '0.01';
+    updateEstimation();
+  });
+
   function getCompatibleVehicles(poidsKg, categorie){
     return vehicleTypes.filter(v => {
       const poidsOk = v.max_weight_kg >= poidsKg;
@@ -1061,7 +1095,7 @@
   }
 
   function updateEstimation(){
-    const poids = parseFloat(document.getElementById('poids').value);
+    const poids = getPoidsKg();
     const categorie = document.getElementById('cargoCategorie').value;
     const distance = parseFloat(document.getElementById('distance').value);
     const optionsEl = document.getElementById('vehicleOptions');
@@ -1147,7 +1181,7 @@
     msg.className = 'form-msg';
     btn.disabled = true; btn.textContent = 'Envoi en cours...';
 
-    const poids = parseFloat(document.getElementById('poids').value);
+    const poids = getPoidsKg();
 
     const categorieChoisie = document.getElementById('cargoCategorie').value;
     if (cargoRestrictions[categorieChoisie]?.statut === 'PROHIBITED') {
@@ -1221,6 +1255,7 @@
       type_vehicule: selectedVehicleType,
       // Le chauffeur voit toujours les deux numéros : celui du client est pris dans son profil
       destinataire_nom: orderMode === 'recoit' ? (monNom || null) : (document.getElementById('destinataireNom').value.trim() || null),
+      pickup_nom: orderMode === 'envoie' ? (monNom || null) : (document.getElementById('pickupNom').value.trim() || null),
       pickup_telephone: orderMode === 'envoie' ? (monTel || null) : (document.getElementById('pickupTel').value.trim() || null),
       destinataire_telephone: orderMode === 'recoit' ? monTel : (document.getElementById('destinataireTel').value.trim() || null),
       statut: 'REQUESTED'
@@ -1261,7 +1296,7 @@
       const dName = payload.destinataire_nom, dTel = payload.destinataire_telephone;
       const waText = `Bonjour${dName ? ' ' + dName : ''}, une livraison Yoonou arrive pour vous. Suivez-la en direct ici : ${shareUrl}\n\nQuand le chauffeur arrive, donnez-lui ce code de livraison : ${pinLivraison}\n(à ne donner qu'en main propre, au moment où vous recevez la marchandise).`;
       const waDeliveryUrl = `https://wa.me/${yoonouWaNumber(dTel)}?text=${encodeURIComponent(waText)}`;
-      const waPickupText = `Bonjour, un chauffeur Yoonou va venir récupérer un colis chez vous. Quand il arrive, donnez-lui ce code de collecte : ${pinPickup}\n(à ne donner qu'en main propre, au moment où vous lui remettez le colis).`;
+      const waPickupText = `Bonjour${payload.pickup_nom ? ' ' + payload.pickup_nom : ''}, un chauffeur Yoonou va venir récupérer un colis chez vous. Quand il arrive, donnez-lui ce code de collecte : ${pinPickup}\n(à ne donner qu'en main propre, au moment où vous lui remettez le colis).`;
       const waPickupUrl = `https://wa.me/${yoonouWaNumber(payload.pickup_telephone)}?text=${encodeURIComponent(waPickupText)}`;
       const waBtn = (url, label) => `<br><br><a href="${url}" target="_blank" style="display:inline-block; background:#25D366; color:#fff; padding:10px 16px; border-radius:8px; font-weight:700; text-decoration:none;">${label}</a>`;
       const pickupWho = orderMode === 'envoie' ? "à donner au chauffeur" : "l'expéditeur le donne au chauffeur";
@@ -1351,6 +1386,7 @@
     if (!orderMode) applyMode('livrer');
     document.getElementById('cargoCategorie').value = o.cargo_categorie || 'colis';
     document.getElementById('description').value = o.description || '';
+    document.getElementById('poidsUnite').value = 'kg';
     document.getElementById('poids').value = o.poids_kg || '';
     document.getElementById('quantite').value = o.cargo_quantite || 1;
     document.getElementById('depart').value = o.depart || '';
@@ -1402,7 +1438,7 @@
     line('Référence commande', orderId.slice(0, 8).toUpperCase());
     line('Date', new Date(o.created_at).toLocaleString('fr-FR'));
     line('Trajet', `${o.depart}  →  ${o.destination}`);
-    line('Marchandise', `${o.description || '—'} (${o.poids_kg || '?'} kg, qté ${o.cargo_quantite || 1})`);
+    line('Marchandise', `${o.description || '—'} (${formatPoids(o.poids_kg)}, qté ${o.cargo_quantite || 1})`);
     line('Distance', o.distance_km ? `${o.distance_km} km` : '—');
     line('Transporteur', transporteurNom);
 

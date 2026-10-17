@@ -898,6 +898,11 @@
     const clientPhone = (o.profiles?.whatsapp || '').replace(/[^0-9]/g, '');
     const clientNom = `${o.profiles?.prenom || ''} ${o.profiles?.nom || ''}`.trim() || 'Client';
     const navLink = renderNavLink(o);
+    // Le client peut être l'expéditeur, le destinataire, ou ni l'un ni l'autre : on affiche chaque personne une seule fois
+    const clientDigits = waDigits(o.profiles?.whatsapp);
+    const senderIsClient = !!clientDigits && waDigits(o.pickup_telephone) === clientDigits;
+    const recipientIsClient = !!clientDigits && waDigits(o.destinataire_telephone) === clientDigits;
+    const clientLabel = senderIsClient ? '📤 Expéditeur (client)' : recipientIsClient ? '📥 Destinataire (client)' : '👤 Client';
 
     return `
       <div class="order-card" data-order-id="${o.id}" data-statut="${o.statut}">
@@ -917,9 +922,9 @@
           <div class="price-row net"><span class="lbl">Ton revenu net</span><span class="val">${formatFcfa(net)}</span></div>
         </div>
 
-        ${contactBlock('👤 Expéditeur', clientNom, o.profiles?.whatsapp)}
-        ${o.pickup_telephone ? contactBlock('📍 Contact au point de départ', '', o.pickup_telephone) : ''}
-        ${contactBlock('📦 Destinataire', o.destinataire_nom || '', o.destinataire_telephone)}
+        ${contactBlock(clientLabel, clientNom, o.profiles?.whatsapp)}
+        ${(o.pickup_telephone && !senderIsClient) ? contactBlock('📤 Expéditeur', o.pickup_nom || '', o.pickup_telephone) : ''}
+        ${recipientIsClient ? '' : contactBlock('📥 Destinataire', o.destinataire_nom || '', o.destinataire_telephone)}
 
         <div class="step-zone" id="step-zone-${o.id}">
           ${renderStepAction(o)}
