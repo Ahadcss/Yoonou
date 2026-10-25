@@ -119,6 +119,12 @@
       </a>
     </div>
     <div class="alert-grid">
+      <a href="admin-mots-de-passe.html" class="alert-card" id="pwAlert" style="grid-column:1 / -1;">
+        <span class="t">🔑 Mots de passe oubliés</span>
+        <span class="n" id="pwCount">—</span>
+      </a>
+    </div>
+    <div class="alert-grid">
       <a href="admin-photos.html" class="alert-card" id="photosAlert" style="grid-column:1 / -1;">
         <span class="t">📷 Photos de profil à valider</span>
         <span class="n" id="photosCount">—</span>
@@ -274,6 +280,13 @@
     document.getElementById('ticketsAlert').classList.toggle('zero', !ticketsCount);
     document.getElementById('zonesAlert').classList.toggle('zero', !zonesCount);
     document.getElementById('phoneVerifAlert').classList.toggle('zero', !phoneVerifCount);
+    let pwCount = 0;
+    try {
+      const { data: pwData } = await sb.rpc('lister_demandes_mot_de_passe');
+      pwCount = (pwData || []).filter(i => ['REQUESTED','CODE_SENT','EXPIRED'].includes(i.statut)).length;
+    } catch (e) { console.error(e); }
+    document.getElementById('pwCount').textContent = pwCount;
+    document.getElementById('pwAlert').classList.toggle('zero', !pwCount);
     document.getElementById('risqueCount').textContent = risqueCount ?? 0;
     document.getElementById('risqueAlert').classList.toggle('zero', !risqueCount);
   }

@@ -33,6 +33,9 @@
   .page-sub{color:var(--muted); font-size:14.5px; margin-bottom:22px;}
   .loading{text-align:center; padding:80px 20px; color:var(--muted);}
   .hidden{display:none !important;}
+  .modal-bg{position:fixed; inset:0; background:rgba(22,33,62,.6); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50;}
+  .modal{background:#fff; border-radius:14px; padding:22px; max-width:420px; width:100%;}
+  .modal input{width:100%; padding:12px; border-radius:10px; border:1.5px solid rgba(22,33,62,0.2); font-size:16px; margin-top:10px; box-sizing:border-box;}
   .card{background:#fff; border-radius:14px; padding:22px; border:1px solid rgba(22,33,62,0.08); margin-bottom:16px;}
   .card h2{font-size:16px; margin-bottom:6px;}
   .card p{color:var(--muted); font-size:13.5px; line-height:1.5;}
@@ -60,6 +63,8 @@
   .soon{font-family:'JetBrains Mono'; font-size:10.5px; background:rgba(232,169,58,.18); color:#a5760f; padding:3px 8px; border-radius:100px; margin-left:8px; font-weight:600;}
   .section-label{font-family:'JetBrains Mono'; font-size:12px; letter-spacing:.06em; color:var(--muted); margin:22px 0 10px; text-transform:uppercase;}
 </style>
+<script src="traduction-en.js"></script>
+<script src="traduction.js"></script>
 </head>
 <body>
 <nav><div class="wrap">
@@ -77,7 +82,6 @@
       <h2 data-i18n="settings_language">🌍 Langue</h2>
       <p data-i18n="settings_language_desc">Choisis la langue de l'application.</p>
       <div class="lang-switcher" id="langSwitcher"></div>
-      <p class="lang-note" id="langNote" data-i18n="settings_language_note">Certaines pages ne sont pas encore traduites : elles restent en français.</p>
     </div>
 
     <div class="card" id="notifCard">
@@ -127,6 +131,25 @@
         <div class="d" data-i18n="settings_business_desc">Livraisons régulières, plusieurs utilisateurs, factures.</div></div>
       <div class="chev">›</div>
     </a>
+
+    <div class="card" style="margin-top:22px;">
+      <h2 data-i18n="settings_delete_title">🗑️ Supprimer mon compte</h2>
+      <p data-i18n="settings_delete_desc">Tes données personnelles sont effacées et tu ne pourras plus te connecter avec ce compte.</p>
+      <button class="btn" id="delOpenBtn" type="button" style="margin-top:12px;" data-i18n="settings_delete_btn">Supprimer mon compte</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg hidden" id="delModal">
+  <div class="modal">
+    <h2 id="delTitle" style="margin:0 0 8px; font-size:18px;"></h2>
+    <p id="delText" style="margin:0; font-size:14px;"></p>
+    <input type="text" id="delConfirmInput" autocomplete="off" autocapitalize="characters">
+    <p id="delMsg" style="margin:10px 0 0; font-size:13px; color:var(--cta-red);"></p>
+    <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+      <button class="btn secondary" id="delCancelBtn" type="button"></button>
+      <button class="btn" id="delConfirmBtn" type="button"></button>
+    </div>
   </div>
 </div>
 
@@ -204,7 +227,6 @@
     await refreshNotifStatus();
   });
 
-  function updateNote(){ document.getElementById('langNote').style.display = (yoonouGetLang() === 'fr') ? 'none' : 'block'; }
 
   let currentUserId = null;
 
@@ -271,14 +293,61 @@
     }
     if (me && me.role === 'transporteur') setupAvatar(me);
     yoonouInjectLangSwitcher('langSwitcher');
-    document.querySelectorAll('.yoonou-lang-btn').forEach(b => b.addEventListener('click', updateNote));
-    updateNote();
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('content').classList.remove('hidden');
     yoonouApplyTranslations();
     refreshNotifStatus();
   }
   init();
+
+  // ---------- Suppression du compte ----------
+  function delT(fr, en){ return (typeof yoonouGetLang === 'function' && yoonouGetLang() === 'en') ? en : fr; }
+  function delFillTexts(){
+    document.getElementById('delTitle').textContent = delT('Supprimer mon compte ?', 'Delete my account?');
+    document.getElementById('delText').textContent = delT(
+      'Cette action est définitive. Tes données personnelles seront effacées et tu ne pourras plus te connecter. Pour confirmer, écris SUPPRIMER.',
+      'This cannot be undone. Your personal data will be erased and you will not be able to log in again. To confirm, type DELETE.');
+    document.getElementById('delConfirmInput').placeholder = delT('SUPPRIMER', 'DELETE');
+    document.getElementById('delCancelBtn').textContent = delT('Annuler', 'Cancel');
+    document.getElementById('delConfirmBtn').textContent = delT('Supprimer définitivement', 'Delete permanently');
+  }
+  document.getElementById('delOpenBtn').addEventListener('click', () => {
+    delFillTexts();
+    document.getElementById('delConfirmInput').value = '';
+    document.getElementById('delMsg').textContent = '';
+    document.getElementById('delModal').classList.remove('hidden');
+  });
+  document.getElementById('delCancelBtn').addEventListener('click', () => document.getElementById('delModal').classList.add('hidden'));
+  document.getElementById('delConfirmBtn').addEventListener('click', async () => {
+    const msg = document.getElementById('delMsg');
+    const word = delT('SUPPRIMER', 'DELETE');
+    if (document.getElementById('delConfirmInput').value.trim().toUpperCase() !== word) {
+      msg.textContent = delT('Écris SUPPRIMER pour confirmer.', 'Type DELETE to confirm.');
+      return;
+    }
+    const btn = document.getElementById('delConfirmBtn');
+    btn.disabled = true; msg.textContent = '';
+    const { error } = await sb.rpc('supprimer_mon_compte');
+    if (error) {
+      const m = error.message || '';
+      if (m.includes('ORDER_IN_PROGRESS')) msg.textContent = delT('Tu as une course en cours. Termine-la ou annule-la avant de supprimer ton compte.', 'You have a delivery in progress. Finish or cancel it before deleting your account.');
+      else if (m.includes('COMMISSION_DUE')) msg.textContent = delT('Une commission est à payer. Règle-la avant de supprimer ton compte.', 'A commission is due. Pay it before deleting your account.');
+      else if (m.includes('ADMIN_NOT_ALLOWED')) msg.textContent = delT('Un compte administrateur ne peut pas être supprimé ici.', 'An administrator account cannot be deleted here.');
+      else msg.textContent = delT('Erreur : suppression impossible. Réessaie ou contacte l\'équipe Yoonou.', 'Error: could not delete. Try again or contact the Yoonou team.');
+      btn.disabled = false;
+      return;
+    }
+    // Nettoyage des fichiers (au mieux, sans bloquer)
+    for (const bucket of ['avatars', 'vehicle-photos', 'kyc-documents']) {
+      try {
+        const { data } = await sb.storage.from(bucket).list(currentUserId, { limit: 100 });
+        if (data && data.length) await sb.storage.from(bucket).remove(data.map(f => currentUserId + '/' + f.name));
+      } catch (e) { /* ignoré */ }
+    }
+    try { await sb.auth.signOut(); } catch (e) { /* ignoré */ }
+    alert(delT('Ton compte a été supprimé.', 'Your account has been deleted.'));
+    window.location.href = 'index.html';
+  });
 </script>
 </body>
 </html>

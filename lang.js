@@ -1,8 +1,5 @@
 // ============================================================
-// Yoonou — Système multilingue (Français / English / Wolof)
-// ⚠️ Les traductions wolof sont une première version générée par IA.
-// À faire relire par un locuteur natif avant un vrai lancement public —
-// le wolof a des variations régionales importantes.
+// Yoonou — Système multilingue (Français / English)
 // ============================================================
 
 const YOONOU_TRANSLATIONS = {
@@ -101,6 +98,9 @@ const YOONOU_TRANSLATIONS = {
     settings_business: "Create a business account",
     settings_soon: "SOON",
     settings_business_desc: "Regular deliveries, several users, invoices.",
+    settings_delete_title: "🗑️ Delete my account",
+    settings_delete_desc: "Your personal data is erased and you will not be able to log in with this account again.",
+    settings_delete_btn: "Delete my account",
     biz_badge: "COMING SOON",
     biz_title: "Yoonou for business is coming soon",
     biz_text: "We are building a space designed for businesses: regular deliveries, several users on one account and simpler tracking. Thanks for your patience!",
@@ -144,57 +144,19 @@ const YOONOU_TRANSLATIONS = {
     pos_send: "Send my location",
     pos_done_title: "Thank you!",
     pos_done_sub: "Your location has been sent. You can close this page."
-  },
-
-  wo: {
-    // ⚠️ Traductions wolof — première version IA, à faire valider par un
-    // locuteur natif avant lancement public.
-    nav_login: "Dugg",
-    nav_signup: "Bind",
-    nav_start: "Tambali",
-    lang_switcher_label: "Làkk",
-
-    auth_tab_login: "Dugg",
-    auth_tab_signup: "Bind",
-    auth_login_phone: "Nimero telefon",
-    auth_login_password: "Baatub tëriim",
-    auth_login_btn: "Dugg",
-    auth_login_error: "Nimero telefon walla baatub tëriim baaxul.",
-    auth_role_client: "Kiliyaan",
-    auth_role_transporteur: "Yóbbukat",
-    auth_prenom: "Tur",
-    auth_nom: "Sant",
-    auth_phone: "Nimero telefon",
-    auth_phone_confirm: "Dëggal nimero telefon bi",
-    auth_phone_mismatch: "Ñaari nimero yi feeñuñu benn.",
-    auth_password: "Baatub tëriim (6 mbind yu ndaw)",
-    auth_password_confirm: "Dëggal baatub tëriim bi",
-    auth_password_mismatch: "Ñaari baatub tëriim yi feeñuñu benn.",
-    auth_pw_show: "Wone baatub tëriim bi",
-    auth_pw_hide: "Nëbb baatub tëriim bi",
-    auth_forgot: "Fàtte naa baatub tëriim?",
-    auth_ville: "Dëkk",
-    auth_signup_btn: "Sos sama compte",
-    auth_back_home: "← Dellu ci kër gi",
-
-    home_eyebrow: "🇸🇳 Juddu ci Senegaal · Am na léegi",
-    home_hero_title_1: "Say yëf am nañu fu ñu jëm.",
-    home_hero_title_2: "Yoonou moo leen di won yoon wi.",
-    home_hero_meaning: "« Yoonou » mooy « yoon wi » ci wolof.",
-    home_hero_lead: "Li ci ndaw ba ci kamiyoŋ bu mag, ci benn plateforme rekk. Weer, moto, tricycle, sarret, oto, SUV, minivan, pick-up, kamiyoŋet walla kamiyoŋ: benn yóbbukat dañuy jël say yëf, foo mën a nekk ci Senegaal.",
-    home_hero_cta_primary: "🚀 Tambali léegi",
-    home_hero_cta_secondary: "Xool ni mu doxe"
   }
 };
 
 function yoonouGetLang(){
-  return localStorage.getItem('yoonou_lang') || 'fr';
+  const l = localStorage.getItem('yoonou_lang');
+  return (l === 'fr' || l === 'en') ? l : 'fr';
 }
 
 function yoonouSetLang(lang){
   localStorage.setItem('yoonou_lang', lang);
   yoonouApplyTranslations();
   yoonouUpdateSwitcherUI();
+  if (window.yoonouRetranslate) window.yoonouRetranslate();
 }
 
 function yoonouApplyTranslations(){
@@ -202,12 +164,14 @@ function yoonouApplyTranslations(){
   const dict = YOONOU_TRANSLATIONS[lang] || YOONOU_TRANSLATIONS.fr;
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
+    if (el.__fr === undefined) el.__fr = el.textContent;
     const key = el.getAttribute('data-i18n');
-    if (dict[key]) el.textContent = dict[key];
+    el.textContent = dict[key] || el.__fr;
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    if (el.__frPh === undefined) el.__frPh = el.placeholder;
     const key = el.getAttribute('data-i18n-placeholder');
-    if (dict[key]) el.placeholder = dict[key];
+    el.placeholder = dict[key] || el.__frPh;
   });
   document.documentElement.lang = lang;
 }
@@ -225,7 +189,6 @@ function yoonouInjectLangSwitcher(containerId){
   container.innerHTML = `
     <button type="button" class="yoonou-lang-btn" data-lang="fr">FR</button>
     <button type="button" class="yoonou-lang-btn" data-lang="en">EN</button>
-    <button type="button" class="yoonou-lang-btn" data-lang="wo">WO</button>
   `;
   container.querySelectorAll('.yoonou-lang-btn').forEach(btn => {
     btn.addEventListener('click', () => yoonouSetLang(btn.dataset.lang));
