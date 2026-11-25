@@ -8,7 +8,7 @@
 // Ce que fait ce fichier :
 //  1. Corrige la saisie (accents, pluriels, mots courts) et essaie plusieurs variantes
 //  2. Cherche d'abord dans les lieux ajoutés par la communauté Yoonou (validés)
-//  3. Interroge Mapbox Geocoding (gratuit jusqu'à un gros volume) avec ces variantes
+//  3. Interroge Geoapify (voir geo.js) avec ces variantes
 //  4. Si une carte est affichée, cherche aussi dans les lieux écrits sur la carte
 //  5. Fournit yoonouPoiAtPoint() : le nom du lieu écrit sur la carte à l'endroit touché
 // ============================================================
@@ -49,7 +49,7 @@ function yoonouQueryVariants(query){
     const last = tokens[tokens.length - 1];
     if (last.length >= 5) add(last);
   }
-  return variants.slice(0, 4);
+  return variants.slice(0, 3);
 }
 
 function yoonouDistanceM(a, b){
@@ -67,33 +67,30 @@ async function yoonouFetchJson(url){
   } catch (e) { return null; }
 }
 
-// --- Mapbox Geocoding (comme avant) ---
+// --- Recherche d'adresses (Geoapify, voir geo.js) ---
+// Garde le même format de résultat qu'avant : { label, title, subtitle, lat, lng, source }
 async function yoonouGeocoding(query, token, prox){
-  const base = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&country=sn&language=fr&limit=6&proximity=${prox.lng},${prox.lat}`;
-  let data = await yoonouFetchJson(base + '&types=poi,address,neighborhood,locality,place');
-  if (!data || !data.features || data.features.length === 0) data = await yoonouFetchJson(base);
-  return ((data && data.features) || []).map(f => {
-    // Titre = nom du lieu ; détail = quartier / commune / région (le reste de l'adresse, sans « Sénégal »)
-    const title = f.text_fr || f.text || f.place_name;
-    const parts = String(f.place_name || '').split(',').map(x => x.trim()).filter(Boolean);
-    if (parts.length && yoonouNormalize(parts[0]) === yoonouNormalize(title)) parts.shift();
-    const subtitle = parts.filter(x => !/^s[eé]n[eé]gal$/i.test(x)).join(', ');
-    return { label: f.place_name, title, subtitle, lat: f.center[1], lng: f.center[0], source: 'geocoding' };
-  });
+  const found = await yoonouGeoSearch(query, prox, 6);
+  return found.map(r => ({ label: r.label, title: r.title, subtitle: r.subtitle, lat: r.lat, lng: r.lng, vague: r.vague, source: 'geocoding' }));
 }
 
-// --- Lieux écrits sur la carte (si une carte Mapbox est affichée) ---
+// --- Lieux écrits sur la carte (si une carte est affichée) ---
 function yoonouMapLabelsSearch(map, query){
   if (!map || !map.isStyleLoaded || !map.isStyleLoaded()) return [];
   const qTokens = yoonouNormalize(query).split(' ').filter(t => t.length >= 2).map(yoonouSingular);
   if (qTokens.length === 0) return [];
   let features = [];
   try {
-    features = map.querySourceFeatures('composite', { sourceLayer: 'poi_label' });
+    const sources = (map.getStyle() && map.getStyle().sources) || {};
+    const vec = Object.keys(sources).find(k => sources[k].type === 'vector');
+    if (!vec) return [];
+    ['poi', 'place', 'aerodrome_label'].forEach(sl => {
+      try { features = features.concat(map.querySourceFeatures(vec, { sourceLayer: sl })); } catch (e) { /* couche absente */ }
+    });
   } catch (e) { return []; }
   const seen = new Set(), out = [];
   for (const f of features) {
-    const name = f.properties && (f.properties.name_fr || f.properties.name);
+    const name = f.properties && (f.properties['name:fr'] || f.properties.name_fr || f.properties.name);
     if (!name || !f.geometry || f.geometry.type !== 'Point') continue;
     const nName = yoonouNormalize(name);
     if (!qTokens.every(t => nName.includes(t))) continue;
@@ -114,9 +111,9 @@ function yoonouPoiAtPoint(map, point, radiusPx){
   try {
     feats = map.queryRenderedFeatures([[point.x - r, point.y - r], [point.x + r, point.y + r]]);
   } catch (e) { return null; }
-  const poi = feats.find(f => f.layer && /poi|place-label|landmark|transit|airport/.test(f.layer.id)
-                              && f.properties && (f.properties.name_fr || f.properties.name));
-  return poi ? (poi.properties.name_fr || poi.properties.name) : null;
+  const nameOf = p => p && (p['name:fr'] || p.name_fr || p.name);
+  const poi = feats.find(f => f.layer && /poi|place|landmark|transit|airport|aerodrome/.test(f.layer.id) && nameOf(f.properties));
+  return poi ? nameOf(poi.properties) : null;
 }
 
 // --- Point d'entrée : renvoie [{label, lat, lng, yoonou}] ---
@@ -131,18 +128,42 @@ async function yoonouSearchPlaces(query, sb, token, options){
     const words = yoonouNormalize(query).split(' ').filter(w => w.length >= 3).map(yoonouSingular);
     if (sb && words.length) {
       const colonnes = ['nom_zone, description, type_lieu, adresse, latitude, longitude', 'nom_zone, description, latitude, longitude'];
+      // On cherche d'abord sur la colonne « nom_recherche » (sans accents, voir lieux-recherche.sql).
+      // Si elle n'existe pas encore, on retombe sur nom_zone comme avant.
+      // Secours (colonne absente) : les lettres pouvant porter un accent deviennent un joker « _ » (ilike),
+      // donc « medina » trouve « Médina » même sans la mise à jour de la base.
+      const joker = mot => mot.replace(/[aeiouycn]/g, '_');
+      const champsFiltre = ['nom_recherche', 'nom_zone'];
+      // Le mot le plus long est le plus sélectif : moins de lignes à lire.
+      const motCle = words.slice().sort((x, y) => y.length - x.length)[0];
       let data = null;
-      for (const cols of colonnes) {      // 2e essai sans type_lieu / adresse si ces colonnes n'existent pas encore
-        const rep = await sb.from('zone_suggestions').select(cols)
-          .eq('statut', 'APPROUVEE')
-          .ilike('nom_zone', `%${words[words.length - 1]}%`)
-          .limit(20);
-        if (!rep.error) { data = rep.data; break; }
+      for (const champ of champsFiltre) {
+        for (const cols of colonnes) {      // 2e essai sans type_lieu / adresse si ces colonnes n'existent pas encore
+          const rep = await sb.from('zone_suggestions').select(cols)
+            .eq('statut', 'APPROUVEE')
+            .ilike(champ, `%${champ === 'nom_recherche' ? motCle : joker(motCle)}%`)
+            .limit(60);
+          if (!rep.error) { data = rep.data; break; }
+        }
+        if (data) break;
       }
+      const requete = yoonouNormalize(query);
       (data || [])
-        .filter(z => { const n = yoonouNormalize(z.nom_zone + ' ' + (z.description || '')); return words.every(w => n.includes(w)); })
-        .slice(0, 3)
-        .forEach(z => results.push({
+        .map(z => {
+          const nom = yoonouNormalize(z.nom_zone);
+          const n = yoonouNormalize(z.nom_zone + ' ' + (z.description || ''));
+          const tousLesMots = words.every(w => n.includes(w));
+          // Classement : nom exact > nom qui commence par la recherche > nom court
+          let score = 0;
+          if (nom === requete) score += 100;
+          if (nom.startsWith(words[0])) score += 20;
+          score -= Math.min(nom.length, 60) / 10;
+          return { z, tousLesMots, score };
+        })
+        .filter(x => x.tousLesMots)
+        .sort((x, y) => y.score - x.score)
+        .slice(0, 4)
+        .forEach(({ z }) => results.push({
           label: z.nom_zone + (z.description ? ' — ' + z.description : ''),
           title: z.nom_zone,
           subtitle: [z.type_lieu, z.adresse || z.description].filter(Boolean).join(' · '),
@@ -154,7 +175,7 @@ async function yoonouSearchPlaces(query, sb, token, options){
   // 2) Lieux écrits sur la carte affichée
   yoonouMapLabelsSearch(options.map, query).forEach(r => results.push(r));
 
-  // 3) Mapbox : on essaie les variantes jusqu'à avoir des résultats
+  // 3) Geoapify : on essaie les variantes jusqu'à avoir des résultats
   for (const v of variants) {
     const found = await yoonouGeocoding(v, token, prox);
     found.forEach(r => results.push(r));

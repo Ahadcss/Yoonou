@@ -13,8 +13,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="geo.js"></script>
+<script src="image-utils.js"></script>
+<script src="chauffeurs-carte.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="lieux.js"></script>
 <style>
   :root{
@@ -268,6 +271,7 @@
           <span id="nearbyToggleIcon" style="color:var(--teal); font-family:'Space Grotesk'; font-weight:600; font-size:13px;">Voir le détail ▾</span>
         </div>
         <div id="nearbyBreakdown" class="hidden" style="margin-top:14px;"></div>
+        <button type="button" class="map-action-btn" id="nearbyMapBtn" style="margin-top:12px; padding:10px 18px; font-size:13.5px;">🗺️ Voir les chauffeurs sur la carte</button>
       </div>
     </div>
 
@@ -410,8 +414,6 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
-  mapboxgl.accessToken = MAPBOX_TOKEN;
   let map = null;
   let departMarker = null;
   let destMarker = null;
@@ -470,6 +472,8 @@
         } else {
           breakdown.innerHTML = `<p style="color:var(--sand-dim); font-size:13px;">Reviens un peu plus tard, ou passe ta demande quand même — un transporteur peut se connecter à tout moment.</p>`;
         }
+
+        document.getElementById('nearbyMapBtn').onclick = () => YoonouDriversMap.open({ sb, lat: latitude, lng: longitude });
 
         document.getElementById('nearbySummary').addEventListener('click', () => {
           breakdown.classList.toggle('hidden');
@@ -776,7 +780,7 @@
   let lastUserPos = null;   // dernière position GPS obtenue (sert à afficher les distances des suggestions)
   function formatDistance(m){ return m < 1000 ? Math.max(10, Math.round(m / 10) * 10) + ' m' : (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' km'; }
 
-  // ---- RECHERCHE D'ADRESSE (Mapbox Geocoding) ----
+  // ---- RECHERCHE D'ADRESSE (Geoapify, voir geo.js) ----
   function setupAddressField(inputId, suggestionsId, onSelect, pickBtnId){
     const input = document.getElementById(inputId);
     const box = document.getElementById(suggestionsId);
@@ -788,14 +792,15 @@
       if (query.length < 3) { box.classList.remove('open'); box.innerHTML = ''; return; }
       debounceTimer = setTimeout(async () => {
         try {
-          // Recherche améliorée (voir lieux.js) : lieux Yoonou, Mapbox Search Box + Geocoding,
+          // Recherche améliorée (voir lieux.js) : lieux Yoonou, Geoapify,
           // variantes (pluriel, accents, mots en trop) et lieux écrits sur la carte affichée.
-          const allResults = await yoonouSearchPlaces(query, sb, MAPBOX_TOKEN, { map: (typeof map !== 'undefined' ? map : null), from: lastUserPos, proximity: lastUserPos || undefined });
+          const allResults = await yoonouSearchPlaces(query, sb, YOONOU_GEO_KEY, { map: (typeof map !== 'undefined' ? map : null), from: lastUserPos, proximity: lastUserPos || undefined });
 
           if (allResults.length === 0) {
             box.innerHTML = `
               <div class="suggestion-item" style="cursor:default;">Aucun résultat pour "${escapeHtml(query)}" — ce lieu n'est peut-être pas encore référencé.</div>
               <div class="suggestion-item" id="fallbackPickBtn-${pickBtnId}" style="font-weight:700; color:var(--teal); cursor:pointer;">📌 Choisir directement sur la carte</div>
+              <a class="suggestion-item" href="ajouter-zone.html" target="_blank" rel="noopener" style="text-decoration:none; font-weight:700; color:var(--teal);">➕ Ajouter ce lieu à Yoonou (il aidera les prochains clients)</a>
             `;
             box.classList.add('open');
             const fallbackBtn = document.getElementById(`fallbackPickBtn-${pickBtnId}`);
@@ -817,11 +822,20 @@
                </div>
                ${r.distanceM != null ? `<div class="sug-dist">${formatDistance(r.distanceM)}</div>` : ''}
              </div>`
-          ).join('');
+          ).join('') + `<a class="suggestion-item" href="ajouter-zone.html" target="_blank" rel="noopener" style="text-decoration:none; font-weight:600; color:var(--teal);">➕ Je ne trouve pas mon lieu : l'ajouter à Yoonou</a>`;
           box.classList.add('open');
           box.querySelectorAll('.suggestion-item[data-index]').forEach(el => {
             el.addEventListener('click', () => {
               const r = allResults[parseInt(el.dataset.index)];
+              if (r.vague) {
+                // Résultat trop général (toute une ville) : le prix et le chauffeur auraient un mauvais point de départ
+                box.innerHTML = `
+                  <div class="suggestion-item" style="cursor:default;">« ${escapeHtml(r.title)} » désigne toute une zone. Précise un quartier ou un repère, ou choisis le point exact sur la carte.</div>
+                  <div class="suggestion-item" id="vaguePickBtn-${pickBtnId}" style="font-weight:700; color:var(--teal); cursor:pointer;">📌 Choisir directement sur la carte</div>`;
+                const vb = document.getElementById(`vaguePickBtn-${pickBtnId}`);
+                if (vb && pickBtnId) vb.addEventListener('click', () => { box.classList.remove('open'); document.getElementById(pickBtnId).click(); });
+                return;
+              }
               input.value = r.label;
               box.classList.remove('open');
               onSelect({ lat: r.lat, lng: r.lng });
@@ -842,11 +856,12 @@
 
   function ensureMap(){
     if (map) return;
-    map = new mapboxgl.Map({
+    map = new maplibregl.Map({
       container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: YOONOU_MAP_STYLE,
       center: [-17.4677, 14.7167], // Dakar par défaut
-      zoom: 11
+      zoom: 11,
+      attributionControl: { compact: true, customAttribution: 'Recherche © Geoapify' }
     });
     document.getElementById('map').classList.add('visible');
 
@@ -856,8 +871,9 @@
       const coords = { lat, lng };
 
       const poiName = yoonouPoiAtPoint(map, e.point, 18);
-      const addr = await reverseGeocode(lat, lng);
-      const label = poiName ? `${poiName}, ${addr}` : addr;
+      const poiProche = poiName ? null : yoonouPoiAtPoint(map, e.point, 80);
+      const rev = await yoonouGeoReverse(lat, lng);
+      const label = yoonouPinLabel(rev, poiName, poiProche) || `Point choisi (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
 
       if (pickingMode === 'depart') {
         document.getElementById('depart').value = label;
@@ -875,15 +891,8 @@
   }
 
   async function reverseGeocode(lat, lng){
-    try {
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&language=fr&types=address,neighborhood,poi,place`;
-      const res = await fetch(url);
-      const data = await res.json();
-      return (data.features && data.features[0]) ? data.features[0].place_name : `Point choisi (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-    } catch (err) {
-      console.error('Erreur géocodage inverse:', err);
-      return `Point choisi (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-    }
+    const rev = await yoonouGeoReverse(lat, lng);
+    return yoonouPinLabel(rev, null, null) || `Point choisi (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
   }
 
   function startPicking(mode){
@@ -908,23 +917,16 @@
 
     if (departMarker) departMarker.remove();
     if (destMarker) destMarker.remove();
-    departMarker = new mapboxgl.Marker({ color: '#C1502E' }).setLngLat([departCoords.lng, departCoords.lat]).addTo(map);
-    destMarker = new mapboxgl.Marker({ color: '#16213E' }).setLngLat([destCoords.lng, destCoords.lat]).addTo(map);
+    departMarker = new maplibregl.Marker({ color: '#C1502E' }).setLngLat([departCoords.lng, departCoords.lat]).addTo(map);
+    destMarker = new maplibregl.Marker({ color: '#16213E' }).setLngLat([destCoords.lng, destCoords.lat]).addTo(map);
 
     try {
-      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${departCoords.lng},${departCoords.lat};${destCoords.lng},${destCoords.lat}?geometries=geojson&access_token=${MAPBOX_TOKEN}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!data.routes || data.routes.length === 0) {
-        console.error('Aucun itinéraire trouvé');
-        return;
-      }
-      const route = data.routes[0];
-      const distanceKm = route.distance / 1000;
-      dureeEstimeeMin = route.duration / 60;
+      const route = await yoonouGeoRoute(departCoords, destCoords);
+      const distanceKm = route.km;
+      dureeEstimeeMin = route.minutes;
 
       document.getElementById('distance').value = distanceKm.toFixed(1);
-      document.getElementById('routeDistance').textContent = distanceKm.toFixed(1) + ' km';
+      document.getElementById('routeDistance').textContent = (route.approximatif ? '≈ ' : '') + distanceKm.toFixed(1) + ' km';
       document.getElementById('routeDuration').textContent = Math.round(dureeEstimeeMin) + ' min';
       document.getElementById('routeInfo').classList.add('visible');
 
@@ -935,7 +937,7 @@
         if (map.isStyleLoaded()) addRouteLayer(route.geometry);
       }
 
-      const bounds = new mapboxgl.LngLatBounds();
+      const bounds = new maplibregl.LngLatBounds();
       bounds.extend([departCoords.lng, departCoords.lat]);
       bounds.extend([destCoords.lng, destCoords.lat]);
       map.fitBounds(bounds, { padding: 50 });
@@ -1269,7 +1271,8 @@
       const cargoPhotosInput = document.getElementById('cargoPhotos');
       if (cargoPhotosInput.files && cargoPhotosInput.files.length > 0) {
         const urls = [];
-        for (const file of cargoPhotosInput.files) {
+        for (const original of cargoPhotosInput.files) {
+          const file = await yoonouCompressImage(original);
           const path = `${currentUser.id}/${Date.now()}_${file.name}`;
           try {
             const { data: up, error: upErr } = await sb.storage.from('cargo-photos').upload(path, file);
@@ -1309,7 +1312,8 @@
       const showRecipientBtn = (orderMode === 'envoie' || orderMode === 'livrer') && pinLivraison;
 
       msg.innerHTML = `
-        🎉 Demande envoyée ! Prix confirmé : <b>${data.prix.toLocaleString('fr-FR')} FCFA</b>. Un transporteur va bientôt l'accepter.<br><br>
+        🎉 Demande envoyée ! Prix confirmé : <b>${data.prix.toLocaleString('fr-FR')} FCFA</b>. Un transporteur va bientôt l'accepter.<br>
+        🧾 Référence de la commande : <b style="font-family:'JetBrains Mono',monospace;">#${String(data.id).slice(0, 8).toUpperCase()}</b> (à donner au support en cas de problème)<br><br>
         📌 <b>Garde bien ces deux codes</b>, tu les retrouveras aussi dans le suivi de ta commande :<br>
         Code de collecte (${pickupWho}) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${pinPickup || '—'}</b><br>
         Code de livraison (${deliveryWho}) : <b style="font-family:'JetBrains Mono',monospace; font-size:16px;">${pinLivraison || '—'}</b>
@@ -1361,6 +1365,7 @@
       <div class="order-item">
         <div ${clickable ? `style="cursor:pointer;" onclick="window.location.href='suivi-commande.html?id=${o.id}'"` : ''}>
           <div class="route">${o.depart} → ${o.destination}</div>
+          <div style="font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); margin-bottom:4px;">Réf. #${String(o.id).slice(0, 8).toUpperCase()}</div>
           <div class="meta">
             <span>${o.prix ? o.prix.toLocaleString('fr-FR') + ' FCFA' : '—'}</span>
             <span class="status-pill">${statusLabels[o.statut] || o.statut}</span>

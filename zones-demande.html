@@ -11,8 +11,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="geo.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <style>
   :root{--indigo-deep:#16213E; --laterite:#C1502E; --sand:#F3E9D2; --sand-dim:#E6D9BB; --teal:#2A7F76; --gold:#E8A93A; --ink:#1A1712; --muted:#4a4438;}
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -40,6 +41,14 @@
   }
   .legend-bar{height:10px; width:120px; border-radius:100px; background:linear-gradient(90deg, rgba(42,127,118,0.2), var(--gold), var(--laterite));}
   .empty-note{color:var(--muted); font-size:14px; text-align:center; padding:16px;}
+  .top-zones{margin-top:18px;}
+  .top-zones h2{font-size:16px; margin-bottom:10px;}
+  .zone-card{background:#fff; border-radius:12px; padding:12px 14px; margin-bottom:10px; border:1.5px solid rgba(22,33,62,0.1);}
+  .zone-card .zt{font-family:'Space Grotesk'; font-weight:700; font-size:14.5px; color:var(--indigo-deep);}
+  .zone-card .zs{font-size:12.5px; color:var(--muted); margin-top:2px;}
+  .zone-card .zb{display:flex; gap:8px; margin-top:10px;}
+  .zone-card .zb a{flex:1; text-align:center; text-decoration:none; font-family:'Space Grotesk'; font-weight:700; font-size:13px; padding:10px 6px; border-radius:10px; border:1.5px solid rgba(22,33,62,0.25); background:#fff; color:var(--indigo-deep);}
+  .zone-card .zb a.go{background:var(--indigo-deep); border-color:var(--indigo-deep); color:var(--sand);}
 </style>
 <script src="traduction-en.js"></script>
 <script src="traduction.js"></script>
@@ -64,6 +73,7 @@
       <div class="legend-bar"></div>
       <span>Forte demande</span>
     </div>
+    <div id="topZones" class="top-zones"></div>
     <div id="emptyNote" class="empty-note hidden">Pas encore assez de commandes récentes pour afficher une carte de demande.</div>
   </div>
 </div>
@@ -71,7 +81,6 @@
   const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  mapboxgl.accessToken = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
 
   let map = null;
 
@@ -95,11 +104,47 @@
   }
 
   function initMap(){
-    map = new mapboxgl.Map({
+    map = new maplibregl.Map({
       container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: YOONOU_MAP_STYLE,
       center: [-17.4677, 14.7167], // Dakar
       zoom: 10.5
+    });
+  }
+
+
+  // ---- Les 3 meilleures zones, avec un bouton pour y aller (Google Maps / Waze) ----
+  const _zoneNames = new Map();
+  async function renderTopZones(data){
+    const box = document.getElementById('topZones');
+    box.innerHTML = '';
+    if (!data || data.length < 3) return;
+    // On regroupe les points par case d'environ 1 km, puis on garde les 3 plus chargées
+    const cells = new Map();
+    data.forEach(o => {
+      const k = Math.round(o.depart_lat * 100) + ',' + Math.round(o.depart_lng * 100);
+      const c = cells.get(k) || { n: 0, la: 0, ln: 0 };
+      c.n++; c.la += Number(o.depart_lat); c.ln += Number(o.depart_lng); cells.set(k, c);
+    });
+    const top = [...cells.values()].filter(c => c.n >= 2).sort((a, b) => b.n - a.n).slice(0, 3)
+      .map(c => ({ n: c.n, lat: c.la / c.n, lng: c.ln / c.n }));
+    if (!top.length) return;
+    box.innerHTML = '<h2>🎯 Les zones les plus demandées</h2>' + top.map((z, i) => {
+      const l = yoonouNavLinks({ lat: z.lat, lng: z.lng });
+      return '<div class="zone-card"><div class="zt" id="zoneName' + i + '">Zone ' + (i + 1) + '</div>'
+        + '<div class="zs">' + z.n + ' demande' + (z.n > 1 ? 's' : '') + ' sur la période</div>'
+        + '<div class="zb"><a class="go" href="' + l.google + '" target="_blank" rel="noopener noreferrer">Y aller · Google Maps</a>'
+        + '<a href="' + l.waze + '" target="_blank" rel="noopener noreferrer">Waze</a></div></div>';
+    }).join('');
+    // Nom du quartier (un seul appel par zone, gardé en mémoire)
+    top.forEach(async (z, i) => {
+      const key = z.lat.toFixed(2) + ',' + z.lng.toFixed(2);
+      if (!_zoneNames.has(key)) {
+        try { const r = await yoonouGeoReverse(z.lat, z.lng); _zoneNames.set(key, r.inconnu ? '' : r.label); } catch (e) { _zoneNames.set(key, ''); }
+      }
+      const name = _zoneNames.get(key);
+      const el = document.getElementById('zoneName' + i);
+      if (el && name) el.textContent = (i + 1) + '. ' + name;
     });
   }
 
@@ -107,6 +152,8 @@
     const { data, error } = await sb.rpc('get_zones_demande', { p_days: days });
 
     if (error) { console.error(error); return; }
+
+    renderTopZones(data);
 
     const emptyNote = document.getElementById('emptyNote');
     if (!data || data.length < 3) {

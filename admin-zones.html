@@ -11,8 +11,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="geo.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <style>
   :root{--indigo-deep:#16213E; --laterite:#C1502E; --sand:#F3E9D2; --sand-dim:#E6D9BB; --teal:#2A7F76; --gold:#E8A93A; --ink:#1A1712; --muted:#4a4438; --cta-red:#D6362A;}
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -55,7 +56,6 @@
   const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  mapboxgl.accessToken = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
 
   async function init(){
     const { data: { session } } = await sb.auth.getSession();
@@ -98,11 +98,11 @@
     `).join('');
 
     data.forEach(z => {
-      const m = new mapboxgl.Map({
-        container: 'map-' + z.id, style: 'mapbox://styles/mapbox/streets-v12',
+      const m = new maplibregl.Map({
+        container: 'map-' + z.id, style: YOONOU_MAP_STYLE,
         center: [z.longitude, z.latitude], zoom: 14, interactive: false
       });
-      new mapboxgl.Marker({ color: '#2A7F76' }).setLngLat([z.longitude, z.latitude]).addTo(m);
+      new maplibregl.Marker({ color: '#2A7F76' }).setLngLat([z.longitude, z.latitude]).addTo(m);
 
       document.querySelector(`[data-id="${z.id}"][data-action="approve"]`).addEventListener('click', () => updateZone(z.id, 'APPROUVEE'));
       document.querySelector(`[data-id="${z.id}"][data-action="reject"]`).addEventListener('click', () => updateZone(z.id, 'REJETEE'));

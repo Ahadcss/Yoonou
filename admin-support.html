@@ -266,10 +266,17 @@
 
   // ---------- Dossier complet d'une commande ----------
   function waLink(phone, text){
-    const n = String(phone || '').replace(/[^0-9]/g, '');
+    let n = String(phone || '').replace(/[^0-9]/g, '');
+    if (n.startsWith('00')) n = n.slice(2);
+    if (n.length === 9) n = '221' + n;   // numéro sénégalais saisi sans l'indicatif
     return n ? `https://wa.me/${n}${text ? '?text=' + encodeURIComponent(text) : ''}` : null;
   }
   const fmt = v => (v === null || v === undefined || v === '') ? '—' : escapeHtml(String(v));
+  // Libellés en français (les valeurs inconnues restent affichées telles quelles)
+  const LIB_STATUT = { REQUESTED: 'En attente', COMPLETED: 'Terminée', CANCELLED: 'Annulée' };
+  const LIB_PAIEMENT = { CASH: 'Espèces', PENDING: 'En attente' };
+  const libS = v => LIB_STATUT[v] || v;
+  const libP = v => LIB_PAIEMENT[v] || v;
   const fmtDT = v => v ? new Date(v).toLocaleString('fr-FR') : '—';
   const mapsLink = (lat, lng) => (lat && lng) ? `https://www.google.com/maps?q=${lat},${lng}` : null;
 
@@ -302,7 +309,7 @@
     const modal = document.getElementById('dossierModal'), box = document.getElementById('dossierBox');
     modal.classList.add('open');
     box.innerHTML = '<div class="loading">Chargement...</div>';
-    const { data, error } = await sb.rpc('get_order_details_for_support', { p_ref: String(ref || '').trim() });
+    const { data, error } = await sb.rpc('get_order_details_for_support', { p_ref: String(ref || '').trim().replace(/^#/, '') });
     if (error) { box.innerHTML = `<div class="empty-note">Erreur : ${escapeHtml(error.message)}<br><br>Si le message parle d'une fonction introuvable, exécute d'abord migration_parametres_aide.sql dans Supabase.</div><button class="close-modal" id="closeDossier">Fermer</button>`; document.getElementById('closeDossier').onclick = closeDossier; return; }
     if (!data || !data.found) { box.innerHTML = `<div class="empty-note">Aucune commande trouvée pour « ${escapeHtml(ref)} ».</div><button class="close-modal" id="closeDossier">Fermer</button>`; document.getElementById('closeDossier').onclick = closeDossier; return; }
 
@@ -311,7 +318,7 @@
     const v = data.vehicle;
     box.innerHTML = `
       <h3>Commande #${escapeHtml(data.reference)}</h3>
-      <div class="ticket-meta">${fmtDT(o.created_at)} · Statut : <strong>${fmt(o.statut)}</strong></div>
+      <div class="ticket-meta">${fmtDT(o.created_at)} · Statut : <strong>${fmt(libS(o.statut))}</strong></div>
 
       <div class="sec"><h4>Trajet et marchandise</h4>
         <div class="kv"><span class="k">Départ</span><span class="v">${fmt(o.depart)}${dep ? ` <a class="gps-link" href="${dep}" target="_blank">📍</a>` : ''}</span></div>
@@ -322,7 +329,7 @@
         <div class="kv"><span class="k">Poids / valeur déclarée</span><span class="v">${fmt(o.poids_kg)} kg / ${fmt(o.cargo_valeur_declaree)}</span></div>
         <div class="kv"><span class="k">Véhicule demandé</span><span class="v">${fmt(o.type_vehicule)}</span></div>
         <div class="kv"><span class="k">Prix / commission</span><span class="v">${fmt(o.prix)} / ${fmt(o.commission)} FCFA</span></div>
-        <div class="kv"><span class="k">Paiement</span><span class="v">${fmt(o.moyen_paiement)} · ${fmt(o.statut_paiement)}</span></div>
+        <div class="kv"><span class="k">Paiement</span><span class="v">${fmt(libP(o.moyen_paiement))} · ${fmt(libP(o.statut_paiement))}</span></div>
         ${o.cancellation_reason ? `<div class="kv"><span class="k">Annulation</span><span class="v">${fmt(o.cancellation_reason)}${o.cancellation_note ? ' — ' + escapeHtml(o.cancellation_note) : ''}</span></div>` : ''}
       </div>
 
@@ -344,7 +351,7 @@
       ${proofBlock('Preuve de livraison', data.delivery_proof)}
 
       <div class="sec"><h4>Historique des statuts</h4>
-        <div class="hist">${(data.history || []).map(h => `${fmtDT(h.created_at || h.changed_at)} — ${escapeHtml(h.statut || '')}`).join('<br>') || '—'}</div></div>
+        <div class="hist">${(data.history || []).map(h => `${fmtDT(h.created_at || h.changed_at)} — ${escapeHtml(libS(h.statut) || '')}`).join('<br>') || '—'}</div></div>
 
       ${(data.tickets || []).length ? `<div class="sec"><h4>Tickets liés</h4><div class="hist">${data.tickets.map(t => `${fmtDT(t.created_at)} — ${escapeHtml(t.category || '')} (${escapeHtml(t.status || '')})`).join('<br>')}</div></div>` : ''}
 

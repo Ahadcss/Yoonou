@@ -8,8 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="geo.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <style>
   :root{
     --indigo-deep:#16213E; --indigo-panel:#1F2E52;
@@ -113,8 +114,6 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
-  mapboxgl.accessToken = MAPBOX_TOKEN;
 
   const params = new URLSearchParams(window.location.search);
   const token = params.get('t');
@@ -189,7 +188,7 @@
         const el = document.createElement('div');
         el.style.cssText = 'width:34px;height:34px;background:#D6362A;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;';
         el.textContent = '🚚';
-        driverMarker = new mapboxgl.Marker({ element: el }).setLngLat([data.position.longitude, data.position.latitude]).addTo(map);
+        driverMarker = new maplibregl.Marker({ element: el }).setLngLat([data.position.longitude, data.position.latitude]).addTo(map);
       }
     } else {
       document.getElementById('waitingCard').classList.remove('hidden');
@@ -204,27 +203,27 @@
 
   function initOrUpdateMap(data){
     if (!data.depart_lat || !data.depart_lng || !data.destination_lat || !data.destination_lng) return;
-    if (typeof mapboxgl === 'undefined') return;
+    if (typeof maplibregl === 'undefined') return;
 
     if (!map) {
-      map = new mapboxgl.Map({
+      map = new maplibregl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v12',
+        style: YOONOU_MAP_STYLE,
         center: [data.depart_lng, data.depart_lat],
         zoom: 12
       });
 
       map.on('load', () => {
-        const bounds = new mapboxgl.LngLatBounds();
+        const bounds = new maplibregl.LngLatBounds();
 
         const dEl = document.createElement('div');
         dEl.style.cssText = 'width:14px;height:14px;background:#2A7F76;border-radius:50%;border:2px solid white;';
-        departMarker = new mapboxgl.Marker({ element: dEl }).setLngLat([data.depart_lng, data.depart_lat]).addTo(map);
+        departMarker = new maplibregl.Marker({ element: dEl }).setLngLat([data.depart_lng, data.depart_lat]).addTo(map);
         bounds.extend([data.depart_lng, data.depart_lat]);
 
         const xEl = document.createElement('div');
         xEl.style.cssText = 'width:14px;height:14px;background:#C1502E;border-radius:50%;border:2px solid white;';
-        destMarker = new mapboxgl.Marker({ element: xEl }).setLngLat([data.destination_lng, data.destination_lat]).addTo(map);
+        destMarker = new maplibregl.Marker({ element: xEl }).setLngLat([data.destination_lng, data.destination_lat]).addTo(map);
         bounds.extend([data.destination_lng, data.destination_lat]);
 
         map.fitBounds(bounds, { padding: 60 });

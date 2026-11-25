@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="image-utils.js"></script>
 <style>
   :root{
     --indigo-deep:#16213E; --indigo-panel:#1F2E52;
@@ -908,7 +909,9 @@
   async function uploadFiles(bucket, folder, fileList){
     const urls = [];
     if (!fileList || fileList.length === 0) return urls;
-    for (const file of fileList) {
+    for (const original of fileList) {
+      // Pièces d'identité et permis : un peu plus de détails pour rester lisibles
+      const file = await yoonouCompressImage(original, bucket === 'kyc-documents' ? { maxSide: 2000, quality: 0.85 } : undefined);
       const path = `${folder}/${Date.now()}_${file.name}`;
       try {
         const { data, error } = await sb.storage.from(bucket).upload(path, file);

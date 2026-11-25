@@ -11,8 +11,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="geo.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <style>
   :root{
     --indigo-deep:#16213E; --indigo-panel:#1F2E52;
@@ -236,8 +237,6 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
-  mapboxgl.accessToken = MAPBOX_TOKEN;
 
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get('id');
@@ -296,7 +295,31 @@
     currentOrderData = order;
 
     document.getElementById('routeTitle').textContent = `${order.depart} → ${order.destination}`;
-    document.getElementById('orderMeta').textContent = order.prix ? `${Math.round(order.prix).toLocaleString('fr-FR')} FCFA` : '';
+    // Prix + référence de la commande (à donner au support en cas de problème)
+    (function renderOrderMeta(){
+      const meta = document.getElementById('orderMeta');
+      const refCode = String(order.id).slice(0, 8).toUpperCase();
+      meta.textContent = '';
+      if (order.prix) meta.appendChild(document.createTextNode(`${Math.round(order.prix).toLocaleString('fr-FR')} FCFA · `));
+      const ref = document.createElement('span');
+      ref.style.fontFamily = "'JetBrains Mono', monospace";
+      ref.textContent = `Réf. #${refCode}`;
+      meta.appendChild(ref);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Copier';
+      btn.style.cssText = "margin-left:8px; font-family:'Space Grotesk'; font-weight:600; font-size:12px; padding:3px 10px; border-radius:6px; border:1.5px solid var(--teal); background:none; color:var(--teal); cursor:pointer;";
+      btn.addEventListener('click', async () => {
+        let ok = false;
+        try { await navigator.clipboard.writeText(refCode); ok = true; }
+        catch (e) {
+          try { const t = document.createElement('textarea'); t.value = refCode; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); ok = document.execCommand('copy'); t.remove(); } catch (e2) {}
+        }
+        btn.textContent = ok ? 'Copié ✓' : refCode;
+        setTimeout(() => { btn.textContent = 'Copier'; }, 2000);
+      });
+      meta.appendChild(btn);
+    })();
 
     const stepKey = STEP_ALIASES[order.statut] || order.statut;
     const stepInfo = STEPS.find(s => s.key === stepKey);
@@ -651,7 +674,7 @@
       const el = document.createElement('div');
       el.style.cssText = 'width:34px;height:34px;background:#D6362A;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;';
       el.textContent = '🚚';
-      driverMarker = new mapboxgl.Marker({ element: el }).setLngLat([data.longitude, data.latitude]).addTo(map);
+      driverMarker = new maplibregl.Marker({ element: el }).setLngLat([data.longitude, data.latitude]).addTo(map);
     }
 
     // Avant la collecte : distance jusqu'au point de départ. Après : jusqu'à la destination.
@@ -696,7 +719,7 @@
   function initOrUpdateMap(order){
     if (!order.depart_lat || !order.depart_lng || !order.destination_lat || !order.destination_lng) return;
 
-    if (typeof mapboxgl === 'undefined') {
+    if (typeof maplibregl === 'undefined') {
       const mapEl = document.getElementById('map');
       if (mapEl && !mapEl.dataset.errorShown) {
         mapEl.style.display = 'flex';
@@ -706,31 +729,31 @@
         mapEl.style.fontSize = '13.5px';
         mapEl.style.textAlign = 'center';
         mapEl.style.padding = '20px';
-        mapEl.textContent = "Carte indisponible (connexion internet requise pour charger Mapbox). Le suivi du statut fonctionne quand même ci-dessous.";
+        mapEl.textContent = "Carte indisponible (connexion internet requise pour charger la carte). Le suivi du statut fonctionne quand même ci-dessous.";
         mapEl.dataset.errorShown = 'true';
       }
       return;
     }
 
     if (!map) {
-      map = new mapboxgl.Map({
+      map = new maplibregl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v12',
+        style: YOONOU_MAP_STYLE,
         center: [order.depart_lng, order.depart_lat],
         zoom: 12
       });
 
       map.on('load', () => {
-        const bounds = new mapboxgl.LngLatBounds();
+        const bounds = new maplibregl.LngLatBounds();
 
         const dEl = document.createElement('div');
         dEl.style.cssText = 'width:14px;height:14px;background:#2A7F76;border-radius:50%;border:2px solid white;';
-        departMarker = new mapboxgl.Marker({ element: dEl }).setLngLat([order.depart_lng, order.depart_lat]).addTo(map);
+        departMarker = new maplibregl.Marker({ element: dEl }).setLngLat([order.depart_lng, order.depart_lat]).addTo(map);
         bounds.extend([order.depart_lng, order.depart_lat]);
 
         const xEl = document.createElement('div');
         xEl.style.cssText = 'width:14px;height:14px;background:#C1502E;border-radius:50%;border:2px solid white;';
-        destMarker = new mapboxgl.Marker({ element: xEl }).setLngLat([order.destination_lng, order.destination_lat]).addTo(map);
+        destMarker = new maplibregl.Marker({ element: xEl }).setLngLat([order.destination_lng, order.destination_lat]).addTo(map);
         bounds.extend([order.destination_lng, order.destination_lat]);
 
         map.fitBounds(bounds, { padding: 60 });

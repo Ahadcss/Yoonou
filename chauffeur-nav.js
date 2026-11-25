@@ -2,7 +2,7 @@
 // Yoonou — Navigation du chauffeur DANS l'application + maintien de la position
 //
 // Ce fichier fournit :
-//  - YoonouNav        : carte plein écran, itinéraire Mapbox, instructions écrites et vocales,
+//  - YoonouNav        : carte plein écran, itinéraire Geoapify, instructions écrites et vocales,
 //                       recalcul si le chauffeur s'écarte (n'envoie PAS de position : l'envoi GPS de la page reste inchangé)
 //  - YoonouKeepAlive  : empêche l'écran de s'éteindre (Wake Lock) et prévient quand la page
 //                       est restée en arrière-plan (position non envoyée)
@@ -21,7 +21,7 @@ const YoonouNavCore = (() => {
     return 2 * R * Math.asin(Math.sqrt(a));
   }
 
-  // Transforme la réponse Mapbox Directions en modèle utilisable
+  // Transforme la réponse d'itinéraire (format Mapbox, produit par geo.js) en modèle utilisable
   function buildRoute(route){
     const coords = route.geometry.coordinates;                  // [lng, lat]
     const cum = [0];
@@ -142,7 +142,7 @@ const YoonouNav = (() => {
   let progressIdx = 0, lastReroute = 0, offCount = 0, lastPos = null;
   let spoken = new Set(), arrived = false, markerMe = null, markerDest = null, rerouting = false;
 
-  function init(options){ cfg = options; }   // { sb, userId, token }
+  function init(options){ cfg = options; }   // { sb, userId }
 
   function injectStyle(){
     if (document.getElementById('yoonouNavStyle')) return;
@@ -223,17 +223,10 @@ const YoonouNav = (() => {
   }
 
   async function fetchRoute(fromLat, fromLng){
-    const base = (profile) => `https://api.mapbox.com/directions/v5/mapbox/${profile}/${fromLng},${fromLat};${dest.lng},${dest.lat}`
-      + `?geometries=geojson&overview=full&steps=true&language=fr&voice_instructions=true&banner_instructions=true&voice_units=metric&access_token=${cfg.token}`;
-    for (const profile of ['driving-traffic', 'driving']) {
-      try {
-        const res = await fetch(base(profile));
-        if (!res.ok) continue;
-        const data = await res.json();
-        if (data.routes && data.routes[0]) return data.routes[0];
-      } catch (e) { /* on essaie le profil suivant */ }
-    }
-    return null;
+    // Itinéraire Geoapify avec consignes en français (voir geo.js)
+    try {
+      return await yoonouGeoRouteWithSteps({ lat: fromLat, lng: fromLng }, { lat: dest.lat, lng: dest.lng });
+    } catch (e) { return null; }
   }
 
   function drawRoute(){
@@ -336,7 +329,7 @@ const YoonouNav = (() => {
   // options : { lat, lng, label, orderId }
   function open(options){
     if (!cfg) { alert('Navigation indisponible.'); return; }
-    if (typeof mapboxgl === 'undefined') { alert('La carte ne s\'est pas chargée. Vérifie ta connexion et réessaie.'); return; }
+    if (typeof maplibregl === 'undefined') { alert('La carte ne s\'est pas chargée. Vérifie ta connexion et réessaie.'); return; }
     if (!navigator.geolocation) { alert('Ce téléphone ne permet pas la localisation.'); return; }
 
     buildOverlay();
@@ -355,18 +348,17 @@ const YoonouNav = (() => {
     YoonouKeepAlive.start();   // l'écran reste allumé pendant la navigation
     speak('Navigation démarrée.'); // débloque aussi la voix sur iPhone (geste de l'utilisateur)
 
-    mapboxgl.accessToken = cfg.token;
     if (map) { map.remove(); map = null; }
-    map = new mapboxgl.Map({
-      container: 'yoonouNavMap', style: 'mapbox://styles/mapbox/streets-v12',
-      center: [dest.lng, dest.lat], zoom: 14, attributionControl: false
+    map = new maplibregl.Map({
+      container: 'yoonouNavMap', style: YOONOU_MAP_STYLE,
+      center: [dest.lng, dest.lat], zoom: 14, attributionControl: { compact: true }
     });
     map.on('dragstart', (e) => { if (e.originalEvent) { followMode = false; overlay.querySelector('#ynRecenter').style.display = 'block'; } });
 
     const meEl = document.createElement('div'); meEl.className = 'yn-me';
     const destEl = document.createElement('div'); destEl.className = 'yn-dest'; destEl.textContent = '📍';
-    markerDest = new mapboxgl.Marker({ element: destEl }).setLngLat([dest.lng, dest.lat]).addTo(map);
-    markerMe = new mapboxgl.Marker({ element: meEl }).setLngLat([dest.lng, dest.lat]).addTo(map);
+    markerDest = new maplibregl.Marker({ element: destEl }).setLngLat([dest.lng, dest.lat]).addTo(map);
+    markerMe = new maplibregl.Marker({ element: meEl }).setLngLat([dest.lng, dest.lat]).addTo(map);
 
     map.on('load', () => {
       if (watchId != null) navigator.geolocation.clearWatch(watchId);

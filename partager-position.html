@@ -10,8 +10,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="geo.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="lang.js"></script>
 <script src="lieux.js"></script>
 <style>
@@ -96,9 +97,7 @@
 <script>
   const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
-  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  mapboxgl.accessToken = MAPBOX_TOKEN;
 
   const $ = id => document.getElementById(id);
   const token = new URLSearchParams(location.search).get('t');
@@ -131,7 +130,7 @@
     show('stOk');
     ['centerPin', 'searchToggle', 'locateBtn'].forEach(id => $(id).classList.remove('hidden'));
 
-    map = new mapboxgl.Map({ container: 'map', style: 'mapbox://styles/mapbox/streets-v12', center: [center.lng, center.lat], zoom: 14.5, attributionControl: false });
+    map = new maplibregl.Map({ container: 'map', style: YOONOU_MAP_STYLE, center: [center.lng, center.lat], zoom: 14.5, attributionControl: { compact: true, customAttribution: 'Recherche © Geoapify' } });
     map.on('movestart', (e) => { $('centerPin').classList.add('moving'); $('addrText').innerHTML = '<div class="skeleton"></div>'; if (e.originalEvent) movedManually = true; });
     map.on('moveend', () => { $('centerPin').classList.remove('moving'); clearTimeout(moveTimer); moveTimer = setTimeout(onSettled, 250); });
     map.on('load', () => { onSettled(); locate(false); });
@@ -161,10 +160,8 @@
     let label = '';
     try {
       const poi = yoonouPoiAtPoint(map, map.project(c), 26);
-      const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${center.lng},${center.lat}.json?access_token=${MAPBOX_TOKEN}&language=fr&types=address,poi,neighborhood,locality,place&limit=1`);
-      const d = await res.json();
-      const addr = (d.features && d.features[0]) ? d.features[0].place_name : '';
-      label = poi ? (addr ? `${poi}, ${addr}` : poi) : addr;
+      const rev = await yoonouGeoReverse(center.lat, center.lng);
+      label = yoonouPinLabel(rev, poi, null);
     } catch (e) { /* hors ligne */ }
     if (my !== reqCounter) return;
     currentAddress = label || `${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}`;
@@ -179,7 +176,7 @@
       if (q.length < 3) { box.innerHTML = ''; return; }
       timer = setTimeout(async () => {
         box.innerHTML = '<div class="sr-empty">Recherche…</div>';
-        const results = await yoonouSearchPlaces(q, null, MAPBOX_TOKEN, { map, proximity: center });
+        const results = await yoonouSearchPlaces(q, null, YOONOU_GEO_KEY, { map, proximity: center });
         if (!results.length) { box.innerHTML = '<div class="sr-empty">Aucun résultat. Déplace la carte jusqu\'à ton adresse.</div>'; return; }
         box.innerHTML = results.map((r, i) => `<div class="sr-item" data-i="${i}">${escapeHtml(r.label)}</div>`).join('');
         box.querySelectorAll('.sr-item').forEach(el => el.addEventListener('click', () => {

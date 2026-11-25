@@ -11,8 +11,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="geo.js"></script>
+<script src="image-utils.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="chauffeur-nav.js"></script>
 <style>
   :root{
@@ -162,6 +164,15 @@
 
   .nav-open-btn{display:block; width:100%; text-align:center; margin-top:10px; padding:14px; border:none; border-radius:10px;
     background:var(--indigo-deep); color:var(--sand); font-family:'Space Grotesk'; font-weight:700; font-size:15px; cursor:pointer;}
+  /* Choix de l'application de navigation : Yoonou, Google Maps ou Waze */
+  .nav-block{margin-top:10px; padding:12px; border-radius:12px; background:rgba(22,33,62,0.05);}
+  .nav-block-title{font-family:'Space Grotesk'; font-weight:700; font-size:14.5px; color:var(--indigo-deep);}
+  .nav-block-place{font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.35;}
+  .nav-choices{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .nav-choices .nav-choice{flex:1 1 0; min-width:0; display:block; width:auto; margin-top:0; padding:12px 4px; white-space:nowrap; border-radius:10px; text-align:center;
+    font-family:'Space Grotesk'; font-weight:700; font-size:13px; text-decoration:none; cursor:pointer;
+    border:1.5px solid rgba(22,33,62,0.25); background:#fff; color:var(--indigo-deep);}
+  .nav-choices .nav-choice.pref{background:var(--indigo-deep); border-color:var(--indigo-deep); color:var(--sand);}
   .keepalive{border-radius:10px; padding:11px 14px; font-size:13px; line-height:1.45; margin-bottom:14px; background:rgba(42,127,118,.1); color:var(--teal);}
   .keepalive.warn{background:#fff3cd; color:#7a5200; border:1px solid var(--gold);}
   .gps-blocked{background:#fdecea; border:2px solid #c0392b; color:#7b1e14; border-radius:12px; padding:14px 16px; margin-bottom:16px; font-size:13.5px; line-height:1.5;}
@@ -261,7 +272,6 @@
   const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const MAPBOX_TOKEN = 'pk.eyJ1IjoieW9vbm91MTIxMiIsImEiOiJjbXRuenZoeWcwaWIwMnhzN2lhanhscmFzIn0.gySOX9l6uD89_QHvp6ppKA';
 
   let currentUser = null;
   let currentProfile = null;
@@ -322,7 +332,7 @@
     currentProfile = profile;
 
     // Navigation dans Yoonou (carte, itinéraire, voix) : plus besoin de Google Maps
-    YoonouNav.init({ sb, userId: currentUser.id, token: MAPBOX_TOKEN, onClose: () => { refreshAll(); } });
+    YoonouNav.init({ sb, userId: currentUser.id, onClose: () => { refreshAll(); } });
 
     await loadVehicleTypeLabels();
     await loadMyVehicleTypes();
@@ -398,6 +408,11 @@
       showGpsProblem(err);
     });
   }
+
+  // Quand le chauffeur revient de Google Maps / Waze, on renvoie sa position immédiatement.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && gpsInterval) sendCurrentLocation();
+  });
 
   function startSendingLocation(){
     if (gpsInterval) return;
@@ -613,7 +628,15 @@
     }
   }
 
+  let externalNavAt = 0;   // dernière ouverture de Google Maps / Waze depuis cette page
+
   function handleBackgroundReturn(awayMs){
+    if (externalNavAt && Date.now() - externalNavAt < 3 * 3600 * 1000) {
+      // Retour de Google Maps / Waze : normal, on rassure au lieu d'alerter.
+      setKeepAliveBanner("Bon retour ! Pendant que tu naviguais avec Google Maps ou Waze, ton client voyait ta dernière position connue. Ta position repart dans quelques secondes.", false);
+      setTimeout(() => setKeepAliveBanner(keepAliveStatusText(), false), 15000);
+      return;
+    }
     const min = Math.max(1, Math.round(awayMs / 60000));
     setKeepAliveBanner(`⚠️ Yoonou est resté en arrière-plan ${min} min : ta position n'était plus envoyée à ton client (elle repart d'ici quelques secondes). Garde l'application ouverte pendant la livraison.`, true);
     setTimeout(() => setKeepAliveBanner(keepAliveStatusText(), false), 20000);
@@ -656,6 +679,12 @@
     });
     document.querySelectorAll('#ongoingList [data-action="confirm-cash"]').forEach(btn => {
       btn.addEventListener('click', () => confirmerCash(btn.dataset.id, btn));
+    });
+    document.querySelectorAll('#ongoingList .nav-choice').forEach(el => {
+      el.addEventListener('click', () => {
+        try { localStorage.setItem('yoonou_nav_pref', el.dataset.nav); } catch (e) { /* stockage indisponible */ }
+        if (el.dataset.nav !== 'yoonou') externalNavAt = Date.now();
+      });
     });
     document.querySelectorAll('#ongoingList .nav-open-btn').forEach(btn => {
       btn.addEventListener('click', () => YoonouNav.open({ lat: btn.dataset.lat, lng: btn.dataset.lng, label: btn.dataset.label, orderId: btn.dataset.order }));
@@ -727,7 +756,7 @@
 
   async function uploadProofPhoto(orderId, fileInput){
     if (!fileInput.files || !fileInput.files[0]) return null;
-    const file = fileInput.files[0];
+    const file = await yoonouCompressImage(fileInput.files[0]);
     const path = `${orderId}/${Date.now()}_${file.name}`;
     try {
       const { data, error } = await sb.storage.from('proof-photos').upload(path, file);
@@ -939,23 +968,39 @@
     `;
   }
 
-  // Avant la collecte : itinéraire vers le point de départ (position du client).
-  // Après la collecte : itinéraire vers la destination.
+  // Avant la collecte : boutons vers le point de collecte (position du client).
+  // Après la collecte confirmée : les mêmes boutons visent le point de livraison.
+  function getNavPref(){
+    try { return localStorage.getItem('yoonou_nav_pref') || 'yoonou'; } catch (e) { return 'yoonou'; }
+  }
+
   function renderNavLink(o){
     const beforePickup = ['DRIVER_ASSIGNED','DRIVER_ARRIVING','ARRIVED_PICKUP'].includes(o.statut);
     const afterPickup = ['PICKUP_CONFIRMED','LOADING','IN_TRANSIT','ARRIVED_DESTINATION'].includes(o.statut);
 
     let lat, lng, text, place;
     if (beforePickup && o.depart_lat && o.depart_lng) {
-      lat = o.depart_lat; lng = o.depart_lng; text = "Naviguer jusqu'au point de départ"; place = o.depart;
+      lat = o.depart_lat; lng = o.depart_lng; text = 'Aller au point de collecte'; place = o.depart;
     } else if (afterPickup && o.destination_lat && o.destination_lng) {
-      lat = o.destination_lat; lng = o.destination_lng; text = "Naviguer jusqu'à la destination"; place = o.destination;
+      lat = o.destination_lat; lng = o.destination_lng; text = 'Aller au point de livraison'; place = o.destination;
     } else {
       return '';
     }
 
-    // La navigation s'ouvre DANS Yoonou (carte, itinéraire, voix) : plus de Google Maps.
-    return `<button type="button" class="nav-open-btn" data-lat="${lat}" data-lng="${lng}" data-label="${escapeHtml(place || '')}" data-order="${o.id}">🧭 ${text}</button>`;
+    // Les liens utilisent les coordonnées exactes du point (pas son nom) : un lieu posé à l'épingle ou ajouté par un utilisateur reste le bon.
+    const links = yoonouNavLinks({ lat, lng });
+    const pref = getNavPref();
+    const cls = k => 'nav-choice' + (pref === k ? ' pref' : '');
+    return `
+      <div class="nav-block">
+        <div class="nav-block-title">🧭 ${text}</div>
+        ${place ? `<div class="nav-block-place">${escapeHtml(place)}</div>` : ''}
+        <div class="nav-choices">
+          <button type="button" class="${cls('yoonou')} nav-open-btn" data-nav="yoonou" data-lat="${lat}" data-lng="${lng}" data-label="${escapeHtml(place || '')}" data-order="${o.id}">Yoonou</button>
+          <a class="${cls('google')}" data-nav="google" href="${links.google}" target="_blank" rel="noopener noreferrer">Google Maps</a>
+          <a class="${cls('waze')}" data-nav="waze" href="${links.waze}" target="_blank" rel="noopener noreferrer">Waze</a>
+        </div>
+      </div>`;
   }
 
   function renderStepAction(o){

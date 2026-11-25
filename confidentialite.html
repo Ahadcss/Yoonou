@@ -69,7 +69,7 @@
     <tr><th>Catégorie</th><th>Exemples</th><th>Concerne</th></tr>
     <tr><td>Identité</td><td>Prénom, nom, ville</td><td>Client & transporteur</td></tr>
     <tr><td>Contact</td><td>Numéro de téléphone (vérifié via WhatsApp)</td><td>Client & transporteur</td></tr>
-    <tr><td>Localisation</td><td>Adresses de collecte/destination, position GPS pendant une course</td><td>Client & transporteur</td></tr>
+    <tr><td>Localisation</td><td>Adresses de collecte/destination, position GPS pendant une course, position approximative du transporteur en ligne</td><td>Client & transporteur</td></tr>
     <tr><td>Documents d'identité et de véhicule</td><td>Pièce d'identité, permis, documents du véhicule, photos du véhicule</td><td>Transporteur uniquement</td></tr>
     <tr><td>Marchandise</td><td>Catégorie, poids, photos de la marchandise</td><td>Client</td></tr>
     <tr><td>Activité</td><td>Historique de commandes, notes, tickets de support</td><td>Client & transporteur</td></tr>
@@ -90,6 +90,7 @@
   <h2 id="acces">3. Qui peut accéder à ces données</h2>
   <ul>
     <li><b>Le client</b> voit uniquement les informations nécessaires du transporteur qui lui est assigné (prénom, note, véhicule, position en direct pendant la course)</li>
+    <li><b>Les clients</b> peuvent voir, sur la carte des chauffeurs à proximité, la <b>position approximative</b> (décalée d'environ 100 mètres) des transporteurs qui sont en ligne et disponibles, avec le type de véhicule, sans leur nom, leur photo ni leur numéro. Cette position n'est plus visible lorsque le transporteur est hors ligne ou en course</li>
     <li><b>Le transporteur</b> voit uniquement les informations nécessaires du client concerné par une course en cours (adresses, contact, description de la marchandise)</li>
     <li><b>L'équipe Yoonou</b> (accès administrateur) peut consulter les données nécessaires à la vérification des comptes, au support, et au bon fonctionnement de la plateforme</li>
     <li>Les documents d'identité et documents de véhicule sont stockés dans un espace privé, jamais accessibles publiquement, et consultés uniquement via des liens temporaires générés au moment de la vérification</li>
@@ -111,12 +112,13 @@
   </ul>
 
   <h2 id="cookies">7. Cookies et traceurs</h2>
-  <p>Le site utilise des éléments techniques nécessaires à son fonctionnement (préférence de langue, connexion), ainsi que des polices et cartes fournies par des services tiers (Google Fonts, Mapbox). Aucun traceur publicitaire n'est utilisé.</p>
+  <p>Le site utilise des éléments techniques nécessaires à son fonctionnement (préférence de langue, connexion), ainsi que des polices et cartes fournies par des services tiers (Google Fonts, OpenFreeMap, Geoapify). Aucun traceur publicitaire n'est utilisé.</p>
 
   <h2 id="tiers">8. Services tiers utilisés</h2>
   <ul>
     <li><b>Supabase</b> — hébergement de la base de données, authentification, stockage des fichiers</li>
-    <li><b>Mapbox</b> — affichage des cartes, calcul d'itinéraires</li>
+    <li><b>OpenFreeMap</b> — fond de carte (données © OpenStreetMap)</li>
+    <li><b>Geoapify</b> — recherche d'adresses, calcul d'itinéraires et de distances</li>
     <li><b>Netlify</b> — hébergement du site</li>
     <li><b>WhatsApp</b> — vérification du numéro de téléphone, communication avec le support</li>
   </ul>
