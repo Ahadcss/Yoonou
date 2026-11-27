@@ -13,6 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="geo.js"></script>
+<script src="image-utils.js"></script>
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <style>
   :root{
@@ -278,7 +279,7 @@
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('content').classList.remove('hidden');
 
-    refreshInterval = setInterval(loadOrder, 15000); // 15s : reste sous les 30s d'envoi GPS du chauffeur, sans surcharger Supabase
+    refreshInterval = setInterval(loadOrder, 30000); // 30s : suit le rythme d'envoi GPS du chauffeur (30 s) et économise le transfert de données Supabase
   }
 
   let currentOrderData = null;
@@ -473,6 +474,19 @@
     }
   }
 
+  // Photo en grand sur la page (un seul chargement, quand la personne touche la miniature)
+  function showPhotoViewer(url){
+    const v = document.createElement('div');
+    v.style.cssText = 'position:fixed; inset:0; z-index:9999; background:rgba(22,33,62,.92); display:flex; align-items:center; justify-content:center; padding:16px;';
+    v.innerHTML = '<img alt="photo" style="max-width:100%; max-height:100%; border-radius:10px;">';
+    v.querySelector('img').src = url;
+    v.addEventListener('click', () => v.remove());
+    document.body.appendChild(v);
+  }
+
+  // Les photos ne sont chargées qu'UNE fois (avant : à chaque actualisation, donc en grand toutes les 15 secondes).
+  // On affiche la petite miniature ; la photo complète ne se charge que si on la touche.
+  let cargoRenderedKey = null;
   async function renderCargo(order){
     const card = document.getElementById('cargoCard');
     if (!order.description && (!order.cargo_photo_urls || order.cargo_photo_urls.length === 0)) {
@@ -481,14 +495,30 @@
     }
     card.classList.remove('hidden');
     document.getElementById('cargoDesc').textContent = order.description || '';
+    const key = (order.cargo_photo_urls || []).join('|');
+    if (key === cargoRenderedKey) return;          // rien n'a changé : on ne recharge pas
+    cargoRenderedKey = key;
     const photosEl = document.getElementById('cargoPhotos');
-    const signedUrls = await Promise.all(
-      (order.cargo_photo_urls || []).map(url => getSignedPhotoUrl('cargo-photos', url))
-    );
-    photosEl.innerHTML = signedUrls.filter(Boolean).map(url => `<img src="${url}" alt="photo marchandise">`).join('');
+    photosEl.innerHTML = '';
+    for (const url of (order.cargo_photo_urls || [])) {
+      const thumbUrl = yoonouThumbUrl(url);
+      const img = document.createElement('img');
+      img.alt = 'photo marchandise'; img.style.cursor = 'pointer'; img.loading = 'lazy';
+      const open = async () => { const full = await getSignedPhotoUrl('cargo-photos', url); if (full) showPhotoViewer(full); };
+      img.addEventListener('click', open);
+      photosEl.appendChild(img);
+      let src = thumbUrl ? await getSignedPhotoUrl('cargo-photos', thumbUrl) : null;
+      if (src) { img.onerror = async () => { img.onerror = null; const full = await getSignedPhotoUrl('cargo-photos', url); if (full) img.src = full; }; img.src = src; }
+      else { const full = await getSignedPhotoUrl('cargo-photos', url); if (full) img.src = full; }
+    }
   }
 
+  // Les infos du chauffeur (nom, véhicule, photos, avis) ne changent presque jamais :
+  // on ne les recharge qu'une fois toutes les 5 minutes, au lieu de toutes les 15 secondes avec leurs photos.
+  let driverInfoLoaded = { id: null, at: 0 };
   async function loadDriverInfo(transporteurId, orderIdForInfo){
+    if (driverInfoLoaded.id === transporteurId && Date.now() - driverInfoLoaded.at < 5 * 60 * 1000) return;
+    driverInfoLoaded = { id: transporteurId, at: Date.now() };
     let driver = null, vehicle = null;
     try {
       const { data: info, error: infoErr } = await sb.rpc('get_driver_info_for_order', { p_order_id: orderIdForInfo });
@@ -531,7 +561,8 @@
       document.getElementById('driverPlaque').textContent = vehicle.plaque || '';
 
       if (vehicle.photo_urls && vehicle.photo_urls.length > 0) {
-        const signedUrl = await getSignedPhotoUrl('vehicle-photos', vehicle.photo_urls[0]);
+        const vThumb = yoonouThumbUrl(vehicle.photo_urls[0]);
+        const signedUrl = (vThumb && await getSignedPhotoUrl('vehicle-photos', vThumb)) || await getSignedPhotoUrl('vehicle-photos', vehicle.photo_urls[0]);
         if (signedUrl && !driverAvatarUrl) document.getElementById('driverAvatar').innerHTML = `<img src="${signedUrl}" alt="véhicule">`;
       }
     }

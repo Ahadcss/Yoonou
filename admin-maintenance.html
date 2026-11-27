@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex, nofollow">
+<title>Yoonou — Admin · Maintenance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{--indigo-deep:#16213E; --laterite:#C1502E; --sand:#F3E9D2; --sand-dim:#E6D9BB; --teal:#2A7F76; --gold:#E8A93A; --ink:#1A1712; --muted:#4a4438; --cta-red:#D6362A;}
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Work Sans', sans-serif; background:var(--sand); color:var(--ink); min-height:100vh; padding-bottom:env(safe-area-inset-bottom);}
+  h1,h2,h3{font-family:'Space Grotesk', sans-serif; font-weight:700;}
+  nav{background:var(--indigo-deep); padding:calc(18px + env(safe-area-inset-top)) 0 18px;}
+  nav .wrap{max-width:860px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center;}
+  .logo{font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:var(--sand); text-decoration:none;}
+  .nav-link{color:var(--sand-dim); text-decoration:none; font-size:13.5px; font-family:'Space Grotesk'; font-weight:600;}
+  .wrap{max-width:860px; margin:0 auto; padding:32px 24px 60px;}
+  .loading{text-align:center; padding:60px 20px; color:var(--muted);}
+  .hidden{display:none !important;}
+  h1{font-size:26px; margin-bottom:6px;}
+  h2{font-size:18px; margin-bottom:6px;}
+  .subtitle{color:var(--muted); font-size:14px; margin-bottom:20px;}
+  .card{background:#fff; border-radius:14px; padding:18px; margin-bottom:18px; border:1.5px solid rgba(22,33,62,0.08);}
+  .card p{font-size:14px; line-height:1.5; color:var(--muted); margin-bottom:10px;}
+  .gauge{margin:12px 0;}
+  .gauge .top{display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:5px;}
+  .bar{height:12px; background:rgba(22,33,62,0.1); border-radius:999px; overflow:hidden;}
+  .fill{height:100%; border-radius:999px; background:var(--teal);}
+  .fill.warn{background:var(--gold);} .fill.bad{background:var(--cta-red);}
+  table{width:100%; border-collapse:collapse; font-size:13.5px; margin-top:8px;}
+  td,th{padding:7px 4px; border-bottom:1px solid rgba(22,33,62,0.08); text-align:left;}
+  td.num,th.num{text-align:right; font-family:'JetBrains Mono', monospace;}
+  .btn{font-family:'Space Grotesk'; font-weight:700; font-size:14px; padding:11px 18px; border-radius:10px; border:none; background:var(--indigo-deep); color:var(--sand); cursor:pointer;}
+  .btn.alt{background:none; border:1.5px solid var(--teal); color:var(--teal);}
+  .btn.danger{background:var(--cta-red); color:#fff;}
+  .btn:disabled{opacity:.5; cursor:default;}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:10px 0;}
+  input[type=number], select{padding:10px 12px; border-radius:10px; border:1.5px solid rgba(22,33,62,0.15); font-size:15px; font-family:inherit; width:110px;}
+  select{width:auto;}
+  .note{background:rgba(232,169,58,0.18); border:1.5px solid var(--gold); border-radius:10px; padding:10px 12px; font-size:13px; color:#7a5200; margin-top:10px; line-height:1.45;}
+  .ok{color:var(--teal); font-weight:600;} .bad{color:var(--cta-red); font-weight:600;}
+  .log{font-family:'JetBrains Mono', monospace; font-size:12px; white-space:pre-wrap; background:rgba(22,33,62,0.05); border-radius:8px; padding:10px; margin-top:10px; max-height:220px; overflow:auto;}
+  .small{font-size:12.5px; color:var(--muted);}
+</style>
+</head>
+<body>
+<nav><div class="wrap"><a href="espace.html" class="logo">Yoonou</a><a href="admin-dashboard.html" class="nav-link">← Vue d'ensemble</a></div></nav>
+<div class="wrap">
+  <div id="loadingState" class="loading">Chargement...</div>
+  <div id="content" class="hidden">
+    <h1>🛠️ Maintenance</h1>
+    <p class="subtitle">Surveille l'espace utilisé, nettoie les vieilles photos et télécharge une sauvegarde de tes données.</p>
+
+    <!-- 1. Espace utilisé -->
+    <div class="card">
+      <h2>📊 Espace utilisé (plan gratuit)</h2>
+      <p>Les limites du plan gratuit de Supabase : 500 Mo pour la base de données et 1 Go pour les photos. Si une barre devient orange, fais le nettoyage ci-dessous ; si elle devient rouge, passe au plan Pro.</p>
+      <div id="gauges"><span class="small">Chargement…</span></div>
+      <div id="usageTable"></div>
+      <div class="note">Le <b>transfert de données</b> (5 Go par mois sur le plan gratuit) ne peut pas s'afficher ici : regarde la page d'utilisation (Usage) de ton projet sur Supabase une fois par semaine.</div>
+      <div class="row"><button class="btn alt" id="refreshUsage">↻ Actualiser</button></div>
+    </div>
+
+    <!-- 2. Nettoyage des photos -->
+    <div class="card">
+      <h2>🧹 Nettoyer les vieilles photos de courses</h2>
+      <p>Supprime les photos de <b>marchandise</b> et les <b>preuves de collecte et de livraison</b> plus anciennes que le nombre de jours choisi. Les documents des chauffeurs (pièces d'identité, permis) et les photos de véhicules ne sont <b>jamais</b> touchés.</p>
+      <div class="row">
+        <label for="days">Garder les photos pendant</label>
+        <input type="number" id="days" min="3" max="365" value="7"> <span>jours</span>
+        <button class="btn alt" id="previewPurge">Voir ce qui sera supprimé</button>
+      </div>
+      <div id="purgeInfo" class="small"></div>
+      <div class="row"><button class="btn danger hidden" id="runPurge">🗑️ Supprimer maintenant</button></div>
+      <div id="purgeLog" class="log hidden"></div>
+      <div class="small" id="lastPurge"></div>
+    </div>
+
+    <!-- 3. Sauvegarde -->
+    <div class="card">
+      <h2>💾 Sauvegarde de tes données</h2>
+      <p>Le plan gratuit n'a pas de sauvegarde automatique. Télécharge un fichier ZIP de tes tables (comptes, commandes, commissions, zones…) <b>une fois par semaine</b> et garde-le dans un endroit sûr.</p>
+      <div class="row"><button class="btn" id="runBackup">⬇️ Télécharger la sauvegarde des données</button></div>
+      <div id="backupLog" class="log hidden"></div>
+      <div class="small" id="lastBackup"></div>
+
+      <h3 style="margin-top:22px; font-size:15px;">📁 Documents des chauffeurs</h3>
+      <p>Pièces d'identité, permis, cartes grises. Le téléchargement se fait par lots de 20 chauffeurs, pour que ton navigateur ne manque pas de mémoire. À faire une fois par mois.</p>
+      <div class="row">
+        <select id="docLot"><option>Chargement…</option></select>
+        <button class="btn alt" id="runDocs" disabled>⬇️ Télécharger ce lot</button>
+      </div>
+      <div id="docsLog" class="log hidden"></div>
+
+      <div class="note">🔒 Ces fichiers contiennent des <b>données personnelles sensibles</b> (identités, téléphones, adresses). Garde-les sur ton ordinateur, ne les envoie à personne et ne les mets pas sur un service en ligne public. Les téléchargements de documents sont enregistrés dans le journal d'accès.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fifzavvciqvdollbqigx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpZnphdnZjaXF2ZG9sbGJxaWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MzMwNDgsImV4cCI6MjEwMjIwOTA0OH0.-Uj4_dULEPY4AfswEuUiC-4IOTOPOZd9j7JZD7pSTmY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const $ = id => document.getElementById(id);
+  const escapeHtml = s => { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; };
+
+  const LIMITE_BASE = 500 * 1024 * 1024;        // plan gratuit : 500 Mo
+  const LIMITE_STOCKAGE = 1024 * 1024 * 1024;   // plan gratuit : 1 Go
+  const mo = o => (Number(o) / 1048576);
+  const fmtMo = o => mo(o).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' Mo';
+  const fmtDT = v => v ? new Date(v).toLocaleString('fr-FR') : '—';
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const log = (id, line, reset) => { const el = $(id); el.classList.remove('hidden'); el.textContent = reset ? line : el.textContent + '\n' + line; el.scrollTop = el.scrollHeight; };
+
+  /* ---------- 1. Espace utilisé ---------- */
+  function gauge(titre, utilise, limite){
+    const pct = Math.min(100, Math.round(utilise / limite * 100));
+    const cls = pct >= 90 ? 'bad' : pct >= 70 ? 'warn' : '';
+    return `<div class="gauge"><div class="top"><span>${escapeHtml(titre)}</span><span>${fmtMo(utilise)} sur ${fmtMo(limite)} (${pct} %)</span></div>
+      <div class="bar"><div class="fill ${cls}" style="width:${Math.max(pct, 1)}%"></div></div></div>`;
+  }
+
+  async function loadUsage(){
+    const { data, error } = await sb.rpc('usage_supabase');
+    if (error || !data) {
+      $('gauges').innerHTML = `<span class="bad">Impossible de lire l'espace utilisé.</span> <span class="small">${escapeHtml(error ? error.message : '')} — as-tu lancé le script maintenance.sql dans Supabase ?</span>`;
+      return;
+    }
+    const stock = (data.stockage || []);
+    const totalStock = stock.reduce((a, b) => a + Number(b.octets || 0), 0);
+    $('gauges').innerHTML = gauge('Base de données', data.base_octets, LIMITE_BASE) + gauge('Photos et documents', totalStock, LIMITE_STOCKAGE);
+    const lignes = stock.slice().sort((a, b) => b.octets - a.octets)
+      .map(s => `<tr><td>${escapeHtml(s.bucket)}</td><td class="num">${s.fichiers}</td><td class="num">${fmtMo(s.octets)}</td></tr>`).join('');
+    $('usageTable').innerHTML = `
+      <table><tr><th>Dossier de photos</th><th class="num">Fichiers</th><th class="num">Taille</th></tr>${lignes || '<tr><td colspan="3">Aucun fichier</td></tr>'}</table>
+      <table style="margin-top:14px;">
+        <tr><td>Chauffeurs inscrits</td><td class="num">${data.chauffeurs}</td></tr>
+        <tr><td>Clients inscrits</td><td class="num">${data.clients}</td></tr>
+        <tr><td>Commandes (total)</td><td class="num">${data.commandes}</td></tr>
+        <tr><td>Commandes (30 derniers jours)</td><td class="num">${data.commandes_30j}</td></tr>
+        <tr><td>Positions GPS enregistrées</td><td class="num">${data.positions}</td></tr>
+        <tr><td>Journal des tâches automatiques</td><td class="num">${fmtMo(data.journal_cron_octets)}</td></tr>
+      </table>`;
+  }
+
+  /* ---------- 2. Nettoyage des photos ---------- */
+  function days(){ return Math.min(365, Math.max(3, parseInt($('days').value, 10) || 7)); }
+
+  async function previewPurge(){
+    $('purgeInfo').textContent = 'Calcul…'; $('runPurge').classList.add('hidden');
+    const { data, error } = await sb.rpc('photos_a_purger_resume', { p_jours: days() });
+    if (error) { $('purgeInfo').innerHTML = `<span class="bad">Erreur : ${escapeHtml(error.message)}</span> — as-tu lancé maintenance.sql ?`; return; }
+    if (!data.fichiers) { $('purgeInfo').innerHTML = `<span class="ok">Rien à supprimer : aucune photo de course n'a plus de ${days()} jours.</span>`; return; }
+    $('purgeInfo').innerHTML = `<b>${data.fichiers}</b> photos de plus de ${days()} jours seraient supprimées, ce qui libère <b>${fmtMo(data.octets)}</b>.`;
+    $('runPurge').classList.remove('hidden');
+  }
+
+  async function runPurge(){
+    if (!confirm(`Supprimer définitivement les photos de courses de plus de ${days()} jours ?\n\nCette action est irréversible.`)) return;
+    $('runPurge').disabled = true; $('previewPurge').disabled = true;
+    log('purgeLog', 'Début du nettoyage…', true);
+    let supprimes = 0, libere = 0;
+    try {
+      for (let tour = 0; tour < 100; tour++) {
+        const { data, error } = await sb.rpc('photos_a_purger', { p_jours: days(), p_limite: 200 });
+        if (error) throw new Error(error.message);
+        if (!data || !data.length) break;
+        const parBucket = {};
+        data.forEach(f => { (parBucket[f.bucket] = parBucket[f.bucket] || []).push(f); });
+        let tourSupprimes = 0;
+        for (const bucket of Object.keys(parBucket)) {
+          const noms = parBucket[bucket].map(f => f.nom);
+          const rep = await sb.storage.from(bucket).remove(noms);
+          if (rep.error) throw new Error(rep.error.message);
+          const ok = (rep.data || []).length;
+          tourSupprimes += ok; supprimes += ok;
+          libere += parBucket[bucket].slice(0, ok).reduce((a, f) => a + Number(f.octets || 0), 0);
+        }
+        log('purgeLog', `… ${supprimes} photos supprimées (${fmtMo(libere)})`);
+        if (tourSupprimes === 0) throw new Error("Suppression refusée par Supabase : la règle de suppression est absente (lance le script maintenance.sql).");
+        await wait(200);
+      }
+      log('purgeLog', `✅ Terminé : ${supprimes} photos supprimées, ${fmtMo(libere)} libérés.`);
+      try { localStorage.setItem('yoonou_dernier_nettoyage', new Date().toISOString()); } catch (e) {}
+    } catch (e) {
+      log('purgeLog', '❌ ' + e.message);
+    }
+    $('runPurge').disabled = false; $('previewPurge').disabled = false; $('runPurge').classList.add('hidden');
+    showLast(); loadUsage();
+  }
+
+  /* ---------- 3. Sauvegarde ---------- */
+  async function fetchAllRows(table, total, onProgress){
+    let rows = [];
+    for (let offset = 0; offset < total; offset += 500) {
+      const { data, error } = await sb.rpc('sauvegarde_table', { p_table: table, p_offset: offset, p_limit: 500 });
+      if (error) throw new Error(`${table} : ${error.message}`);
+      rows = rows.concat(data || []);
+      if (onProgress) onProgress(rows.length);
+    }
+    return rows;
+  }
+
+  function telecharger(blob, nom){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nom;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }
+
+  async function runBackup(){
+    if (typeof JSZip === 'undefined') { alert("La bibliothèque ZIP ne s'est pas chargée. Vérifie ta connexion internet et recharge la page."); return; }
+    $('runBackup').disabled = true;
+    log('backupLog', 'Lecture de la liste des tables…', true);
+    try {
+      const { data: tables, error } = await sb.rpc('sauvegarde_tables');
+      if (error) throw new Error(error.message + ' — as-tu lancé maintenance.sql ?');
+      const zip = new JSZip();
+      const meta = { date: new Date().toISOString(), tables: {} };
+      const ecarts = [];
+      for (const t of tables) {
+        const rows = await fetchAllRows(t.table, t.lignes);
+        zip.file(`${t.table}.json`, JSON.stringify(rows, null, 1));
+        meta.tables[t.table] = { attendu: Number(t.lignes), exporte: rows.length };
+        const ok = rows.length === Number(t.lignes);
+        if (!ok) ecarts.push(t.table);
+        log('backupLog', `${ok ? '✅' : '⚠️'} ${t.table} : ${rows.length} lignes (attendu ${t.lignes})`);
+      }
+      zip.file('LISEZ-MOI.txt', `Sauvegarde Yoonou du ${new Date().toLocaleString('fr-FR')}\n\nChaque fichier .json contient une table de la base de données.\nCe fichier contient des données personnelles sensibles : garde-le en lieu sûr.\n`);
+      zip.file('resume.json', JSON.stringify(meta, null, 1));
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      const nom = `yoonou-sauvegarde-${new Date().toISOString().slice(0, 10)}.zip`;
+      telecharger(blob, nom);
+      log('backupLog', ecarts.length ? `⚠️ Fichier téléchargé (${nom}) mais ces tables sont incomplètes : ${ecarts.join(', ')}` : `✅ Sauvegarde complète téléchargée : ${nom} (${(blob.size / 1048576).toFixed(1)} Mo)`);
+      if (!ecarts.length) { try { localStorage.setItem('yoonou_derniere_sauvegarde', new Date().toISOString()); } catch (e) {} }
+    } catch (e) {
+      log('backupLog', '❌ ' + e.message);
+    }
+    $('runBackup').disabled = false; showLast();
+  }
+
+  /* Documents des chauffeurs, par lots de 20 */
+  let docsParChauffeur = new Map();   // transporteur_id -> [lignes driver_documents]
+  let chauffeurs = [];                // ids triés
+  let profilsParId = new Map();
+  const LOT = 20;
+
+  async function prepareDocs(){
+    try {
+      const { data: tables } = await sb.rpc('sauvegarde_tables');
+      const nb = t => Number((tables.find(x => x.table === t) || {}).lignes || 0);
+      const docs = await fetchAllRows('driver_documents', nb('driver_documents'));
+      const profils = await fetchAllRows('profiles', nb('profiles'));
+      profilsParId = new Map(profils.map(p => [p.id, p]));
+      docsParChauffeur = new Map();
+      docs.forEach(d => { if (!docsParChauffeur.has(d.transporteur_id)) docsParChauffeur.set(d.transporteur_id, []); docsParChauffeur.get(d.transporteur_id).push(d); });
+      chauffeurs = [...docsParChauffeur.keys()].sort();
+      const nbLots = Math.max(1, Math.ceil(chauffeurs.length / LOT));
+      $('docLot').innerHTML = chauffeurs.length
+        ? Array.from({ length: nbLots }, (_, i) => `<option value="${i}">Lot ${i + 1} — chauffeurs ${i * LOT + 1} à ${Math.min((i + 1) * LOT, chauffeurs.length)}</option>`).join('')
+        : '<option>Aucun document</option>';
+      $('runDocs').disabled = chauffeurs.length === 0;
+    } catch (e) {
+      $('docLot').innerHTML = '<option>Indisponible</option>';
+      log('docsLog', '❌ ' + e.message, true);
+    }
+  }
+
+  function cheminDansBucket(url, bucket){
+    const marker = `/object/public/${bucket}/`;
+    const i = String(url).indexOf(marker);
+    return i === -1 ? String(url) : String(url).substring(i + marker.length);
+  }
+  const nomSur = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'x';
+
+  async function runDocs(){
+    if (typeof JSZip === 'undefined') { alert("La bibliothèque ZIP ne s'est pas chargée. Recharge la page."); return; }
+    const lot = parseInt($('docLot').value, 10) || 0;
+    const ids = chauffeurs.slice(lot * LOT, (lot + 1) * LOT);
+    $('runDocs').disabled = true;
+    log('docsLog', `Lot ${lot + 1} : ${ids.length} chauffeurs…`, true);
+    const zip = new JSZip();
+    let fichiers = 0, erreurs = 0;
+    for (const id of ids) {
+      const p = profilsParId.get(id) || {};
+      const dossier = `${nomSur((p.prenom || '') + '_' + (p.nom || ''))}_${String(id).slice(0, 8)}`;
+      for (const d of (docsParChauffeur.get(id) || [])) {
+        const urls = [['', d.url_fichier], ['_verso', d.url_fichier_verso]].filter(x => x[1]);
+        for (const [suffixe, url] of urls) {
+          try {
+            const chemin = cheminDansBucket(url, 'kyc-documents');
+            const { data, error } = await sb.storage.from('kyc-documents').createSignedUrl(chemin, 120);
+            if (error) throw error;
+            const rep = await fetch(data.signedUrl);
+            if (!rep.ok) throw new Error('HTTP ' + rep.status);
+            const ext = (chemin.match(/\.[a-zA-Z0-9]{2,4}$/) || ['.jpg'])[0];
+            zip.file(`${dossier}/${nomSur(d.type_document)}${suffixe}${ext}`, await rep.blob());
+            fichiers++;
+          } catch (e) { erreurs++; log('docsLog', `⚠️ ${dossier} / ${d.type_document} : ${e.message}`); }
+        }
+      }
+      try { await sb.rpc('journaliser_acces_admin', { p_user_id: id, p_action: 'DOCUMENT' }); } catch (e) { /* journal facultatif ici */ }
+      log('docsLog', `✅ ${dossier}`);
+    }
+    try {
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+      telecharger(blob, `yoonou-documents-lot-${lot + 1}-${new Date().toISOString().slice(0, 10)}.zip`);
+      log('docsLog', `✅ Terminé : ${fichiers} fichiers (${(blob.size / 1048576).toFixed(1)} Mo)${erreurs ? ', ' + erreurs + ' en erreur' : ''}.`);
+    } catch (e) { log('docsLog', '❌ ' + e.message); }
+    $('runDocs').disabled = false;
+  }
+
+  function showLast(){
+    let p = null, s = null;
+    try { p = localStorage.getItem('yoonou_dernier_nettoyage'); s = localStorage.getItem('yoonou_derniere_sauvegarde'); } catch (e) {}
+    $('lastPurge').textContent = p ? 'Dernier nettoyage : ' + fmtDT(p) : 'Aucun nettoyage fait depuis cet appareil.';
+    const jours = s ? Math.floor((Date.now() - new Date(s).getTime()) / 86400000) : null;
+    $('lastBackup').innerHTML = s
+      ? `Dernière sauvegarde : ${fmtDT(s)} ` + (jours >= 7 ? `<span class="bad">(il y a ${jours} jours : refais-en une)</span>` : '<span class="ok">(à jour)</span>')
+      : '<span class="bad">Aucune sauvegarde faite depuis cet appareil.</span>';
+  }
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+    if (!profile || profile.role !== 'admin') { window.location.href = 'espace.html'; return; }
+    $('loadingState').classList.add('hidden'); $('content').classList.remove('hidden');
+    $('refreshUsage').addEventListener('click', loadUsage);
+    $('previewPurge').addEventListener('click', previewPurge);
+    $('runPurge').addEventListener('click', runPurge);
+    $('runBackup').addEventListener('click', runBackup);
+    $('runDocs').addEventListener('click', runDocs);
+    showLast(); loadUsage(); prepareDocs();
+  }
+  init();
+</script>
+</body>
+</html>

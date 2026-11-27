@@ -277,7 +277,23 @@
   let currentProfile = null;
   let myVehicleTypes = [];
   let vehicleTypeLabels = {};
-  let refreshInterval = null;
+  let refreshInterval = null;      // (conservé pour la fermeture de la page)
+  let refreshTimer = null;
+  let ongoingCount = 0;            // nombre de courses en cours, mis à jour à chaque actualisation
+
+  // Actualisation économe (le plan gratuit Supabase limite le transfert de données) :
+  //  - 20 s quand le chauffeur a une course en cours, 90 s sinon (les notifications le préviennent d'une nouvelle course, et le bouton « Actualiser » existe)
+  //  - aucune requête quand la page est cachée (téléphone verrouillé, autre application) ; elle repart au retour
+  function scheduleRefresh(){
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(async () => {
+      if (!document.hidden) { try { await refreshAll(); } catch (e) { console.warn('Actualisation :', e && e.message); } }
+      scheduleRefresh();
+    }, ongoingCount > 0 ? 20000 : 90000);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && refreshTimer) { refreshAll().catch(() => {}); scheduleRefresh(); }
+  });
   let gpsInterval = null;
   let pendingCancelOrderId = null;
 
@@ -341,7 +357,7 @@
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('content').classList.remove('hidden');
 
-    refreshInterval = setInterval(refreshAll, 20000); // actualisation auto toutes les 20s
+    scheduleRefresh();   // actualisation auto : 20 s avec une course, 90 s sans, rien si la page est cachée
 
     // GPS adaptatif : rien si hors ligne, 1 position/min si en ligne sans course,
     // 1 position/30s si en ligne avec une course active. Même logique que espace.html.
@@ -652,6 +668,7 @@
     if (error) { console.error(error); return; }
 
     countEl.textContent = (data || []).length;
+    ongoingCount = (data || []).length;
     syncKeepAlive(data || []);
 
     if (!data || data.length === 0) {
@@ -1133,6 +1150,7 @@
 
   window.addEventListener('beforeunload', () => {
     if (refreshInterval) clearInterval(refreshInterval);
+    clearTimeout(refreshTimer);
     if (gpsInterval) clearInterval(gpsInterval);
   });
 

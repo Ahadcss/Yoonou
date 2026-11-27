@@ -71,8 +71,20 @@
   .success-card p{color:rgba(255,255,255,0.85); font-size:14px;}
   .big-check{font-size:44px; margin-bottom:10px;}
 
-  .skip-link{display:block; text-align:center; margin-top:22px; font-size:13px; color:var(--muted); text-decoration:none;}
-  .skip-link:hover{color:var(--teal);}
+  .skip-link{
+    display:flex; align-items:center; justify-content:center; width:100%; min-height:52px;
+    margin-top:22px; padding:14px 20px; border-radius:10px;
+    font-family:'Space Grotesk'; font-weight:700; font-size:15px; text-align:center; text-decoration:none;
+    color:var(--indigo-deep); background:#fff; border:2px solid var(--indigo-deep);
+    box-shadow:0 3px 0 var(--indigo-deep); cursor:pointer;
+    transition:transform .1s, box-shadow .1s, background .15s, color .15s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .skip-link:hover{background:var(--indigo-deep); color:#fff;}
+  .skip-link:active{transform:translateY(3px); box-shadow:0 0 0 var(--indigo-deep);}
+  .skip-link.primary{background:var(--laterite); border-color:var(--laterite); color:#fff; box-shadow:0 3px 0 #8f3a20;}
+  .skip-link.primary:hover{background:var(--laterite-bright); border-color:var(--laterite-bright);}
+  .skip-link.primary:active{box-shadow:0 0 0 #8f3a20;}
 </style>
 <script src="traduction-en.js"></script>
 <script src="traduction.js"></script>
@@ -122,7 +134,7 @@
       <h2>Numéro vérifié !</h2>
       <p>Ton compte Yoonou est maintenant confirmé.</p>
     </div>
-    <a href="espace.html" class="skip-link" style="margin-top:24px;">Aller à mon espace →</a>
+    <a href="espace.html" class="skip-link primary" style="margin-top:24px;">Aller à mon espace →</a>
   </div>
 </div>
 

@@ -1277,6 +1277,7 @@
           try {
             const { data: up, error: upErr } = await sb.storage.from('cargo-photos').upload(path, file);
             if (upErr) throw upErr;
+            await yoonouUploadThumb(sb, 'cargo-photos', up.path, file);   // miniature pour les listes
             const { data: pub } = sb.storage.from('cargo-photos').getPublicUrl(up.path);
             if (pub?.publicUrl) urls.push(pub.publicUrl);
           } catch (uploadErr) {
