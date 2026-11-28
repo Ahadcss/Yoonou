@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Yoonou</title>
+<script src="app-config.js"></script>
+<style>
+  :root{ --indigo:#16213E; --sand:#F3E9D2; --laterite:#C1502E; --laterite-bright:#E0623C; --muted:#B9B2A0; }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    background:var(--indigo); color:var(--sand);
+    font-family:-apple-system,'Work Sans','Segoe UI',Roboto,sans-serif;
+    display:flex; flex-direction:column;
+    padding:env(safe-area-inset-top) 24px calc(env(safe-area-inset-bottom) + 20px);
+  }
+  .step{display:none; flex:1; flex-direction:column;}
+  .step.active{display:flex;}
+  .center{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:22px;}
+  .center svg{width:110px; height:110px;}
+  h1{
+    font-family:'Space Grotesk',-apple-system,'Segoe UI',sans-serif; font-weight:800;
+    font-size:30px; line-height:1.1; text-transform:uppercase; letter-spacing:.2px; max-width:340px;
+  }
+  p{font-size:16px; line-height:1.5; color:var(--muted); max-width:330px;}
+  .actions{display:flex; flex-direction:column; gap:10px;}
+  .btn{
+    width:100%; min-height:58px; border:0; border-radius:100px; cursor:pointer;
+    background:var(--laterite-bright); color:#fff; font-size:17px; font-weight:700;
+    font-family:'Space Grotesk',-apple-system,sans-serif;
+    transition:transform .1s, background .15s;
+  }
+  .btn:active{transform:scale(.98); background:var(--laterite);}
+  .later{
+    background:none; border:0; color:var(--muted); font-size:15px; font-weight:600;
+    min-height:48px; cursor:pointer; font-family:inherit;
+  }
+  .dots{display:flex; gap:8px; justify-content:center; padding:14px 0 6px;}
+  .dots i{width:8px; height:8px; border-radius:50%; background:rgba(243,233,210,.25);}
+  .dots i.on{background:var(--laterite-bright);}
+</style>
+</head>
+<body>
+
+<div class="dots"><i id="d1" class="on"></i><i id="d2"></i></div>
+
+<!-- Étape 1 : position -->
+<section class="step active" id="s1">
+  <div class="center">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <path d="M60 8C39 8 24 24 24 44c0 27 36 66 36 66s36-39 36-66C96 24 81 8 60 8z" fill="#E0623C"/>
+      <circle cx="60" cy="44" r="14" fill="#16213E"/>
+    </svg>
+    <h1 id="t1"></h1>
+    <p id="p1"></p>
+  </div>
+  <div class="actions">
+    <button class="btn" id="b1"></button>
+    <button class="later" id="l1"></button>
+  </div>
+</section>
+
+<!-- Étape 2 : notifications -->
+<section class="step" id="s2">
+  <div class="center">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <path d="M60 12c-18 0-30 14-30 32v18l-10 16h80L90 62V44c0-18-12-32-30-32z" fill="#E0623C"/>
+      <path d="M48 98a12 12 0 0 0 24 0z" fill="#E0623C"/>
+      <circle cx="88" cy="26" r="10" fill="#F3E9D2"/>
+    </svg>
+    <h1 id="t2"></h1>
+    <p id="p2"></p>
+  </div>
+  <div class="actions">
+    <button class="btn" id="b2"></button>
+    <button class="later" id="l2"></button>
+  </div>
+</section>
+
+<script>
+(function(){
+  const APP = window.YOONOU_APP || 'client';          // 'client' ou 'pro'
+  const lang = (localStorage.getItem('yoonou_lang') || 'fr') === 'en' ? 'en' : 'fr';
+  const DONE_KEY = 'yoonou_onboarding_done';
+
+  const T = {
+    fr: {
+      later: 'Plus tard',
+      validate: 'Valider',
+      allow: 'Autoriser',
+      loc_title_client: "Autorisez la position précise",
+      loc_text_client: "Nous l'utilisons pour proposer votre adresse de départ et trouver des chauffeurs à proximité.",
+      loc_title_pro: "Autorisez la position, même en arrière-plan",
+      loc_text_pro: "Elle permet aux clients de vous trouver et de suivre la livraison, seulement quand vous êtes en ligne ou en course.",
+      notif_title: "Autorisez les notifications",
+      notif_text_client: "Soyez prévenu quand un chauffeur accepte votre demande, quand il est en route ou qu'il arrive, et si quelque chose change sur votre livraison.",
+      notif_text_pro: "Vous serez prévenu dès qu'une nouvelle demande arrive près de vous, même quand l'application est fermée. Sans elles, vous risquez de rater des courses."
+    },
+    en: {
+      later: 'Later',
+      validate: 'Continue',
+      allow: 'Allow',
+      loc_title_client: "Allow precise location",
+      loc_text_client: "We use it to suggest your pickup address and find drivers nearby.",
+      loc_title_pro: "Allow location, even in the background",
+      loc_text_pro: "It lets customers find you and follow the delivery, only while you are online or on a job.",
+      notif_title: "Allow notifications",
+      notif_text_client: "Get notified when a driver accepts your request, when they are on the way or arriving, and if anything changes with your delivery.",
+      notif_text_pro: "You will be notified as soon as a new request comes in near you, even when the app is closed. Without them, you may miss jobs."
+    }
+  }[lang];
+
+  const pro = APP === 'pro';
+  const $ = id => document.getElementById(id);
+
+  // Destination finale : connexion / inscription
+  function goAuth(){
+    localStorage.setItem(DONE_KEY, '1');
+    const role = pro ? 'transporteur' : 'client';
+    location.replace('auth.html?mode=signup&role=' + role + '&app=1');
+  }
+
+  // Déjà passé par les écrans, ou déjà connecté : on ne les montre plus
+  function hasSession(){
+    try{
+      for (let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) return true;
+      }
+    }catch(e){}
+    return false;
+  }
+  if (hasSession()){ location.replace('espace.html'); return; }
+  if (localStorage.getItem(DONE_KEY) === '1'){
+    location.replace('auth.html?role=' + (pro ? 'transporteur' : 'client') + '&app=1');
+    return;
+  }
+
+  // Textes
+  $('t1').textContent = pro ? T.loc_title_pro : T.loc_title_client;
+  $('p1').textContent = pro ? T.loc_text_pro : T.loc_text_client;
+  $('b1').textContent = T.validate;
+  $('l1').textContent = T.later;
+  $('t2').textContent = T.notif_title;
+  $('p2').textContent = pro ? T.notif_text_pro : T.notif_text_client;
+  $('b2').textContent = T.allow;
+  $('l2').textContent = T.later;
+
+  function show(n){
+    $('s1').classList.toggle('active', n === 1);
+    $('s2').classList.toggle('active', n === 2);
+    $('d1').classList.toggle('on', n === 1);
+    $('d2').classList.toggle('on', n === 2);
+  }
+  const plugin = name => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins[name]) || null;
+
+  // Étape 1 : la fenêtre d'Apple s'ouvre ici. Quel que soit le choix, on continue.
+  $('b1').addEventListener('click', async () => {
+    try{ const g = plugin('Geolocation'); if (g) await g.requestPermissions(); }catch(e){}
+    show(2);
+  });
+  $('l1').addEventListener('click', () => show(2));
+
+  // Étape 2
+  $('b2').addEventListener('click', async () => {
+    try{ const n = plugin('PushNotifications'); if (n) await n.requestPermissions(); }catch(e){}
+    goAuth();
+  });
+  $('l2').addEventListener('click', goAuth);
+})();
+</script>
+</body>
+</html>

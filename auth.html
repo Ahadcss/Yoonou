@@ -154,6 +154,21 @@
     });
   });
 
+  // Application mobile : arrivée depuis les écrans de démarrage (?mode=signup&role=client|transporteur)
+  (function(){
+    const q = new URLSearchParams(location.search);
+    if (q.get('mode') === 'signup') tabSignup.click();
+    const r = q.get('role');
+    if (r === 'client' || r === 'transporteur') {
+      document.querySelectorAll('.role-opt').forEach(o => {
+        const match = o.dataset.role === r;
+        o.classList.toggle('selected', match);
+        if (q.get('app') === '1') o.style.display = match ? '' : 'none';
+      });
+      selectedRole = r;
+    }
+  })();
+
   function showMsg(el, text, type){
     el.textContent = text;
     el.className = 'msg ' + type;
